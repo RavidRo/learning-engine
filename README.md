@@ -1,6 +1,6 @@
-# Learning Engine Starter
+# Learning Engine
 
-A tiny local-first starter project for Ravid's custom learning engine.
+A local-first project for Ravid's custom learning engine.
 
 The first goal is intentionally small: maintain a personal list of technology interests that Hermes can later read and use to prepare an evening briefing.
 
@@ -67,7 +67,7 @@ The interests file may eventually reveal personal interests, professional priori
 Ask Hermes:
 
 ```text
-Read my Learning Engine interests from ~/projects/learning-engine-starter/data/interests.json and prepare an evening briefing.
+Read my Learning Engine interests from ~/projects/learning-engine/data/interests.json and prepare an evening briefing.
 ```
 
 For now, Hermes will use the technology interests as context. Later versions can add more interest types such as people, newsletters, blogs, podcasts, and companies.
@@ -95,7 +95,7 @@ Use watch keywords for signal such as `release`, `beta`, `rc`, `compiler`, and `
 ## Project structure
 
 ```text
-learning-engine-starter/
+learning-engine/
 ├── pyproject.toml         # uv project config, dependencies, ruff, mypy, pytest
 ├── server.py              # compatibility entrypoint for the FastAPI app
 ├── learning_engine/       # typed FastAPI backend package

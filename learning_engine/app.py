@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
         yield
 
     api = FastAPI(
-        title="Learning Engine Starter",
+        title="Learning Engine",
         summary="Local-first API for personal interests and daily briefing source collection.",
         version="0.3.0",
         lifespan=lifespan,
