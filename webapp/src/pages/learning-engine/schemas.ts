@@ -1,40 +1,59 @@
 import { z } from "zod";
 
 const prioritySchema = z.enum(["high", "medium", "low"]).catch("medium");
+const sourceTypeSchema = z.enum(["feed", "page"]);
 
-const interestSchema = z.object({
+const sourceSchema = z.object({
   deletedAt: z.string().nullable().optional(),
   enabled: z.boolean().catch(true),
   id: z
     .string()
-    .nullable()
+    .nullish()
     .transform((id) => id ?? crypto.randomUUID()),
-  ignore_keywords: z.array(z.string()).catch([]),
-  name: z.string().catch("Technology"),
-  notes: z.string().nullable().catch(null),
-  official_feed_url: z.string().nullable().catch(null),
-  official_site_url: z.string().nullable().catch(null),
+  label: z.string().catch("Source"),
+  type: sourceTypeSchema,
+  url: z.string(),
+});
+
+const interestSchema = z.object({
+  deletedAt: z.string().nullable().optional(),
+  description: z.string().catch(""),
+  enabled: z.boolean().catch(true),
+  id: z
+    .string()
+    .nullish()
+    .transform((id) => id ?? crypto.randomUUID()),
+  name: z.string().catch("Interest"),
   priority: prioritySchema,
-  type: z.literal("technology").catch("technology"),
-  watch_keywords: z.array(z.string()).catch([]),
+  sources: z.array(sourceSchema).catch([]),
 });
 
 export const interestsPayloadSchema = z.object({
   interests: z.array(interestSchema).catch([]),
 });
 
-const technologyUpdateSchema = z.object({
-  interest_name: z.string().catch("Technology"),
+const updateSchema = z.object({
+  interest_name: z.string().catch("Interest"),
   published: z.string().optional(),
+  source_label: z.string().catch("Source"),
+  source_type: sourceTypeSchema.catch("feed"),
+  source_url: z.string(),
   title: z.string().optional(),
   url: z.string(),
 });
 
-export const technologyUpdatesPayloadSchema = z.object({
+const collectionErrorSchema = z.object({
+  error: z.string(),
+  interest_name: z.string().catch("Interest"),
+  source_label: z.string().catch("Source"),
+  source_url: z.string(),
+});
+
+export const updatesPayloadSchema = z.object({
   error: z.string().optional(),
-  errors: z.array(z.string()).catch([]),
-  interests_checked: z.number().catch(0),
-  updates: z.array(technologyUpdateSchema).catch([]),
+  errors: z.array(collectionErrorSchema).catch([]),
+  sources_checked: z.number().catch(0),
+  updates: z.array(updateSchema).catch([]),
 });
 
 export const saveInterestsResponseSchema = z.object({
@@ -43,6 +62,6 @@ export const saveInterestsResponseSchema = z.object({
 
 export type Interest = z.infer<typeof interestSchema>;
 
-export type TechnologyUpdate = z.infer<typeof technologyUpdateSchema>;
+export type Update = z.infer<typeof updateSchema>;
 
-export type TechnologyUpdatesPayload = z.infer<typeof technologyUpdatesPayloadSchema>;
+export type UpdatesPayload = z.infer<typeof updatesPayloadSchema>;

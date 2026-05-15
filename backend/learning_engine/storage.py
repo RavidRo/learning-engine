@@ -6,19 +6,29 @@ import json
 from pathlib import Path
 
 from learning_engine.config import INTERESTS_FILE
-from learning_engine.models import InterestsPayload, TechnologyInterest
+from learning_engine.models import Interest, InterestSource, InterestsPayload
 
 DEFAULT_DATA = InterestsPayload(
     interests=[
-        TechnologyInterest(
+        Interest(
             id="typescript",
             name="TypeScript",
+            description="Track language/compiler updates and important release announcements.",
             priority="high",
-            official_site_url="https://www.typescriptlang.org/",
-            official_feed_url="https://devblogs.microsoft.com/typescript/feed/",
-            watch_keywords=["release", "beta", "rc", "compiler", "breaking change", "typescript 5"],
-            ignore_keywords=["webinar", "case study"],
-            notes="Notify me about language/compiler updates and important release announcements.",
+            sources=[
+                InterestSource(
+                    id="typescript-official-site",
+                    label="Official site",
+                    type="page",
+                    url="https://www.typescriptlang.org/",
+                ),
+                InterestSource(
+                    id="typescript-dev-blog",
+                    label="TypeScript dev blog",
+                    type="feed",
+                    url="https://devblogs.microsoft.com/typescript/feed/",
+                ),
+            ],
             enabled=True,
         )
     ]
@@ -36,7 +46,7 @@ def read_interests(path: Path = INTERESTS_FILE) -> InterestsPayload:
     payload = json.loads(path.read_text(encoding="utf-8"))
     interests = payload.get("interests", []) if isinstance(payload, dict) else []
     normalized = InterestsPayload(
-        interests=[TechnologyInterest.model_validate(item) for item in interests if isinstance(item, dict)]
+        interests=[Interest.model_validate(item) for item in interests if isinstance(item, dict)]
     )
     if normalized.model_dump(mode="json", by_alias=True) != payload:
         write_interests(normalized, path)

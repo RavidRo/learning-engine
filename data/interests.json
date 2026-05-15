@@ -3,24 +3,28 @@
     {
       "id": "typescript",
       "name": "TypeScript",
-      "type": "technology",
+      "description": "Notify me about language/compiler updates and important release announcements.",
       "priority": "high",
-      "official_site_url": "https://www.typescriptlang.org/",
-      "official_feed_url": "https://devblogs.microsoft.com/typescript/feed/",
-      "watch_keywords": [
-        "release",
-        "beta",
-        "rc",
-        "compiler",
-        "breaking change",
-        "typescript 5"
+      "sources": [
+        {
+          "id": "typescript-site",
+          "label": "Official site",
+          "type": "page",
+          "url": "https://www.typescriptlang.org/",
+          "enabled": true,
+          "deletedAt": null
+        },
+        {
+          "id": "typescript-feed",
+          "label": "Updates feed",
+          "type": "feed",
+          "url": "https://devblogs.microsoft.com/typescript/feed/",
+          "enabled": true,
+          "deletedAt": null
+        }
       ],
-      "ignore_keywords": [
-        "webinar",
-        "case study"
-      ],
-      "notes": "Notify me about language/compiler updates and important release announcements.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     }
   ]
 }

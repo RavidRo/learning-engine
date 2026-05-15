@@ -15,7 +15,7 @@ export const LearningEnginePage = () => {
         <TopNavigation />
         <HeroSection
           enabledInterests={state.enabledInterests}
-          feedsWithUpdates={state.feedsWithUpdates}
+          sourcesTracked={state.sourcesTracked}
           totalInterests={state.interests.length}
         />
 
@@ -26,7 +26,7 @@ export const LearningEnginePage = () => {
             isChecking={state.isChecking}
             isSaving={state.isSaving}
             loadError={state.loadError}
-            onCheckUpdates={actions.checkTechnologyUpdates}
+            onCheckUpdates={actions.checkUpdates}
             onRemoveInterest={actions.removeInterest}
             onSaveInterests={actions.saveInterests}
             onToggleInterest={actions.toggleInterest}
@@ -39,5 +39,5 @@ export const LearningEnginePage = () => {
 
       <Toast message={state.toast.message} visible={state.toast.visible} />
     </>
-  )
+  );
 };

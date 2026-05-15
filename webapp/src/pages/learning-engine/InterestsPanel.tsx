@@ -1,6 +1,6 @@
 import { InterestCard } from "./InterestCard";
-import { TechnologyUpdates } from "./TechnologyUpdates";
-import { type Interest, type TechnologyUpdatesPayload } from "./types";
+import { UpdatesPanel } from "./UpdatesPanel";
+import { type Interest, type UpdatesPayload } from "./types";
 
 type InterestsPanelProps = {
   interests: Interest[];
@@ -11,7 +11,7 @@ type InterestsPanelProps = {
   onRemoveInterest: (id: string) => void;
   onSaveInterests: () => void;
   onToggleInterest: (id: string) => void;
-  updates: TechnologyUpdatesPayload | null;
+  updates: UpdatesPayload | null;
 };
 
 type PanelActionsProps = {
@@ -89,7 +89,7 @@ export const InterestsPanel = ({
     </div>
 
     <LoadError loadError={loadError} />
-    {updates === null ? null : <TechnologyUpdates payload={updates} />}
+    {updates === null ? null : <UpdatesPanel payload={updates} />}
 
     <InterestCards
       interests={interests}

@@ -432,15 +432,16 @@ textarea {
   padding: 8px 10px;
   font-size: 13px;
 }
-.official-links {
+.source-links {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 7px;
 }
-.official-links a {
+.source-links a {
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   min-height: 26px;
   border: 1px solid #ddd6fe;
   border-radius: 999px;
@@ -448,6 +449,11 @@ textarea {
   color: #5e6ad2;
   padding: 4px 8px;
   font-size: 12px;
+  font-weight: 600;
+}
+.source-links span {
+  color: var(--muted);
+  font-size: 11px;
   font-weight: 600;
 }
 

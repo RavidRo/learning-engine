@@ -1,8 +1,9 @@
-import { type Interest, type TechnologyUpdatesPayload } from "./schemas";
+import { type Interest, type UpdatesPayload } from "./schemas";
 
-export type { Interest, TechnologyUpdatesPayload };
+export type { Interest, UpdatesPayload };
 
 export type Priority = "high" | "medium" | "low";
+export type SourceType = "feed" | "page";
 
 export type ToastState = {
   message: string;
@@ -12,16 +13,15 @@ export type ToastState = {
 export type InterestFormValues = {
   name: string;
   priority: Priority;
-  officialSiteUrl: string;
-  officialFeedUrl: string;
-  watchKeywords: string[];
-  ignoreKeywords: string[];
-  notes: string;
+  description: string;
+  sourceLabel: string;
+  sourceType: SourceType;
+  sourceUrl: string;
 };
 
 export type LearningEnginePageActions = {
   addInterest: (form: HTMLFormElement) => void;
-  checkTechnologyUpdates: () => void;
+  checkUpdates: () => void;
   removeInterest: (id: string) => void;
   saveInterests: () => void;
   toggleInterest: (id: string) => void;

@@ -15,9 +15,9 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_technology_updates_rejects_non_positive_days() -> None:
+def test_updates_rejects_non_positive_days() -> None:
     client = TestClient(app)
 
-    response = client.get("/api/technology-updates?days=0")
+    response = client.get("/api/updates?days=0")
 
     assert response.status_code == HTTP_UNPROCESSABLE_ENTITY

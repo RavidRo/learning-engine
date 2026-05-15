@@ -239,14 +239,14 @@ def build_html(payload: dict, output_name: str) -> str:
       <div class="hero-main glass">
         <p class="kicker">Learning Engine Briefing · generated {escape(generated)}</p>
         <h1>Two weeks of signal, distilled.</h1>
-        <p class="lead">The first briefing pulls from official feeds and official-page fallbacks through the local engine server. It covers updates since <strong>{escape(since)}</strong>, then compresses them into themes, decisions, and source-backed reading paths.</p>
+        <p class="lead">The briefing pulls from feed and page sources through the local engine server. It covers updates since <strong>{escape(since)}</strong>, then compresses them into themes, decisions, and source-backed reading paths.</p>
         <div class="chips">{top_topic_markup}</div>
       </div>
       <aside class="hero-side glass">
         <div class="stat-grid">
           <div class="stat"><strong>{len(updates)}</strong><span>matching updates</span></div>
           <div class="stat"><strong>{len(grouped)}</strong><span>active topics</span></div>
-          <div class="stat"><strong>{payload.get("interests_checked", 0)}</strong><span>sources checked</span></div>
+          <div class="stat"><strong>{payload.get("sources_checked", 0)}</strong><span>sources checked</span></div>
           <div class="stat"><strong>{source_counts.get("page", 0)}</strong><span>page-fallback items</span></div>
         </div>
         <div class="note"><strong>Clover read:</strong> the dominant theme is not “new models” in isolation. It is agentic software development becoming operational: Codex workflows, T3 Code as control plane, Clawbolt as self-hostable client, and Hermes as local agent OS.</div>
@@ -269,7 +269,7 @@ def build_html(payload: dict, output_name: str) -> str:
 
     <section class="timeline glass">
       <h2>Latest-source timeline</h2>
-      <p class="summary">A quick path into the raw source trail. Every item links to the official source captured by the engine.</p>
+      <p class="summary">A quick path into the raw source trail. Every item links to the source captured by the engine.</p>
       <ul class="source-list">{timeline}</ul>
     </section>
 
@@ -291,7 +291,7 @@ def main() -> None:
     parser.add_argument("--output", default="")
     args = parser.parse_args()
 
-    payload = fetch_json(f"{args.server.rstrip('/')}/api/technology-updates?days={args.days}")
+    payload = fetch_json(f"{args.server.rstrip('/')}/api/updates?days={args.days}")
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     output_name = args.output or f"briefing-{stamp}-last-{args.days}-days.html"
     BRIEFINGS_DIR.mkdir(exist_ok=True)

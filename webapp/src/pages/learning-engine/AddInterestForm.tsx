@@ -14,21 +14,15 @@ export const AddInterestForm = ({ onAddInterest }: AddInterestFormProps) => {
     <aside id="add" className="panel add-panel">
       <div className="panel-header">
         <p className="section-label">Quick add</p>
-        <h2>Add a technology</h2>
+        <h2>Add an interest</h2>
       </div>
 
       <form className="form-grid" onSubmit={handleSubmit}>
         <label>
           Name
-          <input name="name" placeholder="Distributed Systems" required />
+          <input name="name" placeholder="TypeScript" required />
         </label>
         <div className="split-fields">
-          <label>
-            Type
-            <select name="type" defaultValue="technology" disabled>
-              <option value="technology">technology</option>
-            </select>
-          </label>
           <label>
             Priority
             <select name="priority" defaultValue="medium">
@@ -39,30 +33,34 @@ export const AddInterestForm = ({ onAddInterest }: AddInterestFormProps) => {
           </label>
         </div>
         <label>
-          Official website URL
-          <input name="officialSiteUrl" type="url" placeholder="https://www.typescriptlang.org/" />
-        </label>
-        <label>
-          Official updates/feed URL
-          <input
-            name="officialFeedUrl"
-            type="url"
-            placeholder="https://devblogs.microsoft.com/typescript/feed/"
+          Description
+          <textarea
+            name="description"
+            placeholder="What information about this topic belongs in briefings?"
+            required
           />
         </label>
         <div className="split-fields">
           <label>
-            Watch keywords
-            <input name="watchKeywords" placeholder="release, beta, compiler" />
+            Source label
+            <input name="sourceLabel" placeholder="Official dev blog" required />
           </label>
           <label>
-            Ignore keywords
-            <input name="ignoreKeywords" placeholder="webinar, case study" />
+            Source type
+            <select name="sourceType" defaultValue="feed">
+              <option value="feed">feed</option>
+              <option value="page">page</option>
+            </select>
           </label>
         </div>
         <label>
-          Notes
-          <textarea name="notes" placeholder="What should count as useful signal?" />
+          Source URL
+          <input
+            name="sourceUrl"
+            type="url"
+            placeholder="https://devblogs.microsoft.com/typescript/feed/"
+            required
+          />
         </label>
         <button className="button primary" type="submit">
           Save interest

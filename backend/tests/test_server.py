@@ -1,57 +1,65 @@
 from datetime import UTC, datetime
 from unittest.mock import patch
 
+import pytest
+from pydantic import ValidationError
+
 import server
 
 RECENT_DAYS = 14
 
 
-def test_normalize_technology_interest_keeps_official_source_fields() -> None:
+def test_normalize_interest_keeps_general_topic_and_sources() -> None:
     interest = server.normalize_interest(
         {
             "id": "typescript",
             "name": "TypeScript",
-            "type": "technology",
+            "description": "Language/compiler updates only.",
             "priority": "high",
-            "sources": ["should", "not", "persist"],
-            "official_site_url": "https://www.typescriptlang.org/",
-            "official_feed_url": "https://devblogs.microsoft.com/typescript/feed/",
-            "watch_keywords": ["release", "beta"],
-            "ignore_keywords": ["webinar"],
-            "notes": "Language/compiler updates only.",
+            "sources": [
+                {
+                    "id": "typescript-dev-blog",
+                    "label": "TypeScript dev blog",
+                    "type": "feed",
+                    "url": "https://devblogs.microsoft.com/typescript/feed/",
+                    "enabled": True,
+                    "deletedAt": "2026-05-15T10:00:00.000Z",
+                }
+            ],
             "enabled": True,
-            "deletedAt": "2026-05-15T10:00:00.000Z",
         }
     )
 
-    assert interest["type"] == "technology"
-    assert interest["official_site_url"] == "https://www.typescriptlang.org/"
-    assert interest["official_feed_url"] == "https://devblogs.microsoft.com/typescript/feed/"
-    assert interest["watch_keywords"] == ["release", "beta"]
-    assert interest["ignore_keywords"] == ["webinar"]
-    assert interest["deletedAt"] == "2026-05-15T10:00:00.000Z"
-    assert "sources" not in interest
+    assert interest["name"] == "TypeScript"
+    assert interest["description"] == "Language/compiler updates only."
+    assert interest["sources"][0]["label"] == "TypeScript dev blog"
+    assert interest["sources"][0]["type"] == "feed"
+    assert interest["sources"][0]["deletedAt"] == "2026-05-15T10:00:00.000Z"
 
 
-def test_normalize_interest_only_allows_technology_for_now() -> None:
-    interest = server.normalize_interest(
-        {
-            "id": "architecture",
-            "name": "Software Architecture",
-            "type": "concept",
-            "priority": "high",
-        }
-    )
+def test_normalize_interest_rejects_old_schema_fields() -> None:
+    with pytest.raises(ValidationError):
+        server.normalize_interest(
+            {
+                "id": "typescript",
+                "name": "TypeScript",
+                "type": "technology",
+                "official_feed_url": "https://devblogs.microsoft.com/typescript/feed/",
+                "watch_keywords": ["release"],
+                "ignore_keywords": ["webinar"],
+                "notes": "Language/compiler updates only.",
+            }
+        )
 
-    assert interest["type"] == "technology"
 
-
-def test_default_data_only_contains_typescript_technology_interest() -> None:
+def test_default_data_contains_typescript_sources() -> None:
     interests = server.DEFAULT_DATA["interests"]
 
     assert [item["id"] for item in interests] == ["typescript"]
-    assert all(item["type"] == "technology" for item in interests)
-    assert all("sources" not in item for item in interests)
+    assert interests[0]["description"]
+    assert [source["type"] for source in interests[0]["sources"]] == ["page", "feed"]
+    assert "type" not in interests[0]
+    assert "official_feed_url" not in interests[0]
 
 
 def test_parse_rss_filters_by_watch_and_ignore_keywords() -> None:
@@ -106,64 +114,91 @@ def test_parse_atom_feed_uses_feedparser_normalization() -> None:
     assert updates[0]["matched_keywords"] == ["compiler", "rc"]
 
 
-def test_collect_technology_updates_fetches_enabled_technology_feeds_only() -> None:
+def test_collect_updates_fetches_enabled_sources_only() -> None:
     payload = {
         "interests": [
             {
                 "id": "typescript",
                 "name": "TypeScript",
-                "type": "technology",
+                "description": "TypeScript releases.",
                 "enabled": True,
-                "official_feed_url": "https://example.com/typescript.xml",
-                "watch_keywords": ["beta"],
-                "ignore_keywords": [],
+                "sources": [
+                    {
+                        "id": "typescript-feed",
+                        "label": "TypeScript feed",
+                        "type": "feed",
+                        "url": "https://example.com/typescript.xml",
+                        "enabled": True,
+                    },
+                    {
+                        "id": "typescript-disabled",
+                        "label": "Disabled feed",
+                        "type": "feed",
+                        "url": "https://example.com/disabled.xml",
+                        "enabled": False,
+                    },
+                ],
             },
             {
                 "id": "python",
                 "name": "Python",
-                "type": "technology",
+                "description": "Python releases.",
                 "enabled": False,
-                "official_feed_url": "https://example.com/python.xml",
-            },
-            {
-                "id": "person",
-                "name": "Someone",
-                "type": "person",
-                "enabled": True,
-                "official_feed_url": "https://example.com/person.xml",
+                "sources": [
+                    {
+                        "id": "python-feed",
+                        "label": "Python feed",
+                        "type": "feed",
+                        "url": "https://example.com/python.xml",
+                    }
+                ],
             },
             {
                 "id": "deleted",
                 "name": "Deleted",
-                "type": "technology",
+                "description": "Deleted topic.",
                 "enabled": True,
                 "deletedAt": "2026-05-15T10:00:00.000Z",
-                "official_feed_url": "https://example.com/deleted.xml",
+                "sources": [
+                    {
+                        "id": "deleted-feed",
+                        "label": "Deleted feed",
+                        "type": "feed",
+                        "url": "https://example.com/deleted.xml",
+                    }
+                ],
             },
         ]
     }
     rss = b"""<rss><channel><item><title>TypeScript Beta</title><link>https://example.com/beta</link></item></channel></rss>"""
 
     with patch("server.fetch_url", return_value=rss) as fetch_url:
-        result = server.collect_technology_updates(payload)
+        result = server.collect_updates(payload)
 
     fetch_url.assert_called_once_with("https://example.com/typescript.xml")
-    assert result["interests_checked"] == 1
+    assert result["sources_checked"] == 1
     assert result["updates"][0]["interest_name"] == "TypeScript"
+    assert result["updates"][0]["source_id"] == "typescript-feed"
+    assert result["updates"][0]["source_label"] == "TypeScript feed"
     assert result["updates"][0]["title"] == "TypeScript Beta"
 
 
-def test_collect_technology_updates_can_filter_to_recent_days() -> None:
+def test_collect_updates_can_filter_to_recent_days() -> None:
     payload = {
         "interests": [
             {
                 "id": "typescript",
                 "name": "TypeScript",
-                "type": "technology",
+                "description": "TypeScript releases.",
                 "enabled": True,
-                "official_feed_url": "https://example.com/typescript.xml",
-                "watch_keywords": ["typescript"],
-                "ignore_keywords": [],
+                "sources": [
+                    {
+                        "id": "typescript-feed",
+                        "label": "TypeScript feed",
+                        "type": "feed",
+                        "url": "https://example.com/typescript.xml",
+                    }
+                ],
             }
         ]
     }
@@ -175,7 +210,7 @@ def test_collect_technology_updates_can_filter_to_recent_days() -> None:
     </channel></rss>"""
 
     with patch("server.fetch_url", return_value=rss):
-        result = server.collect_technology_updates(
+        result = server.collect_updates(
             payload,
             days=RECENT_DAYS,
             now=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
@@ -185,18 +220,22 @@ def test_collect_technology_updates_can_filter_to_recent_days() -> None:
     assert [update["title"] for update in result["updates"]] == ["TypeScript fresh release"]
 
 
-def test_collect_technology_updates_uses_official_page_fallback_without_feed() -> None:
+def test_collect_updates_uses_page_sources() -> None:
     payload = {
         "interests": [
             {
                 "id": "anthropic-model-announcements",
                 "name": "Anthropic model announcements",
-                "type": "technology",
+                "description": "Track model launches.",
                 "enabled": True,
-                "official_site_url": "https://example.com/news",
-                "official_feed_url": None,
-                "watch_keywords": ["claude", "model"],
-                "ignore_keywords": [],
+                "sources": [
+                    {
+                        "id": "anthropic-news",
+                        "label": "Anthropic news",
+                        "type": "page",
+                        "url": "https://example.com/news",
+                    }
+                ],
             }
         ]
     }
@@ -206,7 +245,7 @@ def test_collect_technology_updates_uses_official_page_fallback_without_feed() -
     </body></html>"""
 
     with patch("server.fetch_url", return_value=html) as fetch_url:
-        result = server.collect_technology_updates(
+        result = server.collect_updates(
             payload,
             days=RECENT_DAYS,
             now=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
@@ -214,4 +253,35 @@ def test_collect_technology_updates_uses_official_page_fallback_without_feed() -
 
     fetch_url.assert_called_once_with("https://example.com/news")
     assert result["updates"][0]["source_type"] == "page"
+    assert result["updates"][0]["source_url"] == "https://example.com/news"
     assert result["updates"][0]["url"] == "https://example.com/news/claude-model"
+
+
+def test_collect_updates_reports_source_errors() -> None:
+    payload = {
+        "interests": [
+            {
+                "id": "typescript",
+                "name": "TypeScript",
+                "description": "TypeScript releases.",
+                "sources": [
+                    {
+                        "id": "typescript-feed",
+                        "label": "TypeScript feed",
+                        "type": "feed",
+                        "url": "https://example.com/typescript.xml",
+                    }
+                ],
+            }
+        ]
+    }
+
+    with patch("server.fetch_url", side_effect=OSError("network down")):
+        result = server.collect_updates(payload)
+
+    assert result["sources_checked"] == 1
+    assert result["updates"] == []
+    assert result["errors"][0]["interest_id"] == "typescript"
+    assert result["errors"][0]["source_id"] == "typescript-feed"
+    assert result["errors"][0]["source_url"] == "https://example.com/typescript.xml"
+    assert result["errors"][0]["error"] == "network down"

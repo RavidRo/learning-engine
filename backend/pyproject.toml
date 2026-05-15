@@ -161,4 +161,5 @@ module = ["uvicorn"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
+addopts = "--capture=sys"
 pythonpath = ["."]

@@ -6,7 +6,7 @@ export const TopNavigation = () => (
     </a>
     <div className="navlinks" aria-label="Sections">
       <a href="#interests">Interests</a>
-      <a href="#add">Technology</a>
+      <a href="#add">Topics</a>
       <a href="#briefing">Briefing</a>
     </div>
   </nav>

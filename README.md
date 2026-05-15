@@ -2,15 +2,16 @@
 
 A local-first project for Ravid's custom learning engine.
 
-The first goal is intentionally small: maintain a personal list of technology interests that Hermes can later read and use to prepare an evening briefing.
+The first goal is intentionally small: maintain a personal list of interests and sources that Hermes can later read and use to prepare an evening briefing.
 
 ## What it does now
 
 - Clean Linear-inspired responsive web UI for phone and computer.
-- Add technology interests. Other interest types are intentionally excluded for now and will be added incrementally.
-- Technology interests can include an official website URL, official RSS/Atom feed URL, watch keywords, and ignore keywords.
-- Check enabled technology feeds for matching updates from the local UI.
-- Show active/tracked/feed counts in a small local summary panel.
+- Add general interests such as people, organizations, subjects, and specific technologies.
+- Describe what information about each interest belongs in final briefings.
+- Attach feed or page sources to interests.
+- Check enabled sources for updates from the local UI.
+- Show active/tracked/source counts in a small local summary panel.
 - Store interests in a local JSON file:
 
 ```text
@@ -45,7 +46,7 @@ On the same computer, this works directly. For phone access, the computer and ph
 ## Backend stack
 
 - FastAPI serves the JSON API and static UI.
-- Pydantic validates and normalizes technology interest payloads.
+- Pydantic validates and normalizes interest and source payloads.
 - uv manages the Python environment and lockfile.
 - Ruff enforces linting.
 - mypy checks the typed backend modules in strict mode.
@@ -74,26 +75,27 @@ Ask Hermes:
 Read my Learning Engine interests from ~/projects/learning-engine/backend/data/interests.json and prepare an evening briefing.
 ```
 
-For now, Hermes will use the technology interests as context. Later versions can add more interest types such as people, newsletters, blogs, podcasts, and companies.
+Hermes can use interests as briefing context and sources as the raw material for update collection.
 
-## Technology interests
+## Interests and sources
 
-Technology is the first type-specific interest workflow. For example, TypeScript is tracked with:
+An interest is a general topic. It can be a person, organization, subject, specific technology, or anything else worth tracking. For example, TypeScript can be tracked with:
 
 ```text
-Official site: https://www.typescriptlang.org/
-Official feed: https://devblogs.microsoft.com/typescript/feed/
+Description: Track language/compiler updates and important release announcements.
+Source: Official site, page, https://www.typescriptlang.org/
+Source: TypeScript dev blog, feed, https://devblogs.microsoft.com/typescript/feed/
 ```
 
-Use watch keywords for signal such as `release`, `beta`, `rc`, `compiler`, and `breaking change`. Use ignore keywords for noise such as `webinar` or `case study`. There is no generic "sources to watch" field: sources are inferred from the interest type and represented as official technology URLs/feeds.
+The first source adapters support RSS/Atom feeds and best-effort web pages. Platform-specific sources such as YouTube channels or Twitter/X accounts should become first-class source types after dedicated adapters exist.
 
 ## Suggested next features
 
-1. Add source adapters for technology interests: GitHub releases, changelog pages, npm/package releases.
+1. Add source adapters for YouTube channels, Twitter/X accounts, GitHub releases, changelog pages, npm/package releases.
 2. Add "briefing preferences" such as length, tone, novelty threshold, and technical depth.
 3. Add active learning cards from briefings.
 4. Add topic roadmaps and spaced repetition.
-5. Add the next interest type only after technology feels useful.
+5. Add source-level controls when collection adapters need them.
 6. Add a daily/weekly archive of generated briefings.
 
 ## Project structure

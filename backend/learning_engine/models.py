@@ -1,4 +1,4 @@
-"""Pydantic models for interests and collected updates."""
+"""Pydantic models for interests, sources, and collected updates."""
 
 from __future__ import annotations
 
@@ -6,33 +6,19 @@ from typing import Literal, cast
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
-InterestType = Literal["technology"]
 Priority = Literal["low", "medium", "high"]
 SourceType = Literal["feed", "page"]
 
 
-def _clean_string_list(value: object) -> list[str]:
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, str):
-        return [part.strip() for part in value.split(",") if part.strip()]
-    return []
+class InterestSource(BaseModel):
+    """A feed or page attached to a broader learning interest."""
 
-
-class TechnologyInterest(BaseModel):
-    """A technology topic tracked from official sources."""
-
-    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     id: str | None = None
-    name: str = "Technology"
-    type: InterestType = "technology"
-    priority: Priority = "medium"
-    official_site_url: str | None = None
-    official_feed_url: str | None = None
-    watch_keywords: list[str] = Field(default_factory=list)
-    ignore_keywords: list[str] = Field(default_factory=list)
-    notes: str | None = None
+    label: str = "Source"
+    type: SourceType
+    url: str
     enabled: bool = True
     deleted_at: str | None = Field(
         default=None,
@@ -42,8 +28,50 @@ class TechnologyInterest(BaseModel):
 
     @field_validator("type", mode="before")
     @classmethod
-    def coerce_interest_type(cls, _value: object) -> InterestType:
-        return "technology"
+    def normalize_source_type(cls, value: object) -> SourceType:
+        source_type = str(value or "").strip().lower()
+        if source_type in {"feed", "page"}:
+            return cast(SourceType, source_type)
+        raise ValueError("Source type must be feed or page")
+
+    @field_validator("id", "deleted_at", mode="before")
+    @classmethod
+    def strip_optional_strings(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        stripped = str(value).strip()
+        return stripped or None
+
+    @field_validator("label", mode="before")
+    @classmethod
+    def strip_label(cls, value: object) -> str:
+        return str(value or "Source").strip() or "Source"
+
+    @field_validator("url", mode="before")
+    @classmethod
+    def strip_url(cls, value: object) -> str:
+        url = str(value or "").strip()
+        if not url:
+            raise ValueError("Source URL is required")
+        return url
+
+
+class Interest(BaseModel):
+    """A general topic tracked by the Learning Engine."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: str | None = None
+    name: str = "Interest"
+    description: str = ""
+    priority: Priority = "medium"
+    sources: list[InterestSource] = Field(default_factory=list)
+    enabled: bool = True
+    deleted_at: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("deletedAt", "deleted_at"),
+        serialization_alias="deletedAt",
+    )
 
     @field_validator("priority", mode="before")
     @classmethod
@@ -53,7 +81,7 @@ class TechnologyInterest(BaseModel):
             return cast(Priority, priority)
         return "medium"
 
-    @field_validator("id", "official_site_url", "official_feed_url", "notes", "deleted_at", mode="before")
+    @field_validator("id", "deleted_at", mode="before")
     @classmethod
     def strip_optional_strings(cls, value: object) -> str | None:
         if value is None:
@@ -64,16 +92,16 @@ class TechnologyInterest(BaseModel):
     @field_validator("name", mode="before")
     @classmethod
     def strip_required_name(cls, value: object) -> str:
-        return str(value or "Technology").strip() or "Technology"
+        return str(value or "Interest").strip() or "Interest"
 
-    @field_validator("watch_keywords", "ignore_keywords", mode="before")
+    @field_validator("description", mode="before")
     @classmethod
-    def normalize_keywords(cls, value: object) -> list[str]:
-        return _clean_string_list(value)
+    def strip_description(cls, value: object) -> str:
+        return str(value or "").strip()
 
 
 class InterestsPayload(BaseModel):
-    interests: list[TechnologyInterest] = Field(default_factory=list)
+    interests: list[Interest] = Field(default_factory=list)
 
 
 class FeedUpdate(BaseModel):
@@ -85,23 +113,28 @@ class FeedUpdate(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
 
 
-class TechnologyUpdate(FeedUpdate):
+class Update(FeedUpdate):
     interest_id: str | None = None
-    interest_name: str = "Technology"
-    feed_url: str | None = None
+    interest_name: str = "Interest"
+    source_id: str | None = None
+    source_label: str = "Source"
     source_url: str
     source_type: SourceType = "feed"
 
 
 class CollectionError(BaseModel):
     interest_id: str | None = None
-    interest_name: str = "Technology"
+    interest_name: str = "Interest"
+    source_id: str | None = None
+    source_label: str = "Source"
+    source_url: str
+    source_type: SourceType
     error: str
 
 
-class TechnologyUpdatesResponse(BaseModel):
-    interests_checked: int
+class UpdatesResponse(BaseModel):
+    sources_checked: int
     days: int | None = None
     since: str | None = None
-    updates: list[TechnologyUpdate] = Field(default_factory=list)
+    updates: list[Update] = Field(default_factory=list)
     errors: list[CollectionError] = Field(default_factory=list)

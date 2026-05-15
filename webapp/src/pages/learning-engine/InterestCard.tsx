@@ -1,4 +1,4 @@
-import { OfficialLinks } from "./OfficialLinks";
+import { SourceLinks } from "./SourceLinks";
 import { type Interest } from "./types";
 
 type InterestCardProps = {
@@ -7,19 +7,16 @@ type InterestCardProps = {
   onToggle: (id: string) => void;
 };
 
-const hasInterestDetails = (interest: Interest): boolean =>
-  Boolean(
-    interest.official_site_url ||
-    interest.official_feed_url ||
-    interest.watch_keywords.length > 0 ||
-    interest.ignore_keywords.length > 0,
-  );
+const hasSources = (interest: Interest): boolean =>
+  interest.sources.some((source) => source.deletedAt == null);
 
 const InterestBadges = ({ interest }: { interest: Interest }) => (
   <div className="meta">
-    <span className="badge">{interest.type}</span>
     <span className={`badge priority-${interest.priority}`}>{interest.priority}</span>
     <span className="badge">{interest.enabled ? "enabled" : "paused"}</span>
+    <span className="badge">
+      {interest.sources.filter((source) => source.deletedAt == null).length} sources
+    </span>
   </div>
 );
 
@@ -35,7 +32,7 @@ const InterestActions = ({ interest, onRemove, onToggle }: InterestCardProps) =>
 );
 
 export const InterestCard = ({ interest, onRemove, onToggle }: InterestCardProps) => {
-  const showOfficialLinks = hasInterestDetails(interest);
+  const showSources = hasSources(interest);
 
   return (
     <article className={`card ${interest.enabled ? "" : "disabled"}`}>
@@ -44,8 +41,8 @@ export const InterestCard = ({ interest, onRemove, onToggle }: InterestCardProps
           <h3>{interest.name}</h3>
           <InterestBadges interest={interest} />
         </div>
-        <p>{interest.notes || "No notes yet."}</p>
-        {showOfficialLinks ? <OfficialLinks interest={interest} /> : null}
+        <p>{interest.description || "No description yet."}</p>
+        {showSources ? <SourceLinks interest={interest} /> : null}
       </div>
       <InterestActions interest={interest} onRemove={onRemove} onToggle={onToggle} />
     </article>

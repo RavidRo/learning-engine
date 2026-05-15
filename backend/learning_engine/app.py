@@ -11,9 +11,9 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from learning_engine.collector import collect_technology_updates
+from learning_engine.collector import collect_updates
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
-from learning_engine.models import InterestsPayload, TechnologyUpdatesResponse
+from learning_engine.models import InterestsPayload, UpdatesResponse
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
 
 
@@ -50,12 +50,12 @@ def create_app() -> FastAPI:
             "saved": read_interests().model_dump(mode="json", by_alias=True),
         }
 
-    @api.get("/api/technology-updates", response_model=TechnologyUpdatesResponse)
-    def technology_updates(
+    @api.get("/api/updates", response_model=UpdatesResponse)
+    def updates(
         days: Annotated[int | None, Query(ge=1)] = None,
-    ) -> TechnologyUpdatesResponse:
+    ) -> UpdatesResponse:
         try:
-            return collect_technology_updates(read_interests(), days=days)
+            return collect_updates(read_interests(), days=days)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

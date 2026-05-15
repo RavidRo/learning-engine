@@ -1,4 +1,4 @@
-"""Technology update collection orchestration."""
+"""Update collection orchestration across interest sources."""
 
 from __future__ import annotations
 
@@ -11,18 +11,18 @@ from learning_engine.fetching import fetch_url
 from learning_engine.models import (
     CollectionError,
     FeedUpdate,
+    Interest,
+    InterestSource,
     InterestsPayload,
-    SourceType,
-    TechnologyInterest,
-    TechnologyUpdate,
-    TechnologyUpdatesResponse,
+    Update,
+    UpdatesResponse,
 )
 from learning_engine.sources.feed import parse_feed_items
 from learning_engine.sources.page import parse_page_items
 
 FetchFn = Callable[[str], bytes]
 ParseFn = Callable[[bytes, list[str], list[str]], list[FeedUpdate]]
-__all__ = ["collect_technology_updates", "dedupe_updates", "parse_feed_items", "parse_page_items"]
+__all__ = ["collect_updates", "dedupe_updates", "parse_feed_items", "parse_page_items"]
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -32,13 +32,13 @@ def _dedupe_part(value: str | None) -> str | None:
     return stripped.lower() or None
 
 
-def _sort_key(update: TechnologyUpdate) -> tuple[bool, str | None]:
+def _sort_key(update: Update) -> tuple[bool, str | None]:
     published = update.published_at or update.published
     return published is not None, published
 
 
-def dedupe_updates(updates: list[TechnologyUpdate]) -> list[TechnologyUpdate]:
-    deduped: list[TechnologyUpdate] = []
+def dedupe_updates(updates: list[Update]) -> list[Update]:
+    deduped: list[Update] = []
     seen: set[tuple[str | None, str | None]] = set()
     for update in updates:
         key = (_dedupe_part(update.url), _dedupe_part(update.title))
@@ -49,40 +49,32 @@ def dedupe_updates(updates: list[TechnologyUpdate]) -> list[TechnologyUpdate]:
     return deduped
 
 
-def _source_for_interest(interest: TechnologyInterest) -> tuple[str, SourceType] | None:
-    if interest.official_feed_url:
-        return interest.official_feed_url, "feed"
-    if interest.official_site_url:
-        return interest.official_site_url, "page"
-    return None
-
-
-def _parser_for_source(source_type: SourceType, page_url: str | None) -> ParseFn:
-    if source_type == "feed":
+def _parser_for_source(source: InterestSource) -> ParseFn:
+    if source.type == "feed":
         return parse_feed_items
 
+    page_url = source.url
+
     def parse_page_source(page_bytes: bytes, watch_keywords: list[str], ignore_keywords: list[str]) -> list[FeedUpdate]:
-        if page_url is None:
-            return []
         return parse_page_items(page_bytes, page_url, watch_keywords, ignore_keywords)
 
     return parse_page_source
 
 
 def _enrich_updates(
-    interest: TechnologyInterest,
-    source_url: str,
-    source_type: SourceType,
+    interest: Interest,
+    source: InterestSource,
     source_updates: list[FeedUpdate],
     cutoff: datetime | None,
-) -> list[TechnologyUpdate]:
+) -> list[Update]:
     return [
-        TechnologyUpdate(
+        Update(
             interest_id=interest.id,
             interest_name=interest.name,
-            feed_url=interest.official_feed_url,
-            source_url=source_url,
-            source_type=source_type,
+            source_id=source.id,
+            source_label=source.label,
+            source_url=source.url,
+            source_type=source.type,
             **source_update.model_dump(),
         )
         for source_update in source_updates
@@ -90,33 +82,37 @@ def _enrich_updates(
     ]
 
 
-def _collect_from_interest(
-    interest: TechnologyInterest,
+def _collect_from_source(
+    interest: Interest,
+    source: InterestSource,
     cutoff: datetime | None,
     fetch: FetchFn,
-) -> tuple[list[TechnologyUpdate], CollectionError | None]:
-    source = _source_for_interest(interest)
-    if source is None:
-        return [], None
-
-    source_url, source_type = source
+) -> tuple[list[Update], CollectionError | None]:
+    parser = _parser_for_source(source)
     try:
-        fetched = fetch(source_url)
-        parser = _parser_for_source(source_type, interest.official_site_url)
-        source_updates = parser(fetched, interest.watch_keywords, interest.ignore_keywords)
+        fetched = fetch(source.url)
+        source_updates = parser(fetched, [], [])
     except (OSError, UnicodeError, urllib.error.URLError, ValueError) as exc:
-        return [], CollectionError(interest_id=interest.id, interest_name=interest.name, error=str(exc))
+        return [], CollectionError(
+            interest_id=interest.id,
+            interest_name=interest.name,
+            source_id=source.id,
+            source_label=source.label,
+            source_url=source.url,
+            source_type=source.type,
+            error=str(exc),
+        )
 
-    return _enrich_updates(interest, source_url, source_type, source_updates, cutoff), None
+    return _enrich_updates(interest, source, source_updates, cutoff), None
 
 
-def collect_technology_updates(
+def collect_updates(
     payload: InterestsPayload,
     days: int | None = None,
     now: datetime | None = None,
     fetch: FetchFn = fetch_url,
-) -> TechnologyUpdatesResponse:
-    updates: list[TechnologyUpdate] = []
+) -> UpdatesResponse:
+    updates: list[Update] = []
     errors: list[CollectionError] = []
     checked = 0
     cutoff = days_cutoff(days, now)
@@ -125,19 +121,20 @@ def collect_technology_updates(
         if interest.deleted_at is not None or not interest.enabled:
             continue
 
-        if _source_for_interest(interest) is None:
-            continue
+        for source in interest.sources:
+            if source.deleted_at is not None or not source.enabled:
+                continue
 
-        checked += 1
-        source_updates, error = _collect_from_interest(interest, cutoff, fetch)
-        updates.extend(source_updates)
-        if error is not None:
-            errors.append(error)
+            checked += 1
+            source_updates, error = _collect_from_source(interest, source, cutoff, fetch)
+            updates.extend(source_updates)
+            if error is not None:
+                errors.append(error)
 
     updates = dedupe_updates(updates)
     updates.sort(key=_sort_key, reverse=True)
-    return TechnologyUpdatesResponse(
-        interests_checked=checked,
+    return UpdatesResponse(
+        sources_checked=checked,
         days=days,
         since=format_datetime(cutoff),
         updates=updates,

@@ -5,7 +5,12 @@ contexts:
     domainVisionStatement: Maintain local, user-owned learning priorities that can be collected into useful briefings.
     terms:
       - name: Interest
-        definition: A user-owned learning topic tracked by the Learning Engine, including its type, priority, enabled state, optional source URLs, matching keywords, and notes.
+        definition: A user-owned learning topic tracked by the Learning Engine, including its name, description, priority, enabled state, and attached sources.
         examples:
-          - Technology interests can include an official website URL, official RSS or Atom feed URL, watch keywords, and ignore keywords.
+          - An interest can be a person, organization, subject, specific technology, or other topic.
           - Hermes reads enabled interests to prepare an evening briefing.
+      - name: Source
+        definition: A feed or page attached to an interest that the Learning Engine can collect updates from.
+        examples:
+          - A TypeScript interest can include the official website page and the TypeScript dev blog RSS feed as sources.
+          - Source types currently supported by collection are feed and page.

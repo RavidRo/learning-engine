@@ -13,28 +13,26 @@ from datetime import datetime
 from typing import Any
 
 from learning_engine.app import app, run
-from learning_engine.collector import (
-    collect_technology_updates as _collect_technology_updates,
-)
+from learning_engine.collector import collect_updates as _collect_updates
 from learning_engine.collector import parse_feed_items as _parse_feed_items
 from learning_engine.collector import parse_page_items as _parse_page_items
 from learning_engine.fetching import fetch_url
-from learning_engine.models import InterestsPayload, TechnologyInterest
+from learning_engine.models import Interest, InterestsPayload
 from learning_engine.storage import DEFAULT_DATA as _DEFAULT_DATA
 from learning_engine.storage import ensure_data_file
 from learning_engine.storage import read_interests as _read_interests
 from learning_engine.storage import write_interests as _write_interests
 
-DEFAULT_DATA = _DEFAULT_DATA.model_dump(mode="json")
+DEFAULT_DATA = _DEFAULT_DATA.model_dump(mode="json", by_alias=True)
 __all__ = ["app"]
 
 
 def normalize_interest(item: dict[str, Any]) -> dict[str, Any]:
-    return TechnologyInterest.model_validate(item).model_dump(mode="json")
+    return Interest.model_validate(item).model_dump(mode="json", by_alias=True)
 
 
 def read_interests() -> dict[str, Any]:
-    return _read_interests().model_dump(mode="json")
+    return _read_interests().model_dump(mode="json", by_alias=True)
 
 
 def write_interests(payload: dict[str, Any]) -> None:
@@ -71,26 +69,17 @@ def parse_page_items(
     ]
 
 
-def collect_technology_updates(
+def collect_updates(
     payload: dict[str, Any],
     days: int | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    raw_interests = payload.get("interests", [])
-    compatible_payload = {
-        "interests": [
-            item
-            for item in raw_interests
-            if isinstance(item, dict)
-            and str(item.get("type", "technology")).strip().lower() == "technology"
-        ]
-    }
-    return _collect_technology_updates(
-        InterestsPayload.model_validate(compatible_payload),
+    return _collect_updates(
+        InterestsPayload.model_validate(payload),
         days=days,
         now=now,
         fetch=fetch_url,
-    ).model_dump(mode="json")
+    ).model_dump(mode="json", by_alias=True)
 
 
 def main() -> None:

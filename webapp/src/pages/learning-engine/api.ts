@@ -1,9 +1,9 @@
 import {
   interestsPayloadSchema,
   saveInterestsResponseSchema,
-  technologyUpdatesPayloadSchema,
+  updatesPayloadSchema,
 } from "./schemas";
-import { type Interest, type TechnologyUpdatesPayload } from "./types";
+import { type Interest, type UpdatesPayload } from "./types";
 
 /** Reads the best available error message from a failed response. */
 const readError = async (response: Response): Promise<string> => {
@@ -37,9 +37,9 @@ export const saveInterests = async (interests: Interest[]): Promise<Interest[]> 
   return payload.saved.interests;
 };
 
-export const fetchTechnologyUpdates = async (): Promise<TechnologyUpdatesPayload> => {
-  const response = await fetch("/api/technology-updates");
-  const payload = technologyUpdatesPayloadSchema.parse(await response.json());
+export const fetchUpdates = async (): Promise<UpdatesPayload> => {
+  const response = await fetch("/api/updates");
+  const payload = updatesPayloadSchema.parse(await response.json());
 
   if (!response.ok) {
     throw new Error(payload.error ?? "Failed to fetch updates");

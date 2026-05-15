@@ -1,4 +1,4 @@
-import { type InterestFormValues, type Priority } from "./types";
+import { type InterestFormValues, type Priority, type SourceType } from "./types";
 
 /** Converts a free-text label into a stable URL-safe identifier fragment. */
 export const slugify = (text: string): string => {
@@ -8,15 +8,6 @@ export const slugify = (text: string): string => {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
   return slug || crypto.randomUUID();
-};
-
-/** Reads a comma-separated form field into trimmed entries. */
-const parseList = (value: FormDataEntryValue | null): string[] => {
-  const rawValue = typeof value === "string" ? value : "";
-  return rawValue
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
 };
 
 /** Reads a string form field while treating missing fields as empty content. */
@@ -32,10 +23,9 @@ export const readInterestForm = (form: HTMLFormElement): InterestFormValues => {
   return {
     name: getString(formData, "name"),
     priority: getString(formData, "priority") as Priority,
-    officialSiteUrl: getString(formData, "officialSiteUrl"),
-    officialFeedUrl: getString(formData, "officialFeedUrl"),
-    watchKeywords: parseList(formData.get("watchKeywords")),
-    ignoreKeywords: parseList(formData.get("ignoreKeywords")),
-    notes: getString(formData, "notes"),
+    description: getString(formData, "description"),
+    sourceLabel: getString(formData, "sourceLabel"),
+    sourceType: getString(formData, "sourceType") as SourceType,
+    sourceUrl: getString(formData, "sourceUrl"),
   };
 };
