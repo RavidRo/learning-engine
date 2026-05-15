@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Annotated
 
+import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -46,13 +48,13 @@ def create_app() -> FastAPI:
         return {"ok": True, "saved": read_interests().model_dump(mode="json")}
 
     @api.get("/api/technology-updates", response_model=TechnologyUpdatesResponse)
-    def technology_updates(days: int | None = Query(default=None, ge=1)) -> TechnologyUpdatesResponse:
+    def technology_updates(days: Annotated[int | None, Query(ge=1)] = None) -> TechnologyUpdatesResponse:
         try:
             return collect_technology_updates(read_interests(), days=days)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    api.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
+    api.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True, check_dir=False), name="public")
     return api
 
 
@@ -60,6 +62,4 @@ app = create_app()
 
 
 def run() -> None:
-    import uvicorn
-
     uvicorn.run("learning_engine.app:app", host=HOST, port=PORT, reload=False)

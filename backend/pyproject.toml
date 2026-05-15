@@ -1,0 +1,164 @@
+[project]
+name = "learning-engine"
+version = "0.1.0"
+description = "Local-first personal learning engine backend."
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "fastapi>=0.115.0",
+    "feedparser>=6.0.12",
+    "pydantic>=2.10.0",
+    "uvicorn[standard]>=0.32.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.27.0",
+    "mypy>=1.13.0",
+    "pip>=26.1.1",
+    "pytest>=8.3.0",
+    "ruff>=0.8.0",
+    "uv>=0.11.14",
+]
+
+[[tool.mypy.overrides]]
+module = ["feedparser"]
+ignore_missing_imports = true
+
+[project.scripts]
+learning-engine = "learning_engine.app:run"
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    # Pycodestyle errors
+    "E",
+    # Pycodestyle warnings
+    "W",
+    # Pyflakes
+    "F",
+    # isort import ordering
+    "I",
+    # mccabe complexity
+    "C90",
+    # pep8-naming
+    "N",
+    # flake8-2020
+    "YTT",
+    # flake8-annotations
+    "ANN",
+    # flake8-async
+    "ASYNC",
+    # flake8-bandit security checks
+    "S",
+    # flake8-blind-except
+    "BLE",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-datetimez
+    "DTZ",
+    # flake8-debugger
+    "T10",
+    # flake8-errmsg
+    "EM",
+    # flake8-executable
+    "EXE",
+    # flake8-future-annotations
+    "FA",
+    # flake8-implicit-str-concat
+    "ISC",
+    # flake8-import-conventions
+    "ICN",
+    # flake8-logging-format
+    "G",
+    # flake8-pie
+    "PIE",
+    # flake8-print
+    "T20",
+    # flake8-pytest-style
+    "PT",
+    # flake8-quotes
+    "Q",
+    # flake8-raise
+    "RSE",
+    # flake8-return
+    "RET",
+    # flake8-self
+    "SLF",
+    # flake8-simplify
+    "SIM",
+    # flake8-use-pathlib
+    "PTH",
+    # eradicate commented-out code
+    "ERA",
+    # pandas-vet
+    "PD",
+    # pygrep-hooks
+    "PGH",
+    # Pylint
+    "PL",
+    # tryceratops exception hygiene
+    "TRY",
+    # flynt f-string checks
+    "FLY",
+    # NumPy 2.0 rules
+    "NPY",
+    # FastAPI rules
+    "FAST",
+    # Ruff-specific rules
+    "RUF",
+]
+
+ignore = [
+    # Allow Any in narrow compatibility wrappers and typed framework boundaries.
+    "ANN401",
+    # Allow asserts in tests.
+    "S101",
+    # Keep exception messages inline for small, local validation paths.
+    "EM101",
+    # Keep exception messages inline when they are already concise.
+    "EM102",
+    # Avoid forcing custom exception classes for this small app.
+    "TRY003",
+    # Keep boolean positional arguments available for framework/test APIs.
+    "FBT",
+    # Avoid conflicting with Ruff formatter quote handling.
+    "Q000",
+    # Avoid conflicting with Ruff formatter implicit string handling.
+    "ISC001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"scripts/generate_briefing.py" = [
+    # Long generated HTML/CSS strings are clearer than fragmented templates.
+    "E501",
+    # Briefing copy intentionally uses typographic punctuation.
+    "RUF001",
+    # CLI scripts are allowed to print their artifact summary.
+    "T201",
+]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+files = ["learning_engine", "server.py"]
+
+[[tool.mypy.overrides]]
+module = ["uvicorn"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

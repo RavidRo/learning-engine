@@ -2,13 +2,16 @@ from fastapi.testclient import TestClient
 
 from learning_engine.app import app
 
+HTTP_OK = 200
+HTTP_UNPROCESSABLE_ENTITY = 422
+
 
 def test_health_endpoint() -> None:
     client = TestClient(app)
 
     response = client.get("/api/health")
 
-    assert response.status_code == 200
+    assert response.status_code == HTTP_OK
     assert response.json() == {"status": "ok"}
 
 
@@ -17,4 +20,4 @@ def test_technology_updates_rejects_non_positive_days() -> None:
 
     response = client.get("/api/technology-updates?days=0")
 
-    assert response.status_code == 422
+    assert response.status_code == HTTP_UNPROCESSABLE_ENTITY

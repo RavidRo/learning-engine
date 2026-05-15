@@ -24,15 +24,15 @@ class TechnologyInterest(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    id: str = ""
+    id: str | None = None
     name: str = "Technology"
     type: InterestType = "technology"
     priority: Priority = "medium"
-    official_site_url: str = ""
-    official_feed_url: str = ""
+    official_site_url: str | None = None
+    official_feed_url: str | None = None
     watch_keywords: list[str] = Field(default_factory=list)
     ignore_keywords: list[str] = Field(default_factory=list)
-    notes: str = ""
+    notes: str | None = None
     enabled: bool = True
 
     @field_validator("type", mode="before")
@@ -48,10 +48,18 @@ class TechnologyInterest(BaseModel):
             return cast(Priority, priority)
         return "medium"
 
-    @field_validator("id", "name", "official_site_url", "official_feed_url", "notes", mode="before")
+    @field_validator("id", "official_site_url", "official_feed_url", "notes", mode="before")
     @classmethod
-    def strip_strings(cls, value: object) -> str:
-        return str(value or "").strip()
+    def strip_optional_strings(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        stripped = str(value).strip()
+        return stripped or None
+
+    @field_validator("name", mode="before")
+    @classmethod
+    def strip_required_name(cls, value: object) -> str:
+        return str(value or "Technology").strip() or "Technology"
 
     @field_validator("watch_keywords", "ignore_keywords", mode="before")
     @classmethod
@@ -64,31 +72,31 @@ class InterestsPayload(BaseModel):
 
 
 class FeedUpdate(BaseModel):
-    title: str = ""
-    url: str = ""
-    summary: str = ""
-    published: str = ""
-    published_at: str = ""
+    title: str | None = None
+    url: str | None = None
+    summary: str | None = None
+    published: str | None = None
+    published_at: str | None = None
     matched_keywords: list[str] = Field(default_factory=list)
 
 
 class TechnologyUpdate(FeedUpdate):
-    interest_id: str = ""
+    interest_id: str | None = None
     interest_name: str = "Technology"
-    feed_url: str = ""
-    source_url: str = ""
+    feed_url: str | None = None
+    source_url: str
     source_type: SourceType = "feed"
 
 
 class CollectionError(BaseModel):
-    interest_id: str = ""
-    interest_name: str = ""
+    interest_id: str | None = None
+    interest_name: str = "Technology"
     error: str
 
 
 class TechnologyUpdatesResponse(BaseModel):
     interests_checked: int
     days: int | None = None
-    since: str = ""
+    since: str | None = None
     updates: list[TechnologyUpdate] = Field(default_factory=list)
     errors: list[CollectionError] = Field(default_factory=list)

@@ -2,7 +2,7 @@
 """Compatibility entrypoint for the FastAPI backend.
 
 Run:
-    uv run python server.py
+    task run
 Open:
     http://localhost:8765
 """
@@ -12,8 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from learning_engine.app import app as app
-from learning_engine.app import run
+from learning_engine.app import app, run
 from learning_engine.collector import collect_technology_updates as _collect_technology_updates
 from learning_engine.collector import parse_feed_items as _parse_feed_items
 from learning_engine.collector import parse_page_items as _parse_page_items
@@ -25,6 +24,7 @@ from learning_engine.storage import read_interests as _read_interests
 from learning_engine.storage import write_interests as _write_interests
 
 DEFAULT_DATA = _DEFAULT_DATA.model_dump(mode="json")
+__all__ = ["app"]
 
 
 def normalize_interest(item: dict[str, Any]) -> dict[str, Any]:

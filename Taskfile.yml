@@ -1,0 +1,131 @@
+version: "3"
+
+vars:
+  BACKEND_DIR: '{{.BACKEND_DIR | default "backend"}}'
+  HOST: '{{.HOST | default "127.0.0.1"}}'
+  PORT: '{{.PORT | default "8765"}}'
+  WEBAPP_DIR: '{{.WEBAPP_DIR | default "webapp"}}'
+  WEB_HOST: '{{.WEB_HOST | default "127.0.0.1"}}'
+  WEB_PORT: '{{.WEB_PORT | default "5173"}}'
+  DAYS: '{{.DAYS | default "14"}}'
+
+tasks:
+  default:
+    desc: Show available project tasks
+    cmds:
+      - task --list
+
+  backend:sync:
+    desc: Install or update the uv-managed environment
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv sync
+
+  backend:lock:
+    desc: Refresh uv.lock
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv lock
+
+  backend:run:
+    desc: Run the app through the compatibility server entrypoint
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run python server.py
+
+  backend:dev:
+    desc: Run the FastAPI app with reload enabled
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run uvicorn learning_engine.app:app --host {{.HOST}} --port {{.PORT}} --reload
+
+  backend:lint:
+    desc: Lint the project with Ruff
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run ruff check .
+
+  backend:format:
+    desc: Format Python files with Ruff
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run ruff format .
+
+  backend:typecheck:
+    desc: Type-check the backend with mypy
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run mypy
+
+  backend:test:
+    desc: Run the test suite
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run pytest -s
+
+  backend:check:
+    desc: Run linting, typing, and tests
+    deps:
+      - backend:lint
+      - backend:typecheck
+      - backend:test
+
+  check:
+    desc: Run backend and webapp checks
+    deps:
+      - backend:check
+      - web:check
+
+  web:install:
+    desc: Install webapp dependencies
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm install
+
+  web:dev:
+    desc: Run the Vite+ webapp dev server
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run dev -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
+
+  web:build:
+    desc: Build the Vite+ webapp
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run build
+
+  web:check:
+    desc: Run Vite+ format, lint, and type checks
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run check
+
+  web:lint:
+    desc: Lint the webapp with Vite+
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run lint
+
+  web:format:
+    desc: Format the webapp with Vite+
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run format
+
+  web:preview:
+    desc: Preview the built Vite+ webapp
+    dir: "{{.WEBAPP_DIR}}"
+    cmds:
+      - npm run preview -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
+
+  backend:briefing:
+    desc: Generate an HTML briefing from the running local server
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run python scripts/generate_briefing.py --days {{.DAYS}}
+
+  backend:health:
+    desc: Check the local API health endpoint
+    dir: "{{.BACKEND_DIR}}"
+    cmds:
+      - uv run python -c "import urllib.request; print(urllib.request.urlopen('http://{{.HOST}}:{{.PORT}}/api/health', timeout=2).read().decode())"

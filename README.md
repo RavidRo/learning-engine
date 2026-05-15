@@ -14,7 +14,7 @@ The first goal is intentionally small: maintain a personal list of technology in
 - Store interests in a local JSON file:
 
 ```text
-data/interests.json
+backend/data/interests.json
 ```
 
 - Enable/disable interests without deleting them.
@@ -22,10 +22,10 @@ data/interests.json
 
 ## Run it
 
-From this folder:
+Use the project task runner:
 
 ```bash
-uv run python server.py
+task dev
 ```
 
 Open:
@@ -34,10 +34,10 @@ Open:
 http://localhost:8765
 ```
 
-You can also run the app directly through Uvicorn:
+To see all maintained project commands:
 
 ```bash
-uv run uvicorn learning_engine.app:app --host 127.0.0.1 --port 8765
+task --list
 ```
 
 On the same computer, this works directly. For phone access, the computer and phone need to be on the same network and the server would need to bind to a LAN-accessible address instead of `127.0.0.1`. That is intentionally not enabled by default for privacy/security.
@@ -50,13 +50,7 @@ On the same computer, this works directly. For phone access, the computer and ph
 - Ruff enforces linting.
 - mypy checks the typed backend modules in strict mode.
 
-Useful development commands:
-
-```bash
-uv run ruff check .
-uv run mypy
-uv run pytest -s
-```
+Common workflows live in `Taskfile.yml` so the README does not duplicate command strings.
 
 ## Privacy note
 
@@ -67,7 +61,7 @@ The interests file may eventually reveal personal interests, professional priori
 Ask Hermes:
 
 ```text
-Read my Learning Engine interests from ~/projects/learning-engine/data/interests.json and prepare an evening briefing.
+Read my Learning Engine interests from ~/projects/learning-engine/backend/data/interests.json and prepare an evening briefing.
 ```
 
 For now, Hermes will use the technology interests as context. Later versions can add more interest types such as people, newsletters, blogs, podcasts, and companies.
@@ -96,22 +90,16 @@ Use watch keywords for signal such as `release`, `beta`, `rc`, `compiler`, and `
 
 ```text
 learning-engine/
-├── pyproject.toml         # uv project config, dependencies, ruff, mypy, pytest
-├── server.py              # compatibility entrypoint for the FastAPI app
-├── learning_engine/       # typed FastAPI backend package
-│   ├── app.py             # app factory, routes, static-file mounting
-│   ├── collector.py       # feed/page parsing and update collection
-│   ├── fetching.py        # network fetch primitive
-│   ├── models.py          # Pydantic schemas
-│   └── storage.py         # JSON-backed interest persistence
-├── data/
-│   └── interests.json     # Hermes-readable interest store
-├── public/
-│   ├── index.html         # responsive UI
-│   ├── styles.css         # visual design
-│   └── app.js             # client-side app logic
-└── tests/
-    └── test_server.py     # feed parsing + technology update tests
+├── Taskfile.yml           # maintained local development commands
+├── backend/
+│   ├── pyproject.toml     # uv project config, dependencies, ruff, mypy, pytest
+│   ├── server.py          # compatibility entrypoint for the FastAPI app
+│   ├── data/              # Hermes-readable interest store
+│   ├── learning_engine/   # typed FastAPI backend package
+│   ├── scripts/           # backend/API utility scripts
+│   └── tests/             # backend tests
+├── webapp/                # frontend app
+└── briefings/             # generated briefing artifacts
 ```
 
 ## Design principle

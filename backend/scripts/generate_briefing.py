@@ -8,6 +8,7 @@ The script intentionally fetches data from the running engine server instead of
 reading local files directly. That keeps the briefing path exercising the same
 API the UI will use.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -18,10 +19,13 @@ import urllib.request
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
-ROOT = Path(__file__).resolve().parents[1]
-PUBLIC = ROOT / "public"
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+PROJECT_ROOT = BACKEND_ROOT.parent
+BRIEFINGS_DIR = PROJECT_ROOT / "briefings"
 DEFAULT_SERVER = "http://127.0.0.1:8765"
+ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
 
 TOPIC_SUMMARIES = {
     "OpenAI model announcements": {
@@ -70,7 +74,10 @@ TOPIC_SUMMARIES = {
 
 
 def fetch_json(url: str) -> dict:
-    with urllib.request.urlopen(url, timeout=60) as response:
+    if urlparse(url).scheme not in ALLOWED_URL_SCHEMES:
+        raise ValueError("Only HTTP and HTTPS URLs can be fetched")
+
+    with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310
         return json.loads(response.read().decode("utf-8"))
 
 
@@ -94,9 +101,9 @@ def escape(value: object) -> str:
 def group_updates(updates: list[dict]) -> dict[str, list[dict]]:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for update in updates:
-        update = dict(update)
-        update["clean_title"] = clean_title(update.get("title", ""))
-        grouped[update.get("interest_name", "Other")].append(update)
+        normalized_update = dict(update)
+        normalized_update["clean_title"] = clean_title(normalized_update.get("title", ""))
+        grouped[normalized_update.get("interest_name", "Other")].append(normalized_update)
     return dict(sorted(grouped.items(), key=lambda pair: (-len(pair[1]), pair[0])))
 
 
@@ -120,22 +127,24 @@ def render_link(update: dict) -> str:
 def render_topic(name: str, updates: list[dict]) -> str:
     info = TOPIC_SUMMARIES.get(name, {})
     latest = updates[0] if updates else {}
-    release_count = sum(1 for item in updates if re.search(r"\bv?\d+\.\d+|release|beta|rc|nightly", item.get("title", ""), re.I))
+    release_count = sum(
+        1 for item in updates if re.search(r"\bv?\d+\.\d+|release|beta|rc|nightly", item.get("title", ""), re.I)
+    )
     all_links = "\n".join(render_link(update) for update in updates)
     return f"""
     <section class="topic-card">
       <div class="topic-topline">
         <div>
           <p class="eyebrow">{escape(name)}</p>
-          <h2>{escape(info.get('stance', 'Tracked signal'))}</h2>
+          <h2>{escape(info.get("stance", "Tracked signal"))}</h2>
         </div>
         <div class="metric"><strong>{len(updates)}</strong><span>updates</span></div>
       </div>
-      <p class="summary">{escape(info.get('summary', 'Relevant updates were found in the selected window.'))}</p>
+      <p class="summary">{escape(info.get("summary", "Relevant updates were found in the selected window."))}</p>
       <div class="why-grid">
-        <div><strong>Why it matters</strong><p>{escape(info.get('why', 'Review the linked source items for full context.'))}</p></div>
-        <div><strong>Watch next</strong><p>{escape(info.get('watch', 'Look for follow-up releases or official migration notes.'))}</p></div>
-        <div><strong>Latest</strong><p><a href="{escape(latest.get('url'))}" target="_blank" rel="noreferrer">{escape(latest.get('clean_title') or latest.get('title'))}</a></p></div>
+        <div><strong>Why it matters</strong><p>{escape(info.get("why", "Review the linked source items for full context."))}</p></div>
+        <div><strong>Watch next</strong><p>{escape(info.get("watch", "Look for follow-up releases or official migration notes."))}</p></div>
+        <div><strong>Latest</strong><p><a href="{escape(latest.get("url"))}" target="_blank" rel="noreferrer">{escape(latest.get("clean_title") or latest.get("title"))}</a></p></div>
         <div><strong>Release-like items</strong><p>{release_count}</p></div>
       </div>
       <details>
@@ -163,7 +172,13 @@ def build_html(payload: dict, output_name: str) -> str:
     timeline = "\n".join(render_link(update) for update in updates[:18])
     top_topic_markup = "".join(f"<span>{escape(name)} · {count}</span>" for name, count in top_topics)
     errors = payload.get("errors", [])
-    error_markup = "" if not errors else "<ul>" + "".join(f"<li>{escape(e.get('interest_name'))}: {escape(e.get('error'))}</li>" for e in errors) + "</ul>"
+    error_markup = (
+        ""
+        if not errors
+        else "<ul>"
+        + "".join(f"<li>{escape(e.get('interest_name'))}: {escape(e.get('error'))}</li>" for e in errors)
+        + "</ul>"
+    )
 
     return f"""<!doctype html>
 <html lang="en">
@@ -231,8 +246,8 @@ def build_html(payload: dict, output_name: str) -> str:
         <div class="stat-grid">
           <div class="stat"><strong>{len(updates)}</strong><span>matching updates</span></div>
           <div class="stat"><strong>{len(grouped)}</strong><span>active topics</span></div>
-          <div class="stat"><strong>{payload.get('interests_checked', 0)}</strong><span>sources checked</span></div>
-          <div class="stat"><strong>{source_counts.get('page', 0)}</strong><span>page-fallback items</span></div>
+          <div class="stat"><strong>{payload.get("interests_checked", 0)}</strong><span>sources checked</span></div>
+          <div class="stat"><strong>{source_counts.get("page", 0)}</strong><span>page-fallback items</span></div>
         </div>
         <div class="note"><strong>Clover read:</strong> the dominant theme is not “new models” in isolation. It is agentic software development becoming operational: Codex workflows, T3 Code as control plane, Clawbolt as self-hostable client, and Hermes as local agent OS.</div>
       </aside>
@@ -279,17 +294,23 @@ def main() -> None:
     payload = fetch_json(f"{args.server.rstrip('/')}/api/technology-updates?days={args.days}")
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     output_name = args.output or f"briefing-{stamp}-last-{args.days}-days.html"
-    output_path = PUBLIC / output_name
+    BRIEFINGS_DIR.mkdir(exist_ok=True)
+    output_path = BRIEFINGS_DIR / output_name
     output_path.write_text(build_html(payload, output_name), encoding="utf-8")
-    json_path = PUBLIC / output_name.replace(".html", ".json")
+    json_path = BRIEFINGS_DIR / output_name.replace(".html", ".json")
     json_path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
-    print(json.dumps({
-        "html": str(output_path),
-        "json": str(json_path),
-        "updates": len(payload.get("updates", [])),
-        "topics": len(set(update.get("interest_name") for update in payload.get("updates", []))),
-        "errors": len(payload.get("errors", [])),
-    }, indent=2))
+    print(
+        json.dumps(
+            {
+                "html": str(output_path),
+                "json": str(json_path),
+                "updates": len(payload.get("updates", [])),
+                "topics": len({update.get("interest_name") for update in payload.get("updates", [])}),
+                "errors": len(payload.get("errors", [])),
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

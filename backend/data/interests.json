@@ -234,7 +234,7 @@
       "type": "technology",
       "priority": "high",
       "official_site_url": "https://www.anthropic.com/news",
-      "official_feed_url": "",
+      "official_feed_url": "None",
       "watch_keywords": [
         "claude",
         "opus",
