@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Learning Engine Briefing · Last 14 days</title>
+  <style>
+    :root { color-scheme: dark; --bg:#070912; --panel:#101625; --panel2:#151d31; --text:#edf3ff; --muted:#93a4c0; --line:rgba(255,255,255,.11); --accent:#8cf7d0; --hot:#ff8bd1; --blue:#88a7ff; --amber:#ffd166; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif; background: radial-gradient(circle at top left, rgba(136,167,255,.25), transparent 30rem), radial-gradient(circle at top right, rgba(255,139,209,.16), transparent 26rem), var(--bg); color:var(--text); }
+    a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+    .shell { width:min(1180px, calc(100vw - 40px)); margin:0 auto; padding:42px 0 70px; }
+    .hero { display:grid; grid-template-columns: 1.45fr .9fr; gap:24px; align-items:stretch; }
+    .glass { background:linear-gradient(145deg, rgba(16,22,37,.92), rgba(21,29,49,.74)); border:1px solid var(--line); box-shadow:0 20px 80px rgba(0,0,0,.36); border-radius:28px; }
+    .hero-main { padding:36px; position:relative; overflow:hidden; }
+    .hero-main:after { content:""; position:absolute; inset:auto -8rem -9rem auto; width:22rem; height:22rem; border-radius:999px; background:radial-gradient(circle, rgba(140,247,208,.22), transparent 65%); }
+    .kicker { margin:0 0 14px; color:var(--accent); font-weight:800; letter-spacing:.14em; text-transform:uppercase; font-size:.78rem; }
+    h1 { margin:0; font-size:clamp(2.4rem, 6vw, 5.8rem); line-height:.94; letter-spacing:-.08em; }
+    .lead { color:#cdd8ec; font-size:1.12rem; max-width:760px; line-height:1.7; margin:24px 0 0; }
+    .chips { display:flex; flex-wrap:wrap; gap:10px; margin-top:28px; }
+    .chips span, .source-pill { border:1px solid var(--line); color:#dce7fb; background:rgba(255,255,255,.06); border-radius:999px; padding:7px 10px; font-size:.82rem; }
+    .hero-side { padding:24px; display:grid; gap:16px; }
+    .stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .stat { padding:18px; border-radius:20px; background:rgba(255,255,255,.055); border:1px solid var(--line); }
+    .stat strong { display:block; font-size:2.05rem; letter-spacing:-.04em; }
+    .stat span { color:var(--muted); font-size:.88rem; }
+    .signal-map { margin-top:24px; padding:26px; }
+    .signal-map h2, .topic-card h2 { margin:0; letter-spacing:-.035em; }
+    .spark-row { display:grid; grid-template-columns: 210px 1fr 36px; gap:14px; align-items:center; margin:14px 0; color:#dce7fb; }
+    .spark-row b { display:block; height:12px; border-radius:999px; background:linear-gradient(90deg,var(--accent),var(--blue),var(--hot)); box-shadow:0 0 24px rgba(140,247,208,.2); }
+    .spark-row span { color:#cbd6ea; } .spark-row em { color:var(--muted); font-style:normal; text-align:right; }
+    .insights { display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; margin:24px 0; }
+    .insight { padding:22px; border-radius:24px; border:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.075), rgba(255,255,255,.035)); }
+    .insight h3 { margin:0 0 10px; } .insight p { color:#c7d3e8; line-height:1.6; margin:0; }
+    .topic-card { margin-top:20px; padding:26px; border-radius:28px; background:rgba(16,22,37,.88); border:1px solid var(--line); }
+    .topic-topline { display:flex; justify-content:space-between; gap:18px; align-items:flex-start; }
+    .eyebrow { color:var(--blue); text-transform:uppercase; letter-spacing:.12em; font-size:.76rem; font-weight:800; margin:0 0 8px; }
+    .metric { min-width:86px; padding:12px; border:1px solid var(--line); border-radius:18px; text-align:center; background:rgba(255,255,255,.055); }
+    .metric strong { display:block; font-size:2rem; } .metric span { color:var(--muted); font-size:.75rem; }
+    .summary { color:#d8e2f4; line-height:1.7; font-size:1.02rem; }
+    .why-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin:18px 0; }
+    .why-grid div { padding:16px; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.045); }
+    .why-grid strong { color:#fff; } .why-grid p { color:#bdc9df; line-height:1.5; margin:.5rem 0 0; }
+    details { margin-top:18px; } summary { cursor:pointer; color:var(--amber); font-weight:800; }
+    .source-list { list-style:none; padding:0; margin:14px 0 0; display:grid; gap:10px; }
+    .source-list li { display:grid; grid-template-columns: 96px 1fr auto auto; gap:10px; align-items:center; padding:11px 12px; border-radius:14px; background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.07); }
+    .date { color:var(--muted); font-variant-numeric:tabular-nums; } .keywords { color:#9fb0cb; font-size:.8rem; }
+    .timeline { margin-top:24px; padding:26px; }
+    .note { margin-top:24px; padding:18px 20px; color:#c5d0e4; line-height:1.65; border:1px dashed rgba(255,255,255,.18); border-radius:20px; background:rgba(255,255,255,.035); }
+    footer { color:var(--muted); margin-top:28px; text-align:center; }
+    @media (max-width: 900px) { .hero, .insights, .why-grid { grid-template-columns:1fr; } .source-list li { grid-template-columns:1fr; } .spark-row { grid-template-columns:1fr; gap:7px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div class="hero-main glass">
+        <p class="kicker">Learning Engine Briefing · generated 2026-05-15 13:59 UTC</p>
+        <h1>Two weeks of signal, distilled.</h1>
+        <p class="lead">The first briefing pulls from official feeds and official-page fallbacks through the local engine server. It covers updates since <strong>2026-05-01T13:59:16.891076Z</strong>, then compresses them into themes, decisions, and source-backed reading paths.</p>
+        <div class="chips"><span>OpenAI model announcements · 23</span><span>T3 Code · 10</span><span>Clawbolt · 7</span><span>Anthropic model announcements · 4</span></div>
+      </div>
+      <aside class="hero-side glass">
+        <div class="stat-grid">
+          <div class="stat"><strong>49</strong><span>matching updates</span></div>
+          <div class="stat"><strong>7</strong><span>active topics</span></div>
+          <div class="stat"><strong>10</strong><span>sources checked</span></div>
+          <div class="stat"><strong>4</strong><span>page-fallback items</span></div>
+        </div>
+        <div class="note"><strong>Clover read:</strong> the dominant theme is not “new models” in isolation. It is agentic software development becoming operational: Codex workflows, T3 Code as control plane, Clawbolt as self-hostable client, and Hermes as local agent OS.</div>
+      </aside>
+    </section>
+
+    <section class="signal-map glass">
+      <h2>Signal density map</h2>
+      <p class="summary">Volume is not importance, but it shows where the current information firehose is pointed.</p>
+      <div class="spark-row"><span>OpenAI model announcements</span><b style="width:100.0%"></b><em>23</em></div><div class="spark-row"><span>T3 Code</span><b style="width:43.5%"></b><em>10</em></div><div class="spark-row"><span>Clawbolt</span><b style="width:30.4%"></b><em>7</em></div><div class="spark-row"><span>Anthropic model announcements</span><b style="width:17.4%"></b><em>4</em></div><div class="spark-row"><span>Python</span><b style="width:13.0%"></b><em>3</em></div><div class="spark-row"><span>Hermes Agent</span><b style="width:8.0%"></b><em>1</em></div><div class="spark-row"><span>VoidZero</span><b style="width:8.0%"></b><em>1</em></div>
+    </section>
+
+    <section class="insights">
+      <article class="insight"><h3>1. Coding agents are leaving toy mode.</h3><p>OpenAI’s Codex posts, T3 Code’s release cadence, and Hermes/T3/Clawbolt movement point to agent workflows becoming deployable systems with sandboxes, provider control, and team process implications.</p></article>
+      <article class="insight"><h3>2. Self-hostable AI clients deserve a serious look.</h3><p>Clawbolt’s rapid patch stream is early-stage, but the shape matters for enterprise settings where data boundaries, provider choice, and local deployment are non-negotiable.</p></article>
+      <article class="insight"><h3>3. Toolchain upgrades continue quietly.</h3><p>Python’s release train and Rolldown 1.0 are less flashy than model launches, but these are the substrate changes that affect build reliability, performance, and developer experience.</p></article>
+    </section>
+
+    
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">OpenAI model announcements</p>
+          <h2>Agentic coding moved from demo to deployment story.</h2>
+        </div>
+        <div class="metric"><strong>23</strong><span>updates</span></div>
+      </div>
+      <p class="summary">OpenAI’s strongest signal was Codex: mobile access, Windows sandboxing, internal safety practice, and multiple enterprise adoption stories. GPT-5.5 Instant and voice API model posts add a model/API layer, but the strategic throughline is organizations operationalizing coding agents.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>Relevant for Puzzle/Mador: safe sandboxes, rollout patterns, and concrete adoption stories are the playbook material—not just shiny model names.</p></div>
+        <div><strong>Watch next</strong><p>Separate primary model/API launches from marketing/customer stories so the feed does not become noisy.</p></div>
+        <div><strong>Latest</strong><p><a href="https://openai.com/index/sea-david-chen" target="_blank" rel="noreferrer">Sea&#x27;s View on the Future of Agentic Software Development with Codex</a></p></div>
+        <div><strong>Release-like items</strong><p>6</p></div>
+      </div>
+      <details>
+        <summary>Full source links for OpenAI model announcements</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://openai.com/index/sea-david-chen" target="_blank" rel="noreferrer">Sea&#x27;s View on the Future of Agentic Software Development with Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://openai.com/index/work-with-codex-from-anywhere" target="_blank" rel="noreferrer">Work with Codex from anywhere</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://openai.com/index/building-codex-windows-sandbox" target="_blank" rel="noreferrer">Building a safe, effective sandbox to enable Codex on Windows</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/academy/how-finance-teams-use-codex" target="_blank" rel="noreferrer">How finance teams use Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/index/what-parameter-golf-taught-us" target="_blank" rel="noreferrer">What Parameter Golf taught us about AI-assisted research</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/index/autoscout24" target="_blank" rel="noreferrer">AutoScout24 scales engineering with AI-powered workflows</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/index/nvidia" target="_blank" rel="noreferrer">How NVIDIA engineers and researchers build with Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, gpt-5, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://openai.com/signals/research/2026q1-update" target="_blank" rel="noreferrer">How ChatGPT adoption broadened in early 2026</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://openai.com/index/openai-launches-the-deployment-company" target="_blank" rel="noreferrer">OpenAI launches DeployCo to help businesses build around intelligence</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">launch</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-08</span>
+        <a href="https://openai.com/index/running-codex-safely" target="_blank" rel="noreferrer">Running Codex safely at OpenAI</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://openai.com/index/gpt-5-5-with-trusted-access-for-cyber" target="_blank" rel="noreferrer">Scaling Trusted Access for Cyber with GPT-5.5 and GPT-5.5-Cyber</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, gpt-5</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://openai.com/index/parloa" target="_blank" rel="noreferrer">Parloa builds service agents customers want to talk to</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, models</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://openai.com/index/advancing-voice-intelligence-with-new-models-in-the-api" target="_blank" rel="noreferrer">Advancing voice intelligence with new models in the API</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, models, api</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://openai.com/index/testing-ads-in-chatgpt" target="_blank" rel="noreferrer">Testing ads in ChatGPT</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://openai.com/index/simplex" target="_blank" rel="noreferrer">Simplex rethinks software development with Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-06</span>
+        <a href="https://openai.com/index/how-chatgpt-protects-privacy" target="_blank" rel="noreferrer">How ChatGPT learns about the world while protecting privacy</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, models, gpt</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-06</span>
+        <a href="https://openai.com/index/introducing-chatgpt-futures-class-of-2026" target="_blank" rel="noreferrer">Introducing ChatGPT Futures: Class of 2026</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-06</span>
+        <a href="https://openai.com/index/singular-bank" target="_blank" rel="noreferrer">Singular Bank helps bankers move fast with ChatGPT and Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-06</span>
+        <a href="https://openai.com/index/introducing-b2b-signals" target="_blank" rel="noreferrer">How frontier firms are pulling ahead</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-05</span>
+        <a href="https://openai.com/index/gpt-5-5-instant-system-card" target="_blank" rel="noreferrer">GPT-5.5 Instant System Card</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, gpt-5</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-05</span>
+        <a href="https://openai.com/index/mrc-supercomputer-networking" target="_blank" rel="noreferrer">Unlocking large scale AI training networks with MRC (Multipath Reliable Connection)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-05</span>
+        <a href="https://openai.com/index/gpt-5-5-instant" target="_blank" rel="noreferrer">GPT-5.5 Instant: smarter, clearer, and more personalized</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, gpt, gpt-5</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-05</span>
+        <a href="https://openai.com/index/new-ways-to-buy-chatgpt-ads" target="_blank" rel="noreferrer">New ways to buy ChatGPT ads</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">T3 Code</p>
+          <h2>A coding-agent control plane is shipping at high velocity.</h2>
+        </div>
+        <div class="metric"><strong>10</strong><span>updates</span></div>
+      </div>
+      <p class="summary">T3 Code produced frequent nightlies plus tagged releases v0.0.23 and v0.0.24. The cadence suggests an early product moving quickly around agent orchestration/control-plane workflows.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>This is directly aligned with Ravid’s AI-assisted workflow goals: watch for provider support, stability, and whether it becomes useful as a team-facing harness.</p></div>
+        <div><strong>Watch next</strong><p>Look for docs, breaking changes, and a non-nightly release that signals it is ready for serious experiments.</p></div>
+        <div><strong>Latest</strong><p><a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.25-nightly.20260515.295" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.25-nightly.20260515.295 (d1e85c4e8fde)</a></p></div>
+        <div><strong>Release-like items</strong><p>10</p></div>
+      </div>
+      <details>
+        <summary>Full source links for T3 Code</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-15</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.25-nightly.20260515.295" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.25-nightly.20260515.295 (d1e85c4e8fde)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-15</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24" target="_blank" rel="noreferrer">T3 Code v0.0.24</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, t3 code, t3code, codex, cursor</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260514.285" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260514.285 (ea20e8002164)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.277" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.277 (556c42452c5a)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.276" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.276 (7e20b23e7ea5)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, provider</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.273" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.273 (b83e9c95e4f3)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, cursor</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260511.260" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260511.260 (447236d51f4d)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-10</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260510.249" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260510.249 (b793401aee38)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-09</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.23" target="_blank" rel="noreferrer">T3 Code v0.0.23</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, t3 code, t3code, codex, opencode</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-09</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.23-nightly.20260509.240" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.23-nightly.20260509.240 (3c32bc8fd1f5)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, codex</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">Clawbolt</p>
+          <h2>Mozilla.ai’s self-hostable AI client is iterating fast.</h2>
+        </div>
+        <div class="metric"><strong>7</strong><span>updates</span></div>
+      </div>
+      <p class="summary">Clawbolt released seven versions in the window, including ServiceTitan integration MVP/polish notes and several patch releases. The signal is product integration and demo readiness rather than a single major announcement.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>Worth tracking as a possible open-source/self-hostable AI client pattern for enterprise environments.</p></div>
+        <div><strong>Watch next</strong><p>Check whether releases include deployment docs, auth/provider hardening, and real connector maturity.</p></div>
+        <div><strong>Latest</strong><p><a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.22" target="_blank" rel="noreferrer">v0.4.22</a></p></div>
+        <div><strong>Release-like items</strong><p>7</p></div>
+      </div>
+      <details>
+        <summary>Full source links for Clawbolt</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.22" target="_blank" rel="noreferrer">v0.4.22</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.21" target="_blank" rel="noreferrer">v0.4.21</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.20" target="_blank" rel="noreferrer">v0.4.20</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.17" target="_blank" rel="noreferrer">v0.4.17</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.15" target="_blank" rel="noreferrer">v0.4.15</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.14" target="_blank" rel="noreferrer">v0.4.14: demo-grade ServiceTitan fake seed + integration UI polish</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-11</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.13" target="_blank" rel="noreferrer">v0.4.13: ServiceTitan integration MVP</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">Anthropic model announcements</p>
+          <h2>Claude is being packaged into business/vertical workflows.</h2>
+        </div>
+        <div class="metric"><strong>4</strong><span>updates</span></div>
+      </div>
+      <p class="summary">Anthropic’s official news page surfaced Claude for Small Business, higher limits plus a SpaceX compute deal, finance agents, and creative-work positioning. The theme is go-to-market packaging around Claude and agents.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>Relevant for comparing model-provider strategy: OpenAI is emphasizing Codex deployment; Anthropic is emphasizing Claude products, usage limits, and vertical agent narratives.</p></div>
+        <div><strong>Watch next</strong><p>This source is page-watched, not RSS. Dates/titles should be treated as best-effort until a cleaner official feed exists.</p></div>
+        <div><strong>Latest</strong><p><a href="https://www.anthropic.com/news/claude-for-small-business" target="_blank" rel="noreferrer">Introducing Claude for Small Business</a></p></div>
+        <div><strong>Release-like items</strong><p>0</p></div>
+      </div>
+      <details>
+        <summary>Full source links for Anthropic model announcements</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://www.anthropic.com/news/claude-for-small-business" target="_blank" rel="noreferrer">Introducing Claude for Small Business</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://www.anthropic.com/news/higher-limits-spacex" target="_blank" rel="noreferrer">Higher usage limits for Claude and a compute deal with SpaceX</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement, agents</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-06</span>
+        <a href="https://www.anthropic.com/news/finance-agents" target="_blank" rel="noreferrer">Agents for financial services</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement, agents</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-04</span>
+        <a href="https://www.anthropic.com/news/claude-for-creative-work" target="_blank" rel="noreferrer">Claude for Creative Work</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">Python</p>
+          <h2>Python release train continues: stable, beta, and RC all visible.</h2>
+        </div>
+        <div class="metric"><strong>3</strong><span>updates</span></div>
+      </div>
+      <p class="summary">Python published 3.14.5 final, 3.15.0 beta 1, and the 3.14.5 release candidate. This is routine but important platform hygiene.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>For production systems, this points to upcoming compatibility testing and dependency readiness checks.</p></div>
+        <div><strong>Watch next</strong><p>Track breaking/deprecation notes around 3.15 beta and security fixes in maintenance releases.</p></div>
+        <div><strong>Latest</strong><p><a href="https://blog.python.org/2026/05/python-3145-is-out/" target="_blank" rel="noreferrer">Python 3.14.5 is out!</a></p></div>
+        <div><strong>Release-like items</strong><p>3</p></div>
+      </div>
+      <details>
+        <summary>Full source links for Python</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-10</span>
+        <a href="https://blog.python.org/2026/05/python-3145-is-out/" target="_blank" rel="noreferrer">Python 3.14.5 is out!</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, python 3</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://blog.python.org/2026/05/python-3150-beta-1/" target="_blank" rel="noreferrer">Python 3.15.0 beta 1 is here!</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">python 3, beta</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-04</span>
+        <a href="https://blog.python.org/2026/05/python-3145rc1/" target="_blank" rel="noreferrer">Python 3.14.5 release candidate</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, python 3, candidate</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">Hermes Agent</p>
+          <h2>Hermes continues maturing as the local agent OS layer.</h2>
+        </div>
+        <div class="metric"><strong>1</strong><span>updates</span></div>
+      </div>
+      <p class="summary">Hermes Agent v0.13.0, the Tenacity Release, landed in the briefing window.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>Relevant because this is becoming part of Ravid’s personal operating system and AI-assisted workflow stack.</p></div>
+        <div><strong>Watch next</strong><p>Read release notes for reliability, tool execution, gateway, skill, and scheduling changes.</p></div>
+        <div><strong>Latest</strong><p><a href="https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.7" target="_blank" rel="noreferrer">Hermes Agent v0.13.0 (2026.5.7) — The Tenacity Release</a></p></div>
+        <div><strong>Release-like items</strong><p>1</p></div>
+      </div>
+      <details>
+        <summary>Full source links for Hermes Agent</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://github.com/NousResearch/hermes-agent/releases/tag/v2026.5.7" target="_blank" rel="noreferrer">Hermes Agent v0.13.0 (2026.5.7) — The Tenacity Release</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, hermes, agent, cli, gateway</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="topic-card">
+      <div class="topic-topline">
+        <div>
+          <p class="eyebrow">VoidZero</p>
+          <h2>Rolldown 1.0 is the JavaScript tooling headline.</h2>
+        </div>
+        <div class="metric"><strong>1</strong><span>updates</span></div>
+      </div>
+      <p class="summary">VoidZero announced Rolldown 1.0, an important milestone in the Oxc/Vite/Rolldown toolchain story.</p>
+      <div class="why-grid">
+        <div><strong>Why it matters</strong><p>Potentially relevant for frontend build performance, bundling architecture, and future Vite ecosystem direction.</p></div>
+        <div><strong>Watch next</strong><p>Look for migration notes, ecosystem adoption, and whether it changes default tooling choices.</p></div>
+        <div><strong>Latest</strong><p><a href="https://voidzero.dev/posts/announcing-rolldown-1-0" target="_blank" rel="noreferrer">Announcing Rolldown 1.0</a></p></div>
+        <div><strong>Release-like items</strong><p>1</p></div>
+      </div>
+      <details>
+        <summary>Full source links for VoidZero</summary>
+        <ul class="source-list">
+      <li>
+        <span class="date">2026-05-07</span>
+        <a href="https://voidzero.dev/posts/announcing-rolldown-1-0" target="_blank" rel="noreferrer">Announcing Rolldown 1.0</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">announcing, rolldown</span>
+      </li>
+    </ul>
+      </details>
+    </section>
+    
+
+    <section class="timeline glass">
+      <h2>Latest-source timeline</h2>
+      <p class="summary">A quick path into the raw source trail. Every item links to the official source captured by the engine.</p>
+      <ul class="source-list">
+      <li>
+        <span class="date">2026-05-15</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.25-nightly.20260515.295" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.25-nightly.20260515.295 (d1e85c4e8fde)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-15</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24" target="_blank" rel="noreferrer">T3 Code v0.0.24</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, t3 code, t3code, codex, cursor</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://openai.com/index/sea-david-chen" target="_blank" rel="noreferrer">Sea&#x27;s View on the Future of Agentic Software Development with Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.22" target="_blank" rel="noreferrer">v0.4.22</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://openai.com/index/work-with-codex-from-anywhere" target="_blank" rel="noreferrer">Work with Codex from anywhere</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260514.285" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260514.285 (ea20e8002164)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-14</span>
+        <a href="https://www.anthropic.com/news/claude-for-small-business" target="_blank" rel="noreferrer">Introducing Claude for Small Business</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.21" target="_blank" rel="noreferrer">v0.4.21</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.20" target="_blank" rel="noreferrer">v0.4.20</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.277" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.277 (556c42452c5a)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://openai.com/index/building-codex-windows-sandbox" target="_blank" rel="noreferrer">Building a safe, effective sandbox to enable Codex on Windows</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.276" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.276 (7e20b23e7ea5)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, provider</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://github.com/pingdotgg/t3code/releases/tag/v0.0.24-nightly.20260513.273" target="_blank" rel="noreferrer">T3 Code Nightly 0.0.24-nightly.20260513.273 (b83e9c95e4f3)</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, nightly, t3 code, t3code, cursor</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-13</span>
+        <a href="https://www.anthropic.com/news/higher-limits-spacex" target="_blank" rel="noreferrer">Higher usage limits for Claude and a compute deal with SpaceX</a>
+        <span class="source-pill">page</span>
+        <span class="keywords">claude, announcement, agents</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://github.com/mozilla-ai/clawbolt/releases/tag/v0.4.17" target="_blank" rel="noreferrer">v0.4.17</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">release, clawbolt, mozilla</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/academy/how-finance-teams-use-codex" target="_blank" rel="noreferrer">How finance teams use Codex</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model, codex</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/index/what-parameter-golf-taught-us" target="_blank" rel="noreferrer">What Parameter Golf taught us about AI-assisted research</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">model</span>
+      </li>
+    
+
+      <li>
+        <span class="date">2026-05-12</span>
+        <a href="https://openai.com/index/autoscout24" target="_blank" rel="noreferrer">AutoScout24 scales engineering with AI-powered workflows</a>
+        <span class="source-pill">feed</span>
+        <span class="keywords">gpt, codex</span>
+      </li>
+    </ul>
+    </section>
+
+    <section class="note">
+      <strong>Blind spots / quality notes:</strong>
+      Anthropic is collected with an official-page fallback because no clean official RSS feed is tracked yet; dates and titles are best-effort extraction. OpenAI’s feed is broad and currently captures some adoption/marketing posts because they match Codex/model keywords. Errors from the engine: 0. 
+    </section>
+
+    <footer>Generated by Learning Engine · <code>briefing-2026-05-15-last-14-days.html</code></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,65 @@
+"""FastAPI application factory."""
+
+from __future__ import annotations
+
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+
+from learning_engine.collector import collect_technology_updates
+from learning_engine.config import HOST, PORT, PUBLIC_DIR
+from learning_engine.models import InterestsPayload, TechnologyUpdatesResponse
+from learning_engine.storage import ensure_data_file, read_interests, write_interests
+
+
+def create_app() -> FastAPI:
+    @asynccontextmanager
+    async def lifespan(_api: FastAPI) -> AsyncIterator[None]:
+        ensure_data_file()
+        yield
+
+    api = FastAPI(
+        title="Learning Engine Starter",
+        summary="Local-first API for personal interests and daily briefing source collection.",
+        version="0.3.0",
+        lifespan=lifespan,
+    )
+
+    @api.get("/", include_in_schema=False)
+    def index() -> RedirectResponse:
+        return RedirectResponse(url="/index.html")
+
+    @api.get("/api/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @api.get("/api/interests", response_model=InterestsPayload)
+    def get_interests() -> InterestsPayload:
+        return read_interests()
+
+    @api.post("/api/interests")
+    def save_interests(payload: InterestsPayload) -> dict[str, object]:
+        write_interests(payload)
+        return {"ok": True, "saved": read_interests().model_dump(mode="json")}
+
+    @api.get("/api/technology-updates", response_model=TechnologyUpdatesResponse)
+    def technology_updates(days: int | None = Query(default=None, ge=1)) -> TechnologyUpdatesResponse:
+        try:
+            return collect_technology_updates(read_interests(), days=days)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    api.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True), name="public")
+    return api
+
+
+app = create_app()
+
+
+def run() -> None:
+    import uvicorn
+
+    uvicorn.run("learning_engine.app:app", host=HOST, port=PORT, reload=False)

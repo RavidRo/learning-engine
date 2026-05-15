@@ -1,0 +1,264 @@
+{
+  "interests": [
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://www.typescriptlang.org/",
+      "official_feed_url": "https://devblogs.microsoft.com/typescript/feed/",
+      "watch_keywords": [
+        "release",
+        "beta",
+        "rc",
+        "compiler",
+        "breaking change",
+        "typescript 5"
+      ],
+      "ignore_keywords": [
+        "webinar",
+        "case study"
+      ],
+      "notes": "Notify me about language/compiler updates and important release announcements.",
+      "enabled": true
+    },
+    {
+      "id": "voidzero",
+      "name": "VoidZero",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://voidzero.dev/",
+      "official_feed_url": "https://voidzero.dev/feed.xml",
+      "watch_keywords": [
+        "release",
+        "announcement",
+        "announcing",
+        "rolldown",
+        "oxc",
+        "vite",
+        "vitest",
+        "tsdown",
+        "compiler",
+        "bundler",
+        "breaking change"
+      ],
+      "ignore_keywords": [
+        "webinar",
+        "case study"
+      ],
+      "notes": "Track VoidZero announcements and their JavaScript/TypeScript development tools, especially Rolldown, Oxc, Vite, Vitest, and related build tooling.",
+      "enabled": true
+    },
+    {
+      "id": "astral",
+      "name": "Astral",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://astral.sh/",
+      "official_feed_url": "https://astral.sh/blog/rss.xml",
+      "watch_keywords": [
+        "release",
+        "announcement",
+        "announcing",
+        "ruff",
+        "uv",
+        "ty",
+        "python",
+        "type checker",
+        "lsp",
+        "formatter",
+        "package manager",
+        "breaking change"
+      ],
+      "ignore_keywords": [
+        "webinar",
+        "case study"
+      ],
+      "notes": "Track Astral's Python tooling: Ruff, uv, ty, and broader Python developer workflow announcements.",
+      "enabled": true
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://react.dev/",
+      "official_feed_url": "https://react.dev/rss.xml",
+      "watch_keywords": [
+        "release",
+        "announcement",
+        "announcing",
+        "react 19",
+        "react 20",
+        "compiler",
+        "server components",
+        "server actions",
+        "framework",
+        "security",
+        "vulnerability",
+        "breaking change",
+        "deprecation"
+      ],
+      "ignore_keywords": [
+        "webinar",
+        "case study"
+      ],
+      "notes": "Track official React releases, compiler/server component changes, security notices, and major ecosystem announcements.",
+      "enabled": true
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://www.python.org/",
+      "official_feed_url": "https://blog.python.org/feeds/posts/default",
+      "watch_keywords": [
+        "release",
+        "python 3",
+        "alpha",
+        "beta",
+        "candidate",
+        "security",
+        "vulnerability",
+        "pep",
+        "packaging",
+        "performance",
+        "breaking change"
+      ],
+      "ignore_keywords": [
+        "conference",
+        "webinar",
+        "case study"
+      ],
+      "notes": "Track official Python release announcements, security updates, packaging changes, and important PEP/runtime news.",
+      "enabled": true
+    },
+    {
+      "id": "t3code",
+      "name": "T3 Code",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://t3.codes/",
+      "official_feed_url": "https://github.com/pingdotgg/t3code/releases.atom",
+      "watch_keywords": [
+        "release",
+        "nightly",
+        "announcement",
+        "announcing",
+        "t3 code",
+        "t3code",
+        "coding agents",
+        "coding harness",
+        "claude code",
+        "codex",
+        "opencode",
+        "cursor",
+        "control plane",
+        "provider",
+        "harness",
+        "breaking change"
+      ],
+      "ignore_keywords": [
+        "chore",
+        "typo",
+        "internal"
+      ],
+      "notes": "Track T3 Code, the open-source control plane/coding harness for orchestrating Claude Code, Codex, OpenCode, Cursor, and other coding agents. RSS-first tracking uses the official GitHub releases Atom feed; official site is t3.codes.",
+      "enabled": true
+    },
+    {
+      "id": "hermes-agent",
+      "name": "Hermes Agent",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://hermes-agent.nousresearch.com/docs/",
+      "official_feed_url": "https://github.com/NousResearch/hermes-agent/releases.atom",
+      "watch_keywords": [
+        "release",
+        "announcement",
+        "announcing",
+        "hermes",
+        "agent",
+        "cli",
+        "gateway",
+        "skills",
+        "tools",
+        "mcp",
+        "cron",
+        "model",
+        "provider"
+      ],
+      "ignore_keywords": [
+        "chore",
+        "internal"
+      ],
+      "notes": "Track Hermes Agent releases from the official NousResearch GitHub release feed.",
+      "enabled": true
+    },
+    {
+      "id": "openai-model-announcements",
+      "name": "OpenAI model announcements",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://openai.com/news/",
+      "official_feed_url": "https://openai.com/news/rss.xml",
+      "watch_keywords": [
+        "model",
+        "models",
+        "gpt",
+        "o3",
+        "o4",
+        "gpt-5",
+        "codex",
+        "reasoning",
+        "multimodal",
+        "api",
+        "announcement",
+        "announcing",
+        "release",
+        "launch"
+      ],
+      "ignore_keywords": [
+        "customer story",
+        "case study",
+        "policy",
+        "safety"
+      ],
+      "notes": "Track OpenAI announcements that are likely to involve new or materially updated models, APIs, Codex, and reasoning/multimodal capabilities.",
+      "enabled": true
+    },
+    {
+      "id": "anthropic-model-announcements",
+      "name": "Anthropic model announcements",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://www.anthropic.com/news",
+      "official_feed_url": "",
+      "watch_keywords": [
+        "claude",
+        "opus",
+        "sonnet",
+        "haiku",
+        "model",
+        "models",
+        "api",
+        "announcement",
+        "announcing",
+        "release",
+        "launch",
+        "coding",
+        "agents",
+        "vision",
+        "reasoning"
+      ],
+      "ignore_keywords": [
+        "customer story",
+        "case study",
+        "policy"
+      ],
+      "notes": "Anthropic's official News page does not appear to expose an RSS feed, so this is captured as an enabled interest with no feed for now. Add page-watching support or an official feed if Anthropic publishes one.",
+      "enabled": true
+    }
+  ]
+}
