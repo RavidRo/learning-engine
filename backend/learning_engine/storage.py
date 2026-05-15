@@ -38,7 +38,7 @@ def read_interests(path: Path = INTERESTS_FILE) -> InterestsPayload:
     normalized = InterestsPayload(
         interests=[TechnologyInterest.model_validate(item) for item in interests if isinstance(item, dict)]
     )
-    if normalized.model_dump(mode="json") != payload:
+    if normalized.model_dump(mode="json", by_alias=True) != payload:
         write_interests(normalized, path)
     return normalized
 
@@ -46,6 +46,6 @@ def read_interests(path: Path = INTERESTS_FILE) -> InterestsPayload:
 def write_interests(payload: InterestsPayload, path: Path = INTERESTS_FILE) -> None:
     path.parent.mkdir(exist_ok=True)
     path.write_text(
-        json.dumps(payload.model_dump(mode="json"), indent=2, ensure_ascii=False),
+        json.dumps(payload.model_dump(mode="json", by_alias=True), indent=2, ensure_ascii=False),
         encoding="utf-8",
     )

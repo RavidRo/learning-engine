@@ -52,6 +52,16 @@ On the same computer, this works directly. For phone access, the computer and ph
 
 Common workflows live in `Taskfile.yml` so the README does not duplicate command strings.
 
+## Docker Compose
+
+Run both services with:
+
+```bash
+task compose:up
+```
+
+The backend is exposed on `http://localhost:8765`, the frontend on `http://localhost:5173`, and backend data is mounted at `./backend/data`.
+
 ## Privacy note
 
 The interests file may eventually reveal personal interests, professional priorities, people you follow, and private learning goals. Keep it local unless you intentionally decide to sync or publish it.

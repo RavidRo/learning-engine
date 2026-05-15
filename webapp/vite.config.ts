@@ -2,6 +2,8 @@ import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { defineConfig } from "vite-plus";
 
+const backendOrigin = process.env["VITE_BACKEND_ORIGIN"] ?? "http://127.0.0.1:8765";
+
 export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   lint: {
@@ -19,7 +21,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      "/api": "http://127.0.0.1:8765",
+      "/api": backendOrigin,
     },
   },
 });

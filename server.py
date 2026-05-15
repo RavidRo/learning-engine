@@ -13,7 +13,9 @@ from datetime import datetime
 from typing import Any
 
 from learning_engine.app import app, run
-from learning_engine.collector import collect_technology_updates as _collect_technology_updates
+from learning_engine.collector import (
+    collect_technology_updates as _collect_technology_updates,
+)
 from learning_engine.collector import parse_feed_items as _parse_feed_items
 from learning_engine.collector import parse_page_items as _parse_page_items
 from learning_engine.fetching import fetch_url
@@ -23,16 +25,16 @@ from learning_engine.storage import ensure_data_file
 from learning_engine.storage import read_interests as _read_interests
 from learning_engine.storage import write_interests as _write_interests
 
-DEFAULT_DATA = _DEFAULT_DATA.model_dump(mode="json", by_alias=True)
+DEFAULT_DATA = _DEFAULT_DATA.model_dump(mode="json")
 __all__ = ["app"]
 
 
 def normalize_interest(item: dict[str, Any]) -> dict[str, Any]:
-    return TechnologyInterest.model_validate(item).model_dump(mode="json", by_alias=True)
+    return TechnologyInterest.model_validate(item).model_dump(mode="json")
 
 
 def read_interests() -> dict[str, Any]:
-    return _read_interests().model_dump(mode="json", by_alias=True)
+    return _read_interests().model_dump(mode="json")
 
 
 def write_interests(payload: dict[str, Any]) -> None:
@@ -46,7 +48,9 @@ def parse_feed_items(
 ) -> list[dict[str, Any]]:
     return [
         item.model_dump(mode="json")
-        for item in _parse_feed_items(feed_bytes, watch_keywords=watch_keywords, ignore_keywords=ignore_keywords)
+        for item in _parse_feed_items(
+            feed_bytes, watch_keywords=watch_keywords, ignore_keywords=ignore_keywords
+        )
     ]
 
 
@@ -77,7 +81,8 @@ def collect_technology_updates(
         "interests": [
             item
             for item in raw_interests
-            if isinstance(item, dict) and str(item.get("type", "technology")).strip().lower() == "technology"
+            if isinstance(item, dict)
+            and str(item.get("type", "technology")).strip().lower() == "technology"
         ]
     }
     return _collect_technology_updates(

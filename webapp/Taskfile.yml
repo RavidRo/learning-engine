@@ -1,0 +1,42 @@
+version: "3"
+
+vars:
+  WEB_HOST: '{{.WEB_HOST | default "127.0.0.1"}}'
+  WEB_PORT: '{{.WEB_PORT | default "5173"}}'
+
+tasks:
+  install:
+    desc: Install webapp dependencies
+    cmds:
+      - npm install
+
+  dev:
+    desc: Run the Vite+ webapp dev server
+    cmds:
+      - npm run dev -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
+
+  build:
+    desc: Build the Vite+ webapp
+    cmds:
+      - npm run build
+
+  check:
+    desc: Run Vite+ format, lint, type checks, and Fallow analysis
+    cmds:
+      - npm run check
+      - npm exec fallow -- --fail-on-issues
+
+  lint:
+    desc: Lint the webapp with Vite+
+    cmds:
+      - npm run lint
+
+  format:
+    desc: Format the webapp with Vite+
+    cmds:
+      - npm run format
+
+  preview:
+    desc: Preview the built Vite+ webapp
+    cmds:
+      - npm run preview -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}

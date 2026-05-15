@@ -122,7 +122,7 @@ def collect_technology_updates(
     cutoff = days_cutoff(days, now)
 
     for interest in payload.interests:
-        if not interest.enabled:
+        if interest.deleted_at is not None or not interest.enabled:
             continue
 
         if _source_for_interest(interest) is None:

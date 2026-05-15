@@ -1,0 +1,11 @@
+# See https://docs.contextive.tech/community/guides/setting-up-glossaries/ for detailed guidance on where to put this file and setting up the context.
+# See https://docs.contextive.tech/community/guides/defining-terminology/ for detailed guidance on defining your terminology.
+contexts:
+  - name: Learning Engine
+    domainVisionStatement: Maintain local, user-owned learning priorities that can be collected into useful briefings.
+    terms:
+      - name: Interest
+        definition: A user-owned learning topic tracked by the Learning Engine, including its type, priority, enabled state, optional source URLs, matching keywords, and notes.
+        examples:
+          - Technology interests can include an official website URL, official RSS or Atom feed URL, watch keywords, and ignore keywords.
+          - Hermes reads enabled interests to prepare an evening briefing.

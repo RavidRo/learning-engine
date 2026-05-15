@@ -45,16 +45,25 @@ def create_app() -> FastAPI:
     @api.post("/api/interests")
     def save_interests(payload: InterestsPayload) -> dict[str, object]:
         write_interests(payload)
-        return {"ok": True, "saved": read_interests().model_dump(mode="json")}
+        return {
+            "ok": True,
+            "saved": read_interests().model_dump(mode="json", by_alias=True),
+        }
 
     @api.get("/api/technology-updates", response_model=TechnologyUpdatesResponse)
-    def technology_updates(days: Annotated[int | None, Query(ge=1)] = None) -> TechnologyUpdatesResponse:
+    def technology_updates(
+        days: Annotated[int | None, Query(ge=1)] = None,
+    ) -> TechnologyUpdatesResponse:
         try:
             return collect_technology_updates(read_interests(), days=days)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    api.mount("/", StaticFiles(directory=PUBLIC_DIR, html=True, check_dir=False), name="public")
+    api.mount(
+        "/",
+        StaticFiles(directory=PUBLIC_DIR, html=True, check_dir=False),
+        name="public",
+    )
     return api
 
 

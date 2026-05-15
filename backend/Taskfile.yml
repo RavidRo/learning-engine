@@ -1,0 +1,68 @@
+version: "3"
+
+vars:
+  HOST: '{{.HOST | default "127.0.0.1"}}'
+  PORT: '{{.PORT | default "8765"}}'
+  DAYS: '{{.DAYS | default "14"}}'
+  UV_CACHE_DIR: '{{.UV_CACHE_DIR | default ".uv-cache"}}'
+
+env:
+  UV_CACHE_DIR: "{{.UV_CACHE_DIR}}"
+
+tasks:
+  sync:
+    desc: Install or update the uv-managed environment
+    cmds:
+      - uv sync
+
+  lock:
+    desc: Refresh uv.lock
+    cmds:
+      - uv lock
+
+  run:
+    desc: Run the app through the compatibility server entrypoint
+    cmds:
+      - uv run python server.py
+
+  dev:
+    desc: Run the FastAPI app with reload enabled
+    cmds:
+      - uv run uvicorn learning_engine.app:app --host {{.HOST}} --port {{.PORT}} --reload
+
+  lint:
+    desc: Lint the project with Ruff
+    cmds:
+      - uv run ruff check .
+
+  format:
+    desc: Format Python files with Ruff
+    cmds:
+      - uv run ruff format .
+
+  typecheck:
+    desc: Type-check the backend with mypy
+    cmds:
+      - uv run mypy
+
+  test:
+    desc: Run the test suite
+    cmds:
+      - cmd: uv run pytest
+
+  check:
+    desc: Run linting, typing, and tests
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: test
+
+  briefing:
+    desc: Generate an HTML briefing from the running local server
+    cmds:
+      - uv run python scripts/generate_briefing.py --days {{.DAYS}}
+
+  health:
+    desc: Check the local API health endpoint
+    cmds:
+      - uv run python -c "import urllib.request; print(urllib.request.urlopen('http://{{.HOST}}:{{.PORT}}/api/health', timeout=2).read().decode())"

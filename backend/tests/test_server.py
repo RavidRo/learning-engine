@@ -20,6 +20,7 @@ def test_normalize_technology_interest_keeps_official_source_fields() -> None:
             "ignore_keywords": ["webinar"],
             "notes": "Language/compiler updates only.",
             "enabled": True,
+            "deletedAt": "2026-05-15T10:00:00.000Z",
         }
     )
 
@@ -28,6 +29,7 @@ def test_normalize_technology_interest_keeps_official_source_fields() -> None:
     assert interest["official_feed_url"] == "https://devblogs.microsoft.com/typescript/feed/"
     assert interest["watch_keywords"] == ["release", "beta"]
     assert interest["ignore_keywords"] == ["webinar"]
+    assert interest["deletedAt"] == "2026-05-15T10:00:00.000Z"
     assert "sources" not in interest
 
 
@@ -129,6 +131,14 @@ def test_collect_technology_updates_fetches_enabled_technology_feeds_only() -> N
                 "type": "person",
                 "enabled": True,
                 "official_feed_url": "https://example.com/person.xml",
+            },
+            {
+                "id": "deleted",
+                "name": "Deleted",
+                "type": "technology",
+                "enabled": True,
+                "deletedAt": "2026-05-15T10:00:00.000Z",
+                "official_feed_url": "https://example.com/deleted.xml",
             },
         ]
     }

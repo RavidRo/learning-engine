@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, cast
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 InterestType = Literal["technology"]
 Priority = Literal["low", "medium", "high"]
@@ -22,7 +22,7 @@ def _clean_string_list(value: object) -> list[str]:
 class TechnologyInterest(BaseModel):
     """A technology topic tracked from official sources."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     id: str | None = None
     name: str = "Technology"
@@ -34,6 +34,11 @@ class TechnologyInterest(BaseModel):
     ignore_keywords: list[str] = Field(default_factory=list)
     notes: str | None = None
     enabled: bool = True
+    deleted_at: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("deletedAt", "deleted_at"),
+        serialization_alias="deletedAt",
+    )
 
     @field_validator("type", mode="before")
     @classmethod
@@ -48,7 +53,7 @@ class TechnologyInterest(BaseModel):
             return cast(Priority, priority)
         return "medium"
 
-    @field_validator("id", "official_site_url", "official_feed_url", "notes", mode="before")
+    @field_validator("id", "official_site_url", "official_feed_url", "notes", "deleted_at", mode="before")
     @classmethod
     def strip_optional_strings(cls, value: object) -> str | None:
         if value is None:

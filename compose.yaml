@@ -1,0 +1,20 @@
+name: learning-engine
+
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8765:8765"
+    volumes:
+      - ./backend/data:/app/data
+
+  frontend:
+    build:
+      context: ./webapp
+    environment:
+      VITE_BACKEND_ORIGIN: http://backend:8765
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend

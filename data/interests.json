@@ -1,0 +1,26 @@
+{
+  "interests": [
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "type": "technology",
+      "priority": "high",
+      "official_site_url": "https://www.typescriptlang.org/",
+      "official_feed_url": "https://devblogs.microsoft.com/typescript/feed/",
+      "watch_keywords": [
+        "release",
+        "beta",
+        "rc",
+        "compiler",
+        "breaking change",
+        "typescript 5"
+      ],
+      "ignore_keywords": [
+        "webinar",
+        "case study"
+      ],
+      "notes": "Notify me about language/compiler updates and important release announcements.",
+      "enabled": true
+    }
+  ]
+}

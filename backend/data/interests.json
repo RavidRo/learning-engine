@@ -20,7 +20,8 @@
         "case study"
       ],
       "notes": "Notify me about language/compiler updates and important release announcements.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "voidzero",
@@ -47,7 +48,8 @@
         "case study"
       ],
       "notes": "Track VoidZero announcements and their JavaScript/TypeScript development tools, especially Rolldown, Oxc, Vite, Vitest, and related build tooling.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "astral",
@@ -75,7 +77,8 @@
         "case study"
       ],
       "notes": "Track Astral's Python tooling: Ruff, uv, ty, and broader Python developer workflow announcements.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "react",
@@ -104,7 +107,8 @@
         "case study"
       ],
       "notes": "Track official React releases, compiler/server component changes, security notices, and major ecosystem announcements.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "python",
@@ -132,7 +136,8 @@
         "case study"
       ],
       "notes": "Track official Python release announcements, security updates, packaging changes, and important PEP/runtime news.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "t3code",
@@ -165,7 +170,8 @@
         "internal"
       ],
       "notes": "Track T3 Code, the open-source control plane/coding harness for orchestrating Claude Code, Codex, OpenCode, Cursor, and other coding agents. RSS-first tracking uses the official GitHub releases Atom feed; official site is t3.codes.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "hermes-agent",
@@ -194,7 +200,8 @@
         "internal"
       ],
       "notes": "Track Hermes Agent releases from the official NousResearch GitHub release feed.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "openai-model-announcements",
@@ -226,7 +233,8 @@
         "safety"
       ],
       "notes": "Track OpenAI announcements that are likely to involve new or materially updated models, APIs, Codex, and reasoning/multimodal capabilities.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     },
     {
       "id": "anthropic-model-announcements",
@@ -258,7 +266,8 @@
         "policy"
       ],
       "notes": "Anthropic's official News page does not appear to expose an RSS feed, so this is captured as an enabled interest with no feed for now. Add page-watching support or an official feed if Anthropic publishes one.",
-      "enabled": true
+      "enabled": true,
+      "deletedAt": null
     }
   ]
 }
