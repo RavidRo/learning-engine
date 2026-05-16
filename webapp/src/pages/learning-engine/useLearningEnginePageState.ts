@@ -1,23 +1,20 @@
-import {
-  type QueryClient,
-  type UseQueryResult,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
-import { useEffect, useReducer } from "react";
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useReducer, useState } from "react";
 
 import { fetchInterests, fetchUpdates, saveInterests } from "./api";
-import { readInterestForm, slugify } from "./interestForm";
+import { createInterest, updateInterestFromDraft } from "./interestForm";
 import {
   type Interest,
   type LearningEnginePageActions,
+  type PageView,
+  type SaveStatus,
   type UpdatesPayload,
   type ToastState,
 } from "./types";
 
 const interestsQueryKey = ["learning-engine", "interests"] as const;
-const updatesQueryKey = ["learning-engine", "updates"] as const;
+const weeklyUpdateDays = 7;
+const updatesQueryKey = ["learning-engine", "updates", weeklyUpdateDays] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
 
 type ToastAction = { type: "hideToast" } | { type: "showToast"; message: string };
@@ -35,8 +32,6 @@ const toastReducer = (state: ToastState, action: ToastAction): ToastState => {
 
 const errorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error ? error.message : fallback;
-
-const sourceLabel = (label: string): string => label || "Source";
 
 const useAutoDismissToast = (): [ToastState, ShowToast] => {
   const [toast, dispatchToast] = useReducer(toastReducer, emptyToast);
@@ -62,35 +57,6 @@ const useAutoDismissToast = (): [ToastState, ShowToast] => {
   return [toast, showToast];
 };
 
-const createInterest = (form: HTMLFormElement): Interest | null => {
-  const formValues = readInterestForm(form);
-
-  if (!formValues.name) {
-    return null;
-  }
-
-  const now = String(Date.now());
-
-  return {
-    deletedAt: null,
-    description: formValues.description,
-    enabled: true,
-    id: `${slugify(formValues.name)}-${now}`,
-    name: formValues.name,
-    priority: formValues.priority,
-    sources: [
-      {
-        deletedAt: null,
-        enabled: true,
-        id: `${slugify(sourceLabel(formValues.sourceLabel))}-${now}`,
-        label: sourceLabel(formValues.sourceLabel),
-        type: formValues.sourceType,
-        url: formValues.sourceUrl,
-      },
-    ],
-  };
-};
-
 const useSaveInterestsMutation = (queryClient: QueryClient, showToast: ShowToast) =>
   useMutation<Interest[], Error, Interest[], SaveInterestsContext>({
     mutationFn: saveInterests,
@@ -112,47 +78,36 @@ const useSaveInterestsMutation = (queryClient: QueryClient, showToast: ShowToast
     },
   });
 
-const createCheckUpdatesAction =
-  (
-    queryClient: QueryClient,
-    updatesQuery: UseQueryResult<UpdatesPayload, Error>,
-    showToast: ShowToast,
-  ): (() => void) =>
-  () => {
-    void updatesQuery.refetch().then((result) => {
-      if (result.error !== null) {
-        const updatesError = {
-          errors: [],
-          error: errorMessage(result.error, "Failed to fetch updates"),
-          sources_checked: 0,
-          updates: [],
-        };
+const mutationSaveStatus: Record<"idle" | "pending" | "error" | "success", SaveStatus> = {
+  error: "failed",
+  idle: "idle",
+  pending: "saving",
+  success: "saved",
+};
 
-        queryClient.setQueryData(updatesQueryKey, updatesError);
-        return;
-      }
-
-      showToast("Updates checked");
-    });
-  };
+const saveStatus = (status: "idle" | "pending" | "error" | "success"): SaveStatus =>
+  mutationSaveStatus[status];
 
 const createLearningEngineActions = (
   interests: Interest[],
+  setView: (view: PageView) => void,
   saveNextInterests: (nextInterests: Interest[]) => void,
-  checkUpdates: () => void,
+  checkWeeklyUpdates: () => void,
 ): LearningEnginePageActions => ({
-  addInterest: (form) => {
-    const newInterest = createInterest(form);
+  addInterest: (draft) => {
+    const newInterest = createInterest(draft);
 
     if (newInterest === null) {
       return;
     }
 
     saveNextInterests([newInterest, ...interests]);
-    form.reset();
   },
-  checkUpdates: () => {
-    checkUpdates();
+  changeView: (view) => {
+    setView(view);
+  },
+  checkWeeklyUpdates: () => {
+    checkWeeklyUpdates();
   },
   removeInterest: (id) => {
     const nextInterests = interests.map((interest) =>
@@ -161,9 +116,6 @@ const createLearningEngineActions = (
 
     saveNextInterests(nextInterests);
   },
-  saveInterests: () => {
-    saveNextInterests(interests);
-  },
   toggleInterest: (id) => {
     const nextInterests = interests.map((interest) =>
       interest.id === id ? { ...interest, enabled: !interest.enabled } : interest,
@@ -171,11 +123,24 @@ const createLearningEngineActions = (
 
     saveNextInterests(nextInterests);
   },
+  updateInterest: (draft) => {
+    const nextInterests = interests.map((interest) => {
+      if (interest.id !== draft.id) {
+        return interest;
+      }
+
+      return updateInterestFromDraft(interest, draft) ?? interest;
+    });
+
+    saveNextInterests(nextInterests);
+  },
 });
 
+// fallow-ignore-next-line complexity
 export const useLearningEnginePageState = () => {
   const queryClient = useQueryClient();
   const [toast, showToast] = useAutoDismissToast();
+  const [view, setView] = useState<PageView>("interests");
 
   const interestsQuery = useQuery({
     queryFn: fetchInterests,
@@ -183,19 +148,35 @@ export const useLearningEnginePageState = () => {
   });
 
   const updatesQuery = useQuery({
-    enabled: false,
-    queryFn: fetchUpdates,
+    enabled: view === "updates",
+    queryFn: () => fetchUpdates(weeklyUpdateDays),
     queryKey: updatesQueryKey,
   });
 
   const saveInterestsMutation = useSaveInterestsMutation(queryClient, showToast);
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
-  const checkUpdates = createCheckUpdatesAction(queryClient, updatesQuery, showToast);
   const actions = createLearningEngineActions(
     interests,
+    setView,
     saveInterestsMutation.mutate,
-    checkUpdates,
+    () => {
+      void updatesQuery.refetch().then((result) => {
+        if (result.error !== null) {
+          const updatesError: UpdatesPayload = {
+            errors: [],
+            error: errorMessage(result.error, "Failed to fetch updates"),
+            sources_checked: 0,
+            updates: [],
+          };
+
+          queryClient.setQueryData(updatesQueryKey, updatesError);
+          return;
+        }
+
+        showToast("Weekly updates refreshed");
+      });
+    },
   );
 
   return {
@@ -210,12 +191,23 @@ export const useLearningEnginePageState = () => {
       interests: visibleInterests,
       isChecking: updatesQuery.isFetching,
       isSaving: saveInterestsMutation.isPending,
+      saveError:
+        saveInterestsMutation.error === null
+          ? null
+          : errorMessage(saveInterestsMutation.error, "Failed to save"),
+      saveStatus: saveStatus(saveInterestsMutation.status),
       loadError:
         interestsQuery.error === null
           ? null
           : errorMessage(interestsQuery.error, "Failed to load interests"),
       toast,
+      updateDays: weeklyUpdateDays,
+      updatesError:
+        updatesQuery.error === null
+          ? null
+          : errorMessage(updatesQuery.error, "Failed to fetch updates"),
       updates: updatesQuery.data ?? null,
+      view,
     },
   };
 };

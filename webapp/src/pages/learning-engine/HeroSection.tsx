@@ -1,10 +1,15 @@
-import { StatCard } from "../../components/StatCard";
-
 type HeroSectionProps = {
   enabledInterests: number;
   sourcesTracked: number;
   totalInterests: number;
 };
+
+const SummaryMetric = ({ label, value }: { label: string; value: number }) => (
+  <span className="summary-metric">
+    <strong>{value}</strong>
+    <span>{label}</span>
+  </span>
+);
 
 export const HeroSection = ({
   enabledInterests,
@@ -13,32 +18,20 @@ export const HeroSection = ({
 }: HeroSectionProps) => (
   <section id="top" className="hero">
     <div className="hero-copy">
-      <p className="eyebrow">Local v0.3</p>
-      <h1>Your personal signal layer for learning.</h1>
-      <p className="subtitle">
-        Track topics, attach useful sources, and keep focused updates ready for a quiet evening
-        review.
-      </p>
-      <div className="hero-actions">
-        <a className="button primary" href="#add">
-          Add interest
-        </a>
-        <a className="button ghost" href="#briefing">
-          Briefing prompt
-        </a>
-      </div>
+      <p className="eyebrow">Local engine</p>
+      <h1>Learning Engine</h1>
+      <p className="subtitle">Track the sources that feed your personal learning loop.</p>
     </div>
 
     <aside className="summary-card" aria-label="Learning Engine summary">
       <div className="summary-header">
         <span className="status-dot" />
-        <span>Local engine</span>
+        <span>Ready</span>
       </div>
       <div className="stats-grid">
-        <StatCard value={enabledInterests} label="active" />
-        <StatCard value={totalInterests} label="tracked" />
-        <StatCard value={sourcesTracked} label="sources" />
-        <StatCard value="v0.3" label="private" />
+        <SummaryMetric value={enabledInterests} label="active" />
+        <SummaryMetric value={totalInterests} label="tracked" />
+        <SummaryMetric value={sourcesTracked} label="sources" />
       </div>
     </aside>
   </section>

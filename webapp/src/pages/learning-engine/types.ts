@@ -1,6 +1,7 @@
 import { type Interest, type UpdatesPayload } from "./schemas";
 
 export type { Interest, UpdatesPayload };
+export type InterestSource = Interest["sources"][number];
 
 export type Priority = "high" | "medium" | "low";
 export type SourceType =
@@ -15,19 +16,31 @@ export type ToastState = {
   visible: boolean;
 };
 
+export type PageView = "interests" | "updates";
+
+export type SaveStatus = "idle" | "saving" | "saved" | "failed";
+
+export type InterestDraft = {
+  description: string;
+  enabled: boolean;
+  id: string | null;
+  name: string;
+  priority: Priority;
+  sources: InterestSource[];
+};
+
 export type InterestFormValues = {
   name: string;
   priority: Priority;
   description: string;
-  sourceLabel: string;
-  sourceType: SourceType;
-  sourceUrl: string;
+  sources: InterestSource[];
 };
 
 export type LearningEnginePageActions = {
-  addInterest: (form: HTMLFormElement) => void;
-  checkUpdates: () => void;
+  addInterest: (draft: InterestDraft) => void;
+  changeView: (view: PageView) => void;
+  checkWeeklyUpdates: () => void;
   removeInterest: (id: string) => void;
-  saveInterests: () => void;
   toggleInterest: (id: string) => void;
+  updateInterest: (draft: InterestDraft) => void;
 };

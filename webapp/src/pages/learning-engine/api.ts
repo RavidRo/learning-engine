@@ -37,8 +37,8 @@ export const saveInterests = async (interests: Interest[]): Promise<Interest[]> 
   return payload.saved.interests;
 };
 
-export const fetchUpdates = async (): Promise<UpdatesPayload> => {
-  const response = await fetch("/api/updates");
+export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
+  const response = await fetch(`/api/updates?days=${days}`);
   const payload = updatesPayloadSchema.parse(await response.json());
 
   if (!response.ok) {

@@ -1,60 +1,58 @@
 import { InterestCard } from "./InterestCard";
-import { UpdatesPanel } from "./UpdatesPanel";
-import { type Interest, type UpdatesPayload } from "./types";
+import { type Interest, type SaveStatus } from "./types";
 
 type InterestsPanelProps = {
   interests: Interest[];
-  isChecking: boolean;
-  isSaving: boolean;
   loadError: string | null;
-  onCheckUpdates: () => void;
+  onEditInterest: (id: string) => void;
   onRemoveInterest: (id: string) => void;
-  onSaveInterests: () => void;
   onToggleInterest: (id: string) => void;
-  updates: UpdatesPayload | null;
+  saveError: string | null;
+  saveStatus: SaveStatus;
 };
-
-type PanelActionsProps = {
-  isChecking: boolean;
-  isSaving: boolean;
-  onCheckUpdates: () => void;
-  onSaveInterests: () => void;
-};
-
-const PanelActions = ({
-  isChecking,
-  isSaving,
-  onCheckUpdates,
-  onSaveInterests,
-}: PanelActionsProps) => (
-  <div className="header-actions">
-    <button className="button ghost" type="button" onClick={onCheckUpdates} disabled={isChecking}>
-      {isChecking ? "Checking..." : "Check updates"}
-    </button>
-    <button className="button ghost" type="button" onClick={onSaveInterests} disabled={isSaving}>
-      {isSaving ? "Saving..." : "Save now"}
-    </button>
-  </div>
-);
 
 const LoadError = ({ loadError }: { loadError: string | null }) =>
   loadError === null ? null : <p className="empty">Failed to load interests. {loadError}</p>;
 
+const SaveStatusBadge = ({
+  saveError,
+  saveStatus,
+}: {
+  saveError: string | null;
+  saveStatus: SaveStatus;
+}) => {
+  const labels: Record<SaveStatus, string> = {
+    failed: `Save failed${saveError ? `: ${saveError}` : ""}`,
+    idle: "Ready",
+    saved: "Saved",
+    saving: "Saving...",
+  };
+
+  return <span className={`save-status ${saveStatus}`}>{labels[saveStatus]}</span>;
+};
+
 type InterestCardsProps = {
   interests: Interest[];
+  onEditInterest: (id: string) => void;
   onRemoveInterest: (id: string) => void;
   onToggleInterest: (id: string) => void;
 };
 
-const InterestCards = ({ interests, onRemoveInterest, onToggleInterest }: InterestCardsProps) => (
+const InterestCards = ({
+  interests,
+  onEditInterest,
+  onRemoveInterest,
+  onToggleInterest,
+}: InterestCardsProps) => (
   <div className="cards" aria-live="polite">
     {interests.length === 0 ? (
-      <p className="empty">No interests yet. Add one source to begin.</p>
+      <p className="empty">No interests yet. Create one with as many sources as it needs.</p>
     ) : (
       interests.map((interest) => (
         <InterestCard
           interest={interest}
           key={interest.id}
+          onEdit={onEditInterest}
           onRemove={onRemoveInterest}
           onToggle={onToggleInterest}
         />
@@ -65,14 +63,12 @@ const InterestCards = ({ interests, onRemoveInterest, onToggleInterest }: Intere
 
 export const InterestsPanel = ({
   interests,
-  isChecking,
-  isSaving,
   loadError,
-  onCheckUpdates,
+  onEditInterest,
   onRemoveInterest,
-  onSaveInterests,
   onToggleInterest,
-  updates,
+  saveError,
+  saveStatus,
 }: InterestsPanelProps) => (
   <section id="interests" className="panel list-panel">
     <div className="panel-header row">
@@ -80,19 +76,14 @@ export const InterestsPanel = ({
         <p className="section-label">Signal list</p>
         <h2>Your interests</h2>
       </div>
-      <PanelActions
-        isChecking={isChecking}
-        isSaving={isSaving}
-        onCheckUpdates={onCheckUpdates}
-        onSaveInterests={onSaveInterests}
-      />
+      <SaveStatusBadge saveError={saveError} saveStatus={saveStatus} />
     </div>
 
     <LoadError loadError={loadError} />
-    {updates === null ? null : <UpdatesPanel payload={updates} />}
 
     <InterestCards
       interests={interests}
+      onEditInterest={onEditInterest}
       onRemoveInterest={onRemoveInterest}
       onToggleInterest={onToggleInterest}
     />
