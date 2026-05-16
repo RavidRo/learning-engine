@@ -35,27 +35,44 @@ DEFAULT_DATA = InterestsPayload(
 )
 
 
-def ensure_data_file(path: Path = INTERESTS_FILE) -> None:
-    path.parent.mkdir(exist_ok=True)
-    if not path.exists():
-        write_interests(DEFAULT_DATA, path)
+class InterestStore:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def ensure_data_file(self) -> None:
+        self.path.parent.mkdir(exist_ok=True)
+        if not self.path.exists():
+            self.write_interests(DEFAULT_DATA)
+
+    def read_interests(self) -> InterestsPayload:
+        self.ensure_data_file()
+        payload = json.loads(self.path.read_text(encoding="utf-8"))
+        interests = payload.get("interests", []) if isinstance(payload, dict) else []
+        normalized = InterestsPayload(
+            interests=[Interest.model_validate(item) for item in interests if isinstance(item, dict)]
+        )
+        if normalized.model_dump(mode="json", by_alias=True) != payload:
+            self.write_interests(normalized)
+        return normalized
+
+    def write_interests(self, payload: InterestsPayload) -> None:
+        self.path.parent.mkdir(exist_ok=True)
+        self.path.write_text(
+            json.dumps(payload.model_dump(mode="json", by_alias=True), indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
 
-def read_interests(path: Path = INTERESTS_FILE) -> InterestsPayload:
-    ensure_data_file(path)
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    interests = payload.get("interests", []) if isinstance(payload, dict) else []
-    normalized = InterestsPayload(
-        interests=[Interest.model_validate(item) for item in interests if isinstance(item, dict)]
-    )
-    if normalized.model_dump(mode="json", by_alias=True) != payload:
-        write_interests(normalized, path)
-    return normalized
+DEFAULT_STORE = InterestStore(INTERESTS_FILE)
 
 
-def write_interests(payload: InterestsPayload, path: Path = INTERESTS_FILE) -> None:
-    path.parent.mkdir(exist_ok=True)
-    path.write_text(
-        json.dumps(payload.model_dump(mode="json", by_alias=True), indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+def ensure_data_file() -> None:
+    DEFAULT_STORE.ensure_data_file()
+
+
+def read_interests() -> InterestsPayload:
+    return DEFAULT_STORE.read_interests()
+
+
+def write_interests(payload: InterestsPayload) -> None:
+    DEFAULT_STORE.write_interests(payload)

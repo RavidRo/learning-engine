@@ -50,6 +50,9 @@ export const AddInterestForm = ({ onAddInterest }: AddInterestFormProps) => {
             <select name="sourceType" defaultValue="feed">
               <option value="feed">feed</option>
               <option value="page">page</option>
+              <option value="youtube_channel">YouTube channel</option>
+              <option value="twitter_account">Twitter account</option>
+              <option value="spotify_podcast">Spotify podcast</option>
             </select>
           </label>
         </div>
@@ -57,8 +60,7 @@ export const AddInterestForm = ({ onAddInterest }: AddInterestFormProps) => {
           Source URL
           <input
             name="sourceUrl"
-            type="url"
-            placeholder="https://devblogs.microsoft.com/typescript/feed/"
+            placeholder="URL, @handle, channel ID, or Spotify show URI"
             required
           />
         </label>

@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import urllib.error
-from collections.abc import Callable
-from datetime import datetime
+from collections.abc import Callable, Mapping
 
-from learning_engine.dates import days_cutoff, format_datetime, within_window
+from learning_engine.dates import format_datetime, parse_datetime
+from learning_engine.fetching import fetch_json as default_fetch_json
 from learning_engine.fetching import fetch_url
 from learning_engine.models import (
+    CollectedUpdate,
     CollectionError,
-    FeedUpdate,
     Interest,
     InterestSource,
     InterestsPayload,
@@ -19,10 +19,19 @@ from learning_engine.models import (
 )
 from learning_engine.sources.feed import parse_feed_items
 from learning_engine.sources.page import parse_page_items
+from learning_engine.sources.spotify import collect_spotify_podcast
+from learning_engine.sources.twitter import collect_twitter_account
+from learning_engine.sources.youtube import collect_youtube_channel
+from learning_engine.timeframe import Timeframe
 
 FetchFn = Callable[[str], bytes]
-ParseFn = Callable[[bytes, list[str], list[str]], list[FeedUpdate]]
-__all__ = ["collect_updates", "dedupe_updates", "parse_feed_items", "parse_page_items"]
+JsonFetchFn = Callable[[str, Mapping[str, str]], dict[str, object]]
+__all__ = [
+    "collect_updates",
+    "dedupe_updates",
+    "parse_feed_items",
+    "parse_page_items",
+]
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -37,11 +46,19 @@ def _sort_key(update: Update) -> tuple[bool, str | None]:
     return published is not None, published
 
 
+def _within_timeframe(value: str | None, timeframe: Timeframe) -> bool:
+    parsed = parse_datetime(value)
+    return parsed is not None and parsed in timeframe
+
+
 def dedupe_updates(updates: list[Update]) -> list[Update]:
     deduped: list[Update] = []
     seen: set[tuple[str | None, str | None]] = set()
     for update in updates:
         key = (_dedupe_part(update.url), _dedupe_part(update.title))
+        if key == (None, None):
+            deduped.append(update)
+            continue
         if key in seen:
             continue
         seen.add(key)
@@ -49,23 +66,35 @@ def dedupe_updates(updates: list[Update]) -> list[Update]:
     return deduped
 
 
-def _parser_for_source(source: InterestSource) -> ParseFn:
+def _collect_source_updates(
+    source: InterestSource,
+    fetch: FetchFn,
+    fetch_json: JsonFetchFn,
+) -> list[CollectedUpdate]:
     if source.type == "feed":
-        return parse_feed_items
+        return parse_feed_items(
+            fetch(source.url), watch_keywords=[], ignore_keywords=[]
+        )
 
-    page_url = source.url
+    if source.type == "page":
+        return parse_page_items(
+            fetch(source.url), source.url, watch_keywords=[], ignore_keywords=[]
+        )
 
-    def parse_page_source(page_bytes: bytes, watch_keywords: list[str], ignore_keywords: list[str]) -> list[FeedUpdate]:
-        return parse_page_items(page_bytes, page_url, watch_keywords, ignore_keywords)
+    if source.type == "youtube_channel":
+        return collect_youtube_channel(source.url, fetch)
 
-    return parse_page_source
+    if source.type == "twitter_account":
+        return collect_twitter_account(source.url, fetch_json)
+
+    return collect_spotify_podcast(source.url, fetch_json)
 
 
 def _enrich_updates(
     interest: Interest,
     source: InterestSource,
-    source_updates: list[FeedUpdate],
-    cutoff: datetime | None,
+    source_updates: list[CollectedUpdate],
+    timeframe: Timeframe,
 ) -> list[Update]:
     return [
         Update(
@@ -78,21 +107,27 @@ def _enrich_updates(
             **source_update.model_dump(),
         )
         for source_update in source_updates
-        if within_window(source_update.published_at or source_update.published, cutoff)
+        if _within_timeframe(source_update.published_at or source_update.published, timeframe)
     ]
 
 
 def _collect_from_source(
     interest: Interest,
     source: InterestSource,
-    cutoff: datetime | None,
+    timeframe: Timeframe,
     fetch: FetchFn,
+    fetch_json: JsonFetchFn,
 ) -> tuple[list[Update], CollectionError | None]:
-    parser = _parser_for_source(source)
     try:
-        fetched = fetch(source.url)
-        source_updates = parser(fetched, [], [])
-    except (OSError, UnicodeError, urllib.error.URLError, ValueError) as exc:
+        source_updates = _collect_source_updates(source, fetch, fetch_json)
+    except (
+        OSError,
+        UnicodeError,
+        urllib.error.URLError,
+        ValueError,
+        TypeError,
+        KeyError,
+    ) as exc:
         return [], CollectionError(
             interest_id=interest.id,
             interest_name=interest.name,
@@ -103,19 +138,18 @@ def _collect_from_source(
             error=str(exc),
         )
 
-    return _enrich_updates(interest, source, source_updates, cutoff), None
+    return _enrich_updates(interest, source, source_updates, timeframe), None
 
 
 def collect_updates(
     payload: InterestsPayload,
-    days: int | None = None,
-    now: datetime | None = None,
+    timeframe: Timeframe,
     fetch: FetchFn = fetch_url,
+    fetch_json: JsonFetchFn = default_fetch_json,
 ) -> UpdatesResponse:
     updates: list[Update] = []
     errors: list[CollectionError] = []
     checked = 0
-    cutoff = days_cutoff(days, now)
 
     for interest in payload.interests:
         if interest.deleted_at is not None or not interest.enabled:
@@ -126,7 +160,9 @@ def collect_updates(
                 continue
 
             checked += 1
-            source_updates, error = _collect_from_source(interest, source, cutoff, fetch)
+            source_updates, error = _collect_from_source(
+                interest, source, timeframe, fetch, fetch_json
+            )
             updates.extend(source_updates)
             if error is not None:
                 errors.append(error)
@@ -135,8 +171,7 @@ def collect_updates(
     updates.sort(key=_sort_key, reverse=True)
     return UpdatesResponse(
         sources_checked=checked,
-        days=days,
-        since=format_datetime(cutoff),
+        since=format_datetime(timeframe.start),
         updates=updates,
         errors=errors,
     )

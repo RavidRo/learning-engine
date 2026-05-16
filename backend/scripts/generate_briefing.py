@@ -19,6 +19,7 @@ import urllib.request
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import urlparse
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +27,7 @@ PROJECT_ROOT = BACKEND_ROOT.parent
 BRIEFINGS_DIR = PROJECT_ROOT / "briefings"
 DEFAULT_SERVER = "http://127.0.0.1:8765"
 ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
+JsonObject = dict[str, Any]
 
 TOPIC_SUMMARIES = {
     "OpenAI model announcements": {
@@ -73,12 +75,15 @@ TOPIC_SUMMARIES = {
 }
 
 
-def fetch_json(url: str) -> dict:
+def fetch_json(url: str) -> JsonObject:
     if urlparse(url).scheme not in ALLOWED_URL_SCHEMES:
         raise ValueError("Only HTTP and HTTPS URLs can be fetched")
 
     with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310
-        return json.loads(response.read().decode("utf-8"))
+        payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise TypeError("Expected a JSON object response")
+        return cast(JsonObject, payload)
 
 
 def clean_title(title: str) -> str:
@@ -98,8 +103,8 @@ def escape(value: object) -> str:
     return html.escape(str(value or ""), quote=True)
 
 
-def group_updates(updates: list[dict]) -> dict[str, list[dict]]:
-    grouped: dict[str, list[dict]] = defaultdict(list)
+def group_updates(updates: list[JsonObject]) -> dict[str, list[JsonObject]]:
+    grouped: dict[str, list[JsonObject]] = defaultdict(list)
     for update in updates:
         normalized_update = dict(update)
         normalized_update["clean_title"] = clean_title(normalized_update.get("title", ""))
@@ -107,7 +112,7 @@ def group_updates(updates: list[dict]) -> dict[str, list[dict]]:
     return dict(sorted(grouped.items(), key=lambda pair: (-len(pair[1]), pair[0])))
 
 
-def render_link(update: dict) -> str:
+def render_link(update: JsonObject) -> str:
     title = escape(update.get("clean_title") or update.get("title") or "Untitled update")
     url = escape(update.get("url"))
     date = escape(fmt_date(update.get("published_at") or update.get("published") or ""))
@@ -124,7 +129,7 @@ def render_link(update: dict) -> str:
     """
 
 
-def render_topic(name: str, updates: list[dict]) -> str:
+def render_topic(name: str, updates: list[JsonObject]) -> str:
     info = TOPIC_SUMMARIES.get(name, {})
     latest = updates[0] if updates else {}
     release_count = sum(
@@ -155,8 +160,13 @@ def render_topic(name: str, updates: list[dict]) -> str:
     """
 
 
-def build_html(payload: dict, output_name: str) -> str:
-    updates = [dict(update, clean_title=clean_title(update.get("title", ""))) for update in payload.get("updates", [])]
+def build_html(payload: JsonObject, output_name: str) -> str:
+    raw_updates = payload.get("updates", [])
+    updates = [
+        dict(update, clean_title=clean_title(update.get("title", "")))
+        for update in raw_updates
+        if isinstance(update, dict)
+    ]
     grouped = group_updates(updates)
     counts = Counter(update.get("interest_name") for update in updates)
     source_counts = Counter(update.get("source_type", "feed") for update in updates)

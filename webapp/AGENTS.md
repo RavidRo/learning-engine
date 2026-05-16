@@ -41,3 +41,7 @@
 - `useDeferredValue` — for deferring expensive re-renders instead of timer-based debounce
 
 **Legitimate `useEffect` uses** (keep these): DOM event listeners with cleanup, external system subscriptions (WebSocket, SDK listeners), DOM measurements/scroll, timers with cleanup, analytics/tracking, async operations on mount.
+
+## Function Parameters
+
+- Avoid default parameter values unless the function is a utility and different callers intentionally use simpler or more advanced forms of it. Prefer deleting unused options, injecting the value from the caller, or grouping functions that share a path/URL/config value into a class that receives it in the constructor.

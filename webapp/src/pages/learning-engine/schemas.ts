@@ -1,7 +1,13 @@
 import { z } from "zod";
 
 const prioritySchema = z.enum(["high", "medium", "low"]).catch("medium");
-const sourceTypeSchema = z.enum(["feed", "page"]);
+const sourceTypeSchema = z.enum([
+  "feed",
+  "page",
+  "youtube_channel",
+  "twitter_account",
+  "spotify_podcast",
+]);
 
 const sourceSchema = z.object({
   deletedAt: z.string().nullable().optional(),

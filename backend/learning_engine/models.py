@@ -2,12 +2,38 @@
 
 from __future__ import annotations
 
-from typing import Literal, cast
+from typing import Literal, TypeAlias, cast
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 Priority = Literal["low", "medium", "high"]
-SourceType = Literal["feed", "page"]
+SourceType = Literal["feed", "page", "youtube_channel", "twitter_account", "spotify_podcast"]
+SOURCE_TYPES: tuple[SourceType, ...] = (
+    "feed",
+    "page",
+    "youtube_channel",
+    "twitter_account",
+    "spotify_podcast",
+)
+_SOURCE_TYPE_ALIASES: dict[str, SourceType] = {
+    "feed": "feed",
+    "rss": "feed",
+    "rss_feed": "feed",
+    "page": "page",
+    "webpage": "page",
+    "web_page": "page",
+    "youtube": "youtube_channel",
+    "youtube_channel": "youtube_channel",
+    "youtube_channels": "youtube_channel",
+    "twitter": "twitter_account",
+    "twitter_account": "twitter_account",
+    "twitter_accounts": "twitter_account",
+    "x": "twitter_account",
+    "x_account": "twitter_account",
+    "spotify": "spotify_podcast",
+    "spotify_podcast": "spotify_podcast",
+    "spotify_podcasts": "spotify_podcast",
+}
 
 
 class InterestSource(BaseModel):
@@ -30,9 +56,10 @@ class InterestSource(BaseModel):
     @classmethod
     def normalize_source_type(cls, value: object) -> SourceType:
         source_type = str(value or "").strip().lower()
-        if source_type in {"feed", "page"}:
-            return cast(SourceType, source_type)
-        raise ValueError("Source type must be feed or page")
+        normalized = source_type.replace("-", "_").replace(" ", "_")
+        if normalized in _SOURCE_TYPE_ALIASES:
+            return _SOURCE_TYPE_ALIASES[normalized]
+        raise ValueError(f"Source type must be one of: {', '.join(SOURCE_TYPES)}")
 
     @field_validator("id", "deleted_at", mode="before")
     @classmethod
@@ -104,7 +131,7 @@ class InterestsPayload(BaseModel):
     interests: list[Interest] = Field(default_factory=list)
 
 
-class FeedUpdate(BaseModel):
+class CollectedUpdate(BaseModel):
     title: str | None = None
     url: str | None = None
     summary: str | None = None
@@ -113,7 +140,10 @@ class FeedUpdate(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
 
 
-class Update(FeedUpdate):
+FeedUpdate: TypeAlias = CollectedUpdate
+
+
+class Update(CollectedUpdate):
     interest_id: str | None = None
     interest_name: str = "Interest"
     source_id: str | None = None

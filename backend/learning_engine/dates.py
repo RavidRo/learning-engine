@@ -43,11 +43,10 @@ def format_datetime(value: datetime | None) -> str | None:
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
-def days_cutoff(days: int | None, now: datetime | None = None) -> datetime | None:
+def days_cutoff(days: int | None, now: datetime) -> datetime | None:
     if days is None:
         return None
-    reference = now or datetime.now(UTC)
-    return reference.astimezone(UTC) - timedelta(days=days)
+    return now.astimezone(UTC) - timedelta(days=days)
 
 
 def within_window(published: str | None, cutoff: datetime | None) -> bool:

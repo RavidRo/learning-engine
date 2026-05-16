@@ -47,13 +47,11 @@ def _published_from_context(context: str | None) -> str | None:
 def parse_page_items(
     page_bytes: bytes,
     page_url: str,
-    watch_keywords: list[str] | None = None,
-    ignore_keywords: list[str] | None = None,
+    watch_keywords: list[str],
+    ignore_keywords: list[str],
 ) -> list[FeedUpdate]:
     """Extract linked update-like items from an official page fallback."""
 
-    watch_keywords = watch_keywords or []
-    ignore_keywords = ignore_keywords or []
     html = _decode_html(page_bytes)
     updates: list[FeedUpdate] = []
     seen: set[str] = set()

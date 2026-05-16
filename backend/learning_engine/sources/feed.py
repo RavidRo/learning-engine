@@ -39,13 +39,11 @@ def _entry_published(entry: Any) -> str | None:
 
 def parse_feed_items(
     feed_bytes: bytes,
-    watch_keywords: list[str] | None = None,
-    ignore_keywords: list[str] | None = None,
+    watch_keywords: list[str],
+    ignore_keywords: list[str],
 ) -> list[FeedUpdate]:
     """Parse RSS/Atom bytes into normalized feed updates."""
 
-    watch_keywords = watch_keywords or []
-    ignore_keywords = ignore_keywords or []
     parsed_feed = feedparser.parse(feed_bytes)
     entries = cast(list[Any], parsed_feed.get("entries", []))
     updates: list[FeedUpdate] = []

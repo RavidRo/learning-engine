@@ -154,7 +154,7 @@ strict = true
 warn_unreachable = true
 show_error_codes = true
 pretty = true
-files = ["learning_engine", "server.py"]
+files = ["learning_engine"]
 
 [[tool.mypy.overrides]]
 module = ["uvicorn"]

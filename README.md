@@ -105,7 +105,6 @@ learning-engine/
 ├── Taskfile.yml           # maintained local development commands
 ├── backend/
 │   ├── pyproject.toml     # uv project config, dependencies, ruff, mypy, pytest
-│   ├── server.py          # compatibility entrypoint for the FastAPI app
 │   ├── data/              # Hermes-readable interest store
 │   ├── learning_engine/   # typed FastAPI backend package
 │   ├── scripts/           # backend/API utility scripts

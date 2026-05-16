@@ -3,7 +3,12 @@ import { type Interest, type UpdatesPayload } from "./schemas";
 export type { Interest, UpdatesPayload };
 
 export type Priority = "high" | "medium" | "low";
-export type SourceType = "feed" | "page";
+export type SourceType =
+  | "feed"
+  | "page"
+  | "youtube_channel"
+  | "twitter_account"
+  | "spotify_podcast";
 
 export type ToastState = {
   message: string;

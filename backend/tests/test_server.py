@@ -1,16 +1,27 @@
-from datetime import UTC, datetime
-from unittest.mock import patch
+from collections.abc import Mapping
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
 
-import server
+from learning_engine.collector import collect_updates
+from learning_engine.models import Interest, InterestsPayload
+from learning_engine.sources.feed import parse_feed_items
+from learning_engine.storage import DEFAULT_DATA
+from learning_engine.timeframe import Timeframe
 
 RECENT_DAYS = 14
+NOW = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
+ALL_TIMEFRAME = Timeframe(start=datetime.min.replace(tzinfo=UTC), end=NOW)
+RECENT_TIMEFRAME = Timeframe.ending_at(NOW, timedelta(days=RECENT_DAYS))
+
+
+def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
+    raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
 
 
 def test_normalize_interest_keeps_general_topic_and_sources() -> None:
-    interest = server.normalize_interest(
+    interest = Interest.model_validate(
         {
             "id": "typescript",
             "name": "TypeScript",
@@ -28,7 +39,7 @@ def test_normalize_interest_keeps_general_topic_and_sources() -> None:
             ],
             "enabled": True,
         }
-    )
+    ).model_dump(mode="json", by_alias=True)
 
     assert interest["name"] == "TypeScript"
     assert interest["description"] == "Language/compiler updates only."
@@ -39,7 +50,7 @@ def test_normalize_interest_keeps_general_topic_and_sources() -> None:
 
 def test_normalize_interest_rejects_old_schema_fields() -> None:
     with pytest.raises(ValidationError):
-        server.normalize_interest(
+        Interest.model_validate(
             {
                 "id": "typescript",
                 "name": "TypeScript",
@@ -53,7 +64,7 @@ def test_normalize_interest_rejects_old_schema_fields() -> None:
 
 
 def test_default_data_contains_typescript_sources() -> None:
-    interests = server.DEFAULT_DATA["interests"]
+    interests = DEFAULT_DATA.model_dump(mode="json", by_alias=True)["interests"]
 
     assert [item["id"] for item in interests] == ["typescript"]
     assert interests[0]["description"]
@@ -83,16 +94,16 @@ def test_parse_rss_filters_by_watch_and_ignore_keywords() -> None:
       </item>
     </channel></rss>"""
 
-    updates = server.parse_feed_items(
+    updates = parse_feed_items(
         rss,
         watch_keywords=["release", "beta", "compiler"],
         ignore_keywords=["webinar"],
     )
 
     assert len(updates) == 1
-    assert updates[0]["title"] == "Announcing TypeScript 5.9 Beta"
-    assert updates[0]["url"] == "https://example.com/ts-59-beta"
-    assert updates[0]["matched_keywords"] == ["beta", "compiler"]
+    assert updates[0].title == "Announcing TypeScript 5.9 Beta"
+    assert updates[0].url == "https://example.com/ts-59-beta"
+    assert updates[0].matched_keywords == ["beta", "compiler"]
 
 
 def test_parse_atom_feed_uses_feedparser_normalization() -> None:
@@ -106,12 +117,12 @@ def test_parse_atom_feed_uses_feedparser_normalization() -> None:
       </entry>
     </feed>"""
 
-    updates = server.parse_feed_items(atom, watch_keywords=["compiler", "rc"], ignore_keywords=[])
+    updates = parse_feed_items(atom, watch_keywords=["compiler", "rc"], ignore_keywords=[])
 
     assert len(updates) == 1
-    assert updates[0]["url"] == "https://example.com/atom-release"
-    assert updates[0]["published_at"] == "2026-05-15T10:00:00Z"
-    assert updates[0]["matched_keywords"] == ["compiler", "rc"]
+    assert updates[0].url == "https://example.com/atom-release"
+    assert updates[0].published_at == "2026-05-15T10:00:00Z"
+    assert updates[0].matched_keywords == ["compiler", "rc"]
 
 
 def test_collect_updates_fetches_enabled_sources_only() -> None:
@@ -170,17 +181,28 @@ def test_collect_updates_fetches_enabled_sources_only() -> None:
             },
         ]
     }
-    rss = b"""<rss><channel><item><title>TypeScript Beta</title><link>https://example.com/beta</link></item></channel></rss>"""
+    rss = b"""<rss><channel><item><title>TypeScript Beta</title><link>https://example.com/beta</link>
+    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
 
-    with patch("server.fetch_url", return_value=rss) as fetch_url:
-        result = server.collect_updates(payload)
+    fetched_urls: list[str] = []
 
-    fetch_url.assert_called_once_with("https://example.com/typescript.xml")
-    assert result["sources_checked"] == 1
-    assert result["updates"][0]["interest_name"] == "TypeScript"
-    assert result["updates"][0]["source_id"] == "typescript-feed"
-    assert result["updates"][0]["source_label"] == "TypeScript feed"
-    assert result["updates"][0]["title"] == "TypeScript Beta"
+    def fetch_url(url: str) -> bytes:
+        fetched_urls.append(url)
+        return rss
+
+    result = collect_updates(
+        InterestsPayload.model_validate(payload),
+        timeframe=ALL_TIMEFRAME,
+        fetch=fetch_url,
+        fetch_json=unused_fetch_json,
+    )
+
+    assert fetched_urls == ["https://example.com/typescript.xml"]
+    assert result.sources_checked == 1
+    assert result.updates[0].interest_name == "TypeScript"
+    assert result.updates[0].source_id == "typescript-feed"
+    assert result.updates[0].source_label == "TypeScript feed"
+    assert result.updates[0].title == "TypeScript Beta"
 
 
 def test_collect_updates_can_filter_to_recent_days() -> None:
@@ -209,15 +231,15 @@ def test_collect_updates_can_filter_to_recent_days() -> None:
       <pubDate>Mon, 20 Apr 2026 10:00:00 GMT</pubDate></item>
     </channel></rss>"""
 
-    with patch("server.fetch_url", return_value=rss):
-        result = server.collect_updates(
-            payload,
-            days=RECENT_DAYS,
-            now=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
-        )
+    result = collect_updates(
+        InterestsPayload.model_validate(payload),
+        timeframe=RECENT_TIMEFRAME,
+        fetch=lambda _url: rss,
+        fetch_json=unused_fetch_json,
+    )
 
-    assert result["days"] == RECENT_DAYS
-    assert [update["title"] for update in result["updates"]] == ["TypeScript fresh release"]
+    assert result.since == "2026-05-01T12:00:00Z"
+    assert [update.title for update in result.updates] == ["TypeScript fresh release"]
 
 
 def test_collect_updates_uses_page_sources() -> None:
@@ -244,17 +266,23 @@ def test_collect_updates_uses_page_sources() -> None:
       <p>Launch details.</p></article>
     </body></html>"""
 
-    with patch("server.fetch_url", return_value=html) as fetch_url:
-        result = server.collect_updates(
-            payload,
-            days=RECENT_DAYS,
-            now=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
-        )
+    fetched_urls: list[str] = []
 
-    fetch_url.assert_called_once_with("https://example.com/news")
-    assert result["updates"][0]["source_type"] == "page"
-    assert result["updates"][0]["source_url"] == "https://example.com/news"
-    assert result["updates"][0]["url"] == "https://example.com/news/claude-model"
+    def fetch_url(url: str) -> bytes:
+        fetched_urls.append(url)
+        return html
+
+    result = collect_updates(
+        InterestsPayload.model_validate(payload),
+        timeframe=RECENT_TIMEFRAME,
+        fetch=fetch_url,
+        fetch_json=unused_fetch_json,
+    )
+
+    assert fetched_urls == ["https://example.com/news"]
+    assert result.updates[0].source_type == "page"
+    assert result.updates[0].source_url == "https://example.com/news"
+    assert result.updates[0].url == "https://example.com/news/claude-model"
 
 
 def test_collect_updates_reports_source_errors() -> None:
@@ -276,12 +304,19 @@ def test_collect_updates_reports_source_errors() -> None:
         ]
     }
 
-    with patch("server.fetch_url", side_effect=OSError("network down")):
-        result = server.collect_updates(payload)
+    def fetch_url(_url: str) -> bytes:
+        raise OSError("network down")
 
-    assert result["sources_checked"] == 1
-    assert result["updates"] == []
-    assert result["errors"][0]["interest_id"] == "typescript"
-    assert result["errors"][0]["source_id"] == "typescript-feed"
-    assert result["errors"][0]["source_url"] == "https://example.com/typescript.xml"
-    assert result["errors"][0]["error"] == "network down"
+    result = collect_updates(
+        InterestsPayload.model_validate(payload),
+        timeframe=ALL_TIMEFRAME,
+        fetch=fetch_url,
+        fetch_json=unused_fetch_json,
+    )
+
+    assert result.sources_checked == 1
+    assert result.updates == []
+    assert result.errors[0].interest_id == "typescript"
+    assert result.errors[0].source_id == "typescript-feed"
+    assert result.errors[0].source_url == "https://example.com/typescript.xml"
+    assert result.errors[0].error == "network down"

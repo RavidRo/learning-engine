@@ -10,7 +10,7 @@ contexts:
           - An interest can be a person, organization, subject, specific technology, or other topic.
           - Hermes reads enabled interests to prepare an evening briefing.
       - name: Source
-        definition: A feed or page attached to an interest that the Learning Engine can collect updates from.
+        definition: A collection endpoint attached to an interest that the Learning Engine can collect updates from.
         examples:
           - A TypeScript interest can include the official website page and the TypeScript dev blog RSS feed as sources.
-          - Source types currently supported by collection are feed and page.
+          - Source types currently supported by collection are feeds, pages, YouTube channels, Twitter accounts, and Spotify podcasts.

@@ -1,6 +1,24 @@
 {
   "interests": [
     {
+      "id": "software-engineering-1778880293654",
+      "name": "Software Engineering",
+      "description": "Track articles related to architecture & design, devops or Culture & Methods",
+      "priority": "medium",
+      "sources": [
+        {
+          "id": "infoq-1778880293654",
+          "label": "InfoQ",
+          "type": "feed",
+          "url": "https://feed.infoq.com",
+          "enabled": true,
+          "deletedAt": null
+        }
+      ],
+      "enabled": true,
+      "deletedAt": null
+    },
+    {
       "id": "typescript",
       "name": "TypeScript",
       "description": "Notify me about language/compiler updates and important release announcements.",

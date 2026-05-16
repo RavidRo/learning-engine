@@ -10,7 +10,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY learning_engine ./learning_engine
-COPY server.py ./server.py
 
 EXPOSE 8765
 

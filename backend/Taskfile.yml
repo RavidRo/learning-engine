@@ -21,9 +21,9 @@ tasks:
       - uv lock
 
   run:
-    desc: Run the app through the compatibility server entrypoint
+    desc: Run the FastAPI app
     cmds:
-      - uv run python server.py
+      - uv run uvicorn learning_engine.app:app --host {{.HOST}} --port {{.PORT}}
 
   dev:
     desc: Run the FastAPI app with reload enabled
@@ -43,7 +43,7 @@ tasks:
   typecheck:
     desc: Type-check the backend with mypy
     cmds:
-      - uv run mypy
+      - uv run mypy .
 
   test:
     desc: Run the test suite
