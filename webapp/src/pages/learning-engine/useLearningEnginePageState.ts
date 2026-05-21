@@ -13,8 +13,8 @@ import {
 } from "./types";
 
 const interestsQueryKey = ["learning-engine", "interests"] as const;
-const weeklyUpdateDays = 7;
-const updatesQueryKey = ["learning-engine", "updates", weeklyUpdateDays] as const;
+const defaultUpdateDays = 2;
+const updatesQueryKey = (days: number) => ["learning-engine", "updates", days] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
 
 type ToastAction = { type: "hideToast" } | { type: "showToast"; message: string };
@@ -92,7 +92,7 @@ const createLearningEngineActions = (
   interests: Interest[],
   setView: (view: PageView) => void,
   saveNextInterests: (nextInterests: Interest[]) => void,
-  checkWeeklyUpdates: () => void,
+  checkUpdates: () => void,
 ): LearningEnginePageActions => ({
   addInterest: (draft) => {
     const newInterest = createInterest(draft);
@@ -106,8 +106,8 @@ const createLearningEngineActions = (
   changeView: (view) => {
     setView(view);
   },
-  checkWeeklyUpdates: () => {
-    checkWeeklyUpdates();
+  checkUpdates: () => {
+    checkUpdates();
   },
   removeInterest: (id) => {
     const nextInterests = interests.map((interest) =>
@@ -141,6 +141,8 @@ export const useLearningEnginePageState = () => {
   const queryClient = useQueryClient();
   const [toast, showToast] = useAutoDismissToast();
   const [view, setView] = useState<PageView>("interests");
+  const [updateDays, setUpdateDays] = useState(defaultUpdateDays);
+  const currentUpdatesQueryKey = updatesQueryKey(updateDays);
 
   const interestsQuery = useQuery({
     queryFn: fetchInterests,
@@ -149,8 +151,8 @@ export const useLearningEnginePageState = () => {
 
   const updatesQuery = useQuery({
     enabled: view === "updates",
-    queryFn: () => fetchUpdates(weeklyUpdateDays),
-    queryKey: updatesQueryKey,
+    queryFn: () => fetchUpdates(updateDays),
+    queryKey: currentUpdatesQueryKey,
   });
 
   const saveInterestsMutation = useSaveInterestsMutation(queryClient, showToast);
@@ -170,11 +172,11 @@ export const useLearningEnginePageState = () => {
             updates: [],
           };
 
-          queryClient.setQueryData(updatesQueryKey, updatesError);
+          queryClient.setQueryData(currentUpdatesQueryKey, updatesError);
           return;
         }
 
-        showToast("Weekly updates refreshed");
+        showToast("Updates refreshed");
       });
     },
   );
@@ -201,7 +203,8 @@ export const useLearningEnginePageState = () => {
           ? null
           : errorMessage(interestsQuery.error, "Failed to load interests"),
       toast,
-      updateDays: weeklyUpdateDays,
+      updateDays,
+      setUpdateDays,
       updatesError:
         updatesQuery.error === null
           ? null

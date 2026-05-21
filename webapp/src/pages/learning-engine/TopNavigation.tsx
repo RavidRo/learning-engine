@@ -24,7 +24,7 @@ export const TopNavigation = ({ onChangeView, view }: TopNavigationProps) => (
         type="button"
         onClick={() => onChangeView("updates")}
       >
-        Weekly updates
+        Updates
       </button>
       <a href="#briefing">Briefing</a>
     </div>

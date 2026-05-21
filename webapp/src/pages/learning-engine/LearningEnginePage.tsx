@@ -4,7 +4,7 @@ import { HeroSection } from "./HeroSection";
 import { InterestEditor } from "./InterestEditor";
 import { InterestsPanel } from "./InterestsPanel";
 import { TopNavigation } from "./TopNavigation";
-import { WeeklyUpdatesPage } from "./WeeklyUpdatesPage";
+import { UpdatesPage } from "./UpdatesPage";
 import { useLearningEnginePageState } from "./useLearningEnginePageState";
 import { useState } from "react";
 
@@ -52,10 +52,11 @@ export const LearningEnginePage = () => {
             />
           </section>
         ) : (
-          <WeeklyUpdatesPage
+          <UpdatesPage
             days={state.updateDays}
             isChecking={state.isChecking}
-            onRefresh={actions.checkWeeklyUpdates}
+            onDaysChange={state.setUpdateDays}
+            onRefresh={actions.checkUpdates}
             updates={state.updates}
             updatesError={state.updatesError}
           />
