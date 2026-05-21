@@ -71,13 +71,20 @@ class InterestSource(BaseModel):
             return _SOURCE_TYPE_ALIASES[normalized]
         raise ValueError(f"Source type must be one of: {', '.join(SOURCE_TYPES)}")
 
-    @field_validator("id", "image_url", "deleted_at", mode="before")
+    @field_validator("id", "deleted_at", mode="before")
     @classmethod
     def strip_optional_strings(cls, value: object) -> str | None:
         if value is None:
             return None
         stripped = str(value).strip()
         return stripped or None
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def normalize_image_url(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        return str(value).strip()
 
     @field_validator("label", mode="before")
     @classmethod

@@ -58,10 +58,10 @@ def test_source_accepts_optional_image_url_with_camel_case_alias() -> None:
     assert source.model_dump(mode="json", by_alias=True)["imageUrl"] == "https://example.com/logo.png"
 
 
-def test_source_treats_blank_image_url_as_missing() -> None:
+def test_source_preserves_blank_image_url_as_empty_string() -> None:
     source = InterestSource.model_validate({"type": "feed", "url": "https://example.com/feed.xml", "imageUrl": "  "})
 
-    assert source.image_url is None
+    assert source.image_url == ""
 
 
 def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
