@@ -97,7 +97,7 @@ button:disabled {
   border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-subtle);
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .navlinks {

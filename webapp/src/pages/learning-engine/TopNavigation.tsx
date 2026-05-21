@@ -8,7 +8,14 @@ type TopNavigationProps = {
 export const TopNavigation = ({ onChangeView, view }: TopNavigationProps) => (
   <nav className="topbar" aria-label="Main navigation">
     <a className="brand" href="#top" aria-label="Learning Engine home">
-      <img className="brand-mark" src="/favicon.svg" alt="" aria-hidden="true" />
+      <img
+        className="brand-mark"
+        src="/favicon.svg"
+        width="30"
+        height="30"
+        alt=""
+        aria-hidden="true"
+      />
       <span>Learning Engine</span>
     </a>
     <div className="navlinks" aria-label="Sections">
