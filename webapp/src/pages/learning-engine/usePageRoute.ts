@@ -57,8 +57,9 @@ const serverRouteSnapshot = (): PageView => "updates";
 /** Navigates to a page view and notifies route subscribers when it changes. */
 export const navigateToView = (view: PageView): void => {
   const nextPath = pathByView[view];
+  const currentPath = normalizePathname(window.location.pathname);
 
-  if (normalizePathname(window.location.pathname) === nextPath) {
+  if (currentPath === nextPath) {
     return;
   }
 
