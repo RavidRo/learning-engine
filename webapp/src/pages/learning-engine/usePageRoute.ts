@@ -8,6 +8,7 @@ const pathByView: Record<PageView, string> = {
   updates: "/updates",
 };
 
+/** Maps a URL pathname to the matching PageView, defaulting to updates. */
 const viewFromPathname = (pathname: string): PageView => {
   if (pathname === pathByView.interests) {
     return "interests";
@@ -16,12 +17,15 @@ const viewFromPathname = (pathname: string): PageView => {
   return "updates";
 };
 
+/** Reads window.location and returns the current page route snapshot. */
 const routeSnapshot = (): PageView => viewFromPathname(window.location.pathname);
 
+/** Dispatches the custom route-change event after history state changes. */
 const emitRouteChange = (): void => {
   window.dispatchEvent(new Event(routeChangeEvent));
 };
 
+/** Subscribes onStoreChange to popstate and routeChangeEvent, returning cleanup. */
 const subscribeToRoute = (onStoreChange: () => void): (() => void) => {
   window.addEventListener("popstate", onStoreChange);
   window.addEventListener(routeChangeEvent, onStoreChange);
@@ -32,8 +36,10 @@ const subscribeToRoute = (onStoreChange: () => void): (() => void) => {
   };
 };
 
+/** Returns the default server snapshot before browser location is available. */
 const serverRouteSnapshot = (): PageView => "updates";
 
+/** Navigates to a page view and notifies route subscribers when it changes. */
 export const navigateToView = (view: PageView): void => {
   const nextPath = pathByView[view];
 
