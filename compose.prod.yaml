@@ -1,4 +1,4 @@
-name: learning-engine
+name: learning-engine-prod
 
 services:
   backend:
@@ -12,9 +12,8 @@ services:
   frontend:
     build:
       context: ./webapp
-    environment:
-      VITE_BACKEND_ORIGIN: http://backend:8765
+      target: prod
     ports:
-      - "5173:5173"
+      - "8080:80"
     depends_on:
       - backend

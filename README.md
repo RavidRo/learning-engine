@@ -23,7 +23,9 @@ backend/data/interests.json
 
 ## Run it
 
-Use the project task runner:
+Use the project task runner to start either the development or production Docker Compose stack.
+
+Development mode keeps the Vite dev server available for local UI work:
 
 ```bash
 task dev
@@ -32,7 +34,25 @@ task dev
 Open:
 
 ```text
-http://localhost:8765
+http://localhost:5173
+```
+
+Production mode builds the frontend once and serves the static app through nginx:
+
+```bash
+task prod
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+In both modes, the API is also exposed directly at:
+
+```text
+http://localhost:8765/api/health
 ```
 
 To see all maintained project commands:
@@ -41,7 +61,7 @@ To see all maintained project commands:
 task --list
 ```
 
-On the same computer, this works directly. For phone access, the computer and phone need to be on the same network and the server would need to bind to a LAN-accessible address instead of `127.0.0.1`. That is intentionally not enabled by default for privacy/security.
+On the same computer, this works directly. For phone access, the computer and phone need to be on the same network and the servers would need to bind to a LAN-accessible address instead of `127.0.0.1`. That is intentionally not enabled by default for privacy/security.
 
 ## Backend stack
 
@@ -55,13 +75,21 @@ Common workflows live in `Taskfile.yml` so the README does not duplicate command
 
 ## Docker Compose
 
-Run both services with:
+The project has two explicit Compose files:
+
+- `compose.dev.yaml` starts the backend plus the Vite dev server on `http://localhost:5173`.
+- `compose.prod.yaml` builds the frontend for production and serves it through nginx on `http://localhost:8080`.
+
+Useful commands:
 
 ```bash
-task compose:up
+task compose:dev:up      # development stack
+task compose:prod:up     # production stack
+task down                # stop both stacks
+task compose:config      # validate both compose files
 ```
 
-The backend is exposed on `http://localhost:8765`, the frontend on `http://localhost:5173`, and backend data is mounted at `./backend/data`.
+The backend API is exposed on `http://localhost:8765` in both modes, and backend data remains mounted at `./backend/data` for local-first persistence.
 
 ## Privacy note
 
@@ -103,6 +131,8 @@ The first source adapters support RSS/Atom feeds and best-effort web pages. Plat
 ```text
 learning-engine/
 ├── Taskfile.yml           # maintained local development commands
+├── compose.dev.yaml       # Docker Compose development stack
+├── compose.prod.yaml      # Docker Compose production stack
 ├── backend/
 │   ├── pyproject.toml     # uv project config, dependencies, ruff, mypy, pytest
 │   ├── data/              # Hermes-readable interest store
