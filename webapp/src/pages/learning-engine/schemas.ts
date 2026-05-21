@@ -16,6 +16,7 @@ const sourceSchema = z.object({
     .string()
     .nullish()
     .transform((id) => id ?? crypto.randomUUID()),
+  ignoreKeywords: z.array(z.string()).catch([]),
   label: z.string().catch("Source"),
   type: sourceTypeSchema,
   url: z.string(),

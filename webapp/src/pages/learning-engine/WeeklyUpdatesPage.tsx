@@ -80,13 +80,36 @@ const UpdatesSummary = ({ payload }: { payload: UpdatesPayload }) => (
   </aside>
 );
 
+const sourceErrorKey = (error: UpdatesPayload["errors"][number]): string =>
+  `${error.interest_name}-${error.source_label}-${error.source_url}`;
+
+const SourceErrorItem = ({ error }: { error: UpdatesPayload["errors"][number] }) => (
+  <article className="source-error-item">
+    <div>
+      <strong>{error.interest_name}</strong>
+      <span>
+        {error.source_label} · {error.source_url}
+      </span>
+    </div>
+    <details>
+      <summary>More details</summary>
+      <p>{error.error}</p>
+    </details>
+  </article>
+);
+
 const SourceErrors = ({ payload }: { payload: UpdatesPayload }) =>
   payload.errors.length === 0 ? null : (
     <div className="updates-callout warning">
       <strong>
         {payload.errors.length} source {payload.errors.length === 1 ? "error" : "errors"}
       </strong>
-      <span>Successful sources still appear below. Review source settings if this repeats.</span>
+      <span>Successful sources still appear below. Review the affected source settings.</span>
+      <div className="source-error-list">
+        {payload.errors.map((error) => (
+          <SourceErrorItem error={error} key={sourceErrorKey(error)} />
+        ))}
+      </div>
     </div>
   );
 

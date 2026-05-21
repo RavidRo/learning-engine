@@ -57,11 +57,6 @@ tasks:
       - task: typecheck
       - task: test
 
-  briefing:
-    desc: Generate an HTML briefing from the running local server
-    cmds:
-      - uv run python scripts/generate_briefing.py --days {{.DAYS}}
-
   health:
     desc: Check the local API health endpoint
     cmds:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 from urllib.parse import quote, urlparse
 
@@ -10,7 +10,7 @@ from learning_engine.config import twitter_bearer_token
 from learning_engine.dates import format_datetime, parse_datetime
 from learning_engine.models import CollectedUpdate
 
-JsonFetchFn = Callable[[str, Mapping[str, str]], dict[str, object]]
+JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 X_API_ORIGIN = "https://api.x.com/2"
 
 
@@ -64,14 +64,13 @@ def _tweet_update(username: str, tweet: Mapping[str, object]) -> CollectedUpdate
     )
 
 
-def collect_twitter_account(source_url: str, fetch_json: JsonFetchFn) -> list[CollectedUpdate]:
+async def collect_twitter_account(source_url: str, fetch_json: JsonFetchFn) -> list[CollectedUpdate]:
     username = twitter_username(source_url)
     headers = _headers()
-    user = fetch_json(f"{X_API_ORIGIN}/users/by/username/{quote(username)}", headers)
+    user = await fetch_json(f"{X_API_ORIGIN}/users/by/username/{quote(username)}", headers)
     user_id = _user_id(user)
-    timeline = fetch_json(
-        f"{X_API_ORIGIN}/users/{quote(user_id)}/tweets"
-        "?max_results=20&tweet.fields=created_at&exclude=retweets,replies",
+    timeline = await fetch_json(
+        f"{X_API_ORIGIN}/users/{quote(user_id)}/tweets?max_results=20&tweet.fields=created_at&exclude=retweets,replies",
         headers,
     )
     tweets = timeline.get("data", [])

@@ -16,7 +16,7 @@ ALL_TIMEFRAME = Timeframe(start=datetime.min.replace(tzinfo=UTC), end=NOW)
 RECENT_TIMEFRAME = Timeframe.ending_at(NOW, timedelta(days=RECENT_DAYS))
 
 
-def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
+async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
     raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
 
 
@@ -33,6 +33,7 @@ def test_normalize_interest_keeps_general_topic_and_sources() -> None:
                     "label": "TypeScript dev blog",
                     "type": "feed",
                     "url": "https://devblogs.microsoft.com/typescript/feed/",
+                    "ignoreKeywords": ["nightly"],
                     "enabled": True,
                     "deletedAt": "2026-05-15T10:00:00.000Z",
                 }
@@ -45,6 +46,7 @@ def test_normalize_interest_keeps_general_topic_and_sources() -> None:
     assert interest["description"] == "Language/compiler updates only."
     assert interest["sources"][0]["label"] == "TypeScript dev blog"
     assert interest["sources"][0]["type"] == "feed"
+    assert interest["sources"][0]["ignoreKeywords"] == ["nightly"]
     assert interest["sources"][0]["deletedAt"] == "2026-05-15T10:00:00.000Z"
 
 
@@ -125,7 +127,8 @@ def test_parse_atom_feed_uses_feedparser_normalization() -> None:
     assert updates[0].matched_keywords == ["compiler", "rc"]
 
 
-def test_collect_updates_fetches_enabled_sources_only() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_fetches_enabled_sources_only() -> None:
     payload = {
         "interests": [
             {
@@ -186,11 +189,11 @@ def test_collect_updates_fetches_enabled_sources_only() -> None:
 
     fetched_urls: list[str] = []
 
-    def fetch_url(url: str) -> bytes:
+    async def fetch_url(url: str) -> bytes:
         fetched_urls.append(url)
         return rss
 
-    result = collect_updates(
+    result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
         fetch=fetch_url,
@@ -205,7 +208,49 @@ def test_collect_updates_fetches_enabled_sources_only() -> None:
     assert result.updates[0].title == "TypeScript Beta"
 
 
-def test_collect_updates_can_filter_to_recent_days() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_uses_source_ignore_keywords() -> None:
+    payload = {
+        "interests": [
+            {
+                "id": "t3code",
+                "name": "T3 Code",
+                "description": "Track T3 Code releases.",
+                "enabled": True,
+                "sources": [
+                    {
+                        "id": "t3code-feed",
+                        "label": "T3 Code feed",
+                        "type": "feed",
+                        "url": "https://example.com/t3code.xml",
+                        "ignoreKeywords": ["nightly"],
+                    }
+                ],
+            }
+        ]
+    }
+    rss = b"""<rss><channel>
+      <item><title>T3 Code nightly build</title><link>https://example.com/nightly</link>
+      <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item>
+      <item><title>T3 Code stable release</title><link>https://example.com/stable</link>
+      <pubDate>Fri, 15 May 2026 11:00:00 GMT</pubDate></item>
+    </channel></rss>"""
+
+    async def fetch_url(_url: str) -> bytes:
+        return rss
+
+    result = await collect_updates(
+        InterestsPayload.model_validate(payload),
+        timeframe=ALL_TIMEFRAME,
+        fetch=fetch_url,
+        fetch_json=unused_fetch_json,
+    )
+
+    assert [update.title for update in result.updates] == ["T3 Code stable release"]
+
+
+@pytest.mark.anyio
+async def test_collect_updates_can_filter_to_recent_days() -> None:
     payload = {
         "interests": [
             {
@@ -231,10 +276,13 @@ def test_collect_updates_can_filter_to_recent_days() -> None:
       <pubDate>Mon, 20 Apr 2026 10:00:00 GMT</pubDate></item>
     </channel></rss>"""
 
-    result = collect_updates(
+    async def fetch_url(_url: str) -> bytes:
+        return rss
+
+    result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
-        fetch=lambda _url: rss,
+        fetch=fetch_url,
         fetch_json=unused_fetch_json,
     )
 
@@ -242,7 +290,8 @@ def test_collect_updates_can_filter_to_recent_days() -> None:
     assert [update.title for update in result.updates] == ["TypeScript fresh release"]
 
 
-def test_collect_updates_uses_page_sources() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_uses_page_sources() -> None:
     payload = {
         "interests": [
             {
@@ -268,11 +317,11 @@ def test_collect_updates_uses_page_sources() -> None:
 
     fetched_urls: list[str] = []
 
-    def fetch_url(url: str) -> bytes:
+    async def fetch_url(url: str) -> bytes:
         fetched_urls.append(url)
         return html
 
-    result = collect_updates(
+    result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
         fetch=fetch_url,
@@ -285,7 +334,8 @@ def test_collect_updates_uses_page_sources() -> None:
     assert result.updates[0].url == "https://example.com/news/claude-model"
 
 
-def test_collect_updates_reports_source_errors() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_reports_source_errors() -> None:
     payload = {
         "interests": [
             {
@@ -304,10 +354,10 @@ def test_collect_updates_reports_source_errors() -> None:
         ]
     }
 
-    def fetch_url(_url: str) -> bytes:
+    async def fetch_url(_url: str) -> bytes:
         raise OSError("network down")
 
-    result = collect_updates(
+    result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
         fetch=fetch_url,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 from urllib.parse import quote, urlparse
 
@@ -11,7 +11,7 @@ from learning_engine.dates import format_datetime, parse_datetime
 from learning_engine.models import CollectedUpdate
 from learning_engine.text import strip_markup
 
-JsonFetchFn = Callable[[str, Mapping[str, str]], dict[str, object]]
+JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 SPOTIFY_API_ORIGIN = "https://api.spotify.com/v1"
 SPOTIFY_SHOW_PATH_PARTS = 2
 
@@ -62,9 +62,9 @@ def _episode_update(episode: Mapping[str, object]) -> CollectedUpdate:
     )
 
 
-def collect_spotify_podcast(source_url: str, fetch_json: JsonFetchFn) -> list[CollectedUpdate]:
+async def collect_spotify_podcast(source_url: str, fetch_json: JsonFetchFn) -> list[CollectedUpdate]:
     show_id = spotify_show_id(source_url)
-    response = fetch_json(
+    response = await fetch_json(
         f"{SPOTIFY_API_ORIGIN}/shows/{quote(show_id)}/episodes?limit=20&market=US",
         _headers(),
     )

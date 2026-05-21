@@ -8,35 +8,35 @@ tasks:
   install:
     desc: Install webapp dependencies
     cmds:
-      - npm install
+      - pnpm install
 
   dev:
     desc: Run the Vite+ webapp dev server
     cmds:
-      - npm run dev -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
+      - pnpm run dev -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
 
   build:
     desc: Build the Vite+ webapp
     cmds:
-      - npm run build
+      - pnpm run build
 
   check:
     desc: Run Vite+ format, lint, type checks, and Fallow analysis
     cmds:
-      - npm run check
-      - npm exec fallow -- --fail-on-issues
+      - pnpm run check
+      - pnpm exec fallow --fail-on-issues
 
   lint:
     desc: Lint the webapp with Vite+
     cmds:
-      - npm run lint
+      - pnpm run lint
 
   format:
     desc: Format the webapp with Vite+
     cmds:
-      - npm run format
+      - pnpm run format
 
   preview:
     desc: Preview the built Vite+ webapp
     cmds:
-      - npm run preview -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}
+      - pnpm run preview -- --host {{.WEB_HOST}} --port {{.WEB_PORT}}

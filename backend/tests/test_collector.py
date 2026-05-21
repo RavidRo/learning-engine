@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -13,13 +14,14 @@ from learning_engine.timeframe import Timeframe
 
 NOW = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
 ALL_TIMEFRAME = Timeframe(start=datetime.min.replace(tzinfo=UTC), end=NOW)
+CONCURRENT_SOURCE_COUNT = 2
 
 
-def unused_fetch(url: str) -> bytes:
+async def unused_fetch(url: str) -> bytes:
     raise AssertionError(f"Unexpected byte fetch: {url}")
 
 
-def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
+async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
     raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
 
 
@@ -39,8 +41,7 @@ def test_source_type_accepts_new_human_friendly_aliases() -> None:
     )
     assert InterestSource.model_validate({"type": "Twitter Accounts", "url": "@xdevelopers"}).type == "twitter_account"
     assert (
-        InterestSource.model_validate({"type": "Spotify Podcasts", "url": "spotify:show:abc"}).type
-        == "spotify_podcast"
+        InterestSource.model_validate({"type": "Spotify Podcasts", "url": "spotify:show:abc"}).type == "spotify_podcast"
     )
 
 
@@ -53,10 +54,11 @@ def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
     assert dedupe_updates(updates) == updates
 
 
-def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> None:
     called_urls: list[str] = []
 
-    def fetch(url: str) -> bytes:
+    async def fetch(url: str) -> bytes:
         called_urls.append(url)
         return b"""<feed xmlns="http://www.w3.org/2005/Atom">
           <entry>
@@ -84,17 +86,52 @@ def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> None:
         }
     )
 
-    result = collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
 
     assert called_urls == ["https://www.youtube.com/feeds/videos.xml?channel_id=UCabcabcabcabcabcabcabc"]
     assert result.updates[0].source_type == "youtube_channel"
     assert result.updates[0].title == "New lecture"
 
 
-def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
+@pytest.mark.anyio
+async def test_collect_updates_collects_sources_concurrently() -> None:
+    rss = b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
+    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Parallel",
+                    "sources": [
+                        {"id": "first", "type": "feed", "url": "https://example.com/first.xml"},
+                        {"id": "second", "type": "feed", "url": "https://example.com/second.xml"},
+                    ],
+                }
+            ]
+        }
+    )
+    active_fetches = 0
+    max_active_fetches = 0
+
+    async def fetch(_url: str) -> bytes:
+        nonlocal active_fetches, max_active_fetches
+        active_fetches += 1
+        max_active_fetches = max(max_active_fetches, active_fetches)
+        await asyncio.sleep(0.05)
+        active_fetches -= 1
+        return rss
+
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.sources_checked == CONCURRENT_SOURCE_COUNT
+    assert max_active_fetches == CONCURRENT_SOURCE_COUNT
+
+
+@pytest.mark.anyio
+async def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
     called_urls: list[str] = []
 
-    def fetch(url: str) -> bytes:
+    async def fetch(url: str) -> bytes:
         called_urls.append(url)
         if url == "https://www.youtube.com/@example":
             return b"""<html><meta itemprop="channelId" content="UCabcabcabcabcabcabcabc"></html>"""
@@ -117,7 +154,7 @@ def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
         }
     )
 
-    result = collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
 
     assert called_urls == [
         "https://www.youtube.com/@example",
@@ -126,11 +163,12 @@ def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
     assert result.updates[0].title == "Handle video"
 
 
-def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TWITTER_BEARER_TOKEN", "test-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 
-    def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
+    async def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
         called.append((url, headers))
         if url.endswith("/users/by/username/xdevelopers"):
             return {"data": {"id": "2244994945"}}
@@ -155,7 +193,7 @@ def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pytest.Mon
         }
     )
 
-    result = collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
 
     assert [url for url, _headers in called] == [
         "https://api.x.com/2/users/by/username/xdevelopers",
@@ -165,7 +203,8 @@ def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pytest.Mon
     assert result.updates[0].url == "https://x.com/xdevelopers/status/1"
 
 
-def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TWITTER_BEARER_TOKEN", raising=False)
     monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
     payload = InterestsPayload.model_validate(
@@ -179,18 +218,19 @@ def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: pytest
         }
     )
 
-    result = collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=unused_fetch_json)
 
     assert result.updates == []
     assert result.errors[0].source_id == "x"
     assert result.errors[0].error == "Twitter bearer token is required for twitter_account sources"
 
 
-def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.anyio
+async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPOTIFY_BEARER_TOKEN", "spotify-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 
-    def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
+    async def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
         called.append((url, headers))
         return {
             "items": [
@@ -214,7 +254,7 @@ def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytest.Monk
         }
     )
 
-    result = collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
 
     assert called == [
         (

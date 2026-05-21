@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-import urllib.error
-from collections.abc import Callable, Mapping
+import asyncio
+from collections.abc import Awaitable, Callable, Iterable, Mapping
+
+import httpx
 
 from learning_engine.dates import format_datetime, parse_datetime
 from learning_engine.fetching import fetch_json as default_fetch_json
@@ -22,10 +24,11 @@ from learning_engine.sources.page import parse_page_items
 from learning_engine.sources.spotify import collect_spotify_podcast
 from learning_engine.sources.twitter import collect_twitter_account
 from learning_engine.sources.youtube import collect_youtube_channel
+from learning_engine.text import keyword_matches, searchable_text
 from learning_engine.timeframe import Timeframe
 
-FetchFn = Callable[[str], bytes]
-JsonFetchFn = Callable[[str, Mapping[str, str]], dict[str, object]]
+FetchFn = Callable[[str], Awaitable[bytes]]
+JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 __all__ = [
     "collect_updates",
     "dedupe_updates",
@@ -66,28 +69,29 @@ def dedupe_updates(updates: list[Update]) -> list[Update]:
     return deduped
 
 
-def _collect_source_updates(
+async def _collect_source_updates(
     source: InterestSource,
     fetch: FetchFn,
     fetch_json: JsonFetchFn,
 ) -> list[CollectedUpdate]:
     if source.type == "feed":
-        return parse_feed_items(
-            fetch(source.url), watch_keywords=[], ignore_keywords=[]
-        )
+        return parse_feed_items(await fetch(source.url), watch_keywords=[], ignore_keywords=source.ignore_keywords)
 
     if source.type == "page":
         return parse_page_items(
-            fetch(source.url), source.url, watch_keywords=[], ignore_keywords=[]
+            await fetch(source.url),
+            source.url,
+            watch_keywords=[],
+            ignore_keywords=source.ignore_keywords,
         )
 
     if source.type == "youtube_channel":
-        return collect_youtube_channel(source.url, fetch)
+        return await collect_youtube_channel(source.url, fetch)
 
     if source.type == "twitter_account":
-        return collect_twitter_account(source.url, fetch_json)
+        return await collect_twitter_account(source.url, fetch_json)
 
-    return collect_spotify_podcast(source.url, fetch_json)
+    return await collect_spotify_podcast(source.url, fetch_json)
 
 
 def _enrich_updates(
@@ -108,10 +112,14 @@ def _enrich_updates(
         )
         for source_update in source_updates
         if _within_timeframe(source_update.published_at or source_update.published, timeframe)
+        and not keyword_matches(
+            searchable_text(source_update.title, source_update.summary, source_update.url),
+            source.ignore_keywords,
+        )
     ]
 
 
-def _collect_from_source(
+async def _collect_from_source(
     interest: Interest,
     source: InterestSource,
     timeframe: Timeframe,
@@ -119,11 +127,11 @@ def _collect_from_source(
     fetch_json: JsonFetchFn,
 ) -> tuple[list[Update], CollectionError | None]:
     try:
-        source_updates = _collect_source_updates(source, fetch, fetch_json)
+        source_updates = await _collect_source_updates(source, fetch, fetch_json)
     except (
         OSError,
         UnicodeError,
-        urllib.error.URLError,
+        httpx.HTTPError,
         ValueError,
         TypeError,
         KeyError,
@@ -141,16 +149,7 @@ def _collect_from_source(
     return _enrich_updates(interest, source, source_updates, timeframe), None
 
 
-def collect_updates(
-    payload: InterestsPayload,
-    timeframe: Timeframe,
-    fetch: FetchFn = fetch_url,
-    fetch_json: JsonFetchFn = default_fetch_json,
-) -> UpdatesResponse:
-    updates: list[Update] = []
-    errors: list[CollectionError] = []
-    checked = 0
-
+def _enabled_sources(payload: InterestsPayload) -> Iterable[tuple[Interest, InterestSource]]:
     for interest in payload.interests:
         if interest.deleted_at is not None or not interest.enabled:
             continue
@@ -159,13 +158,21 @@ def collect_updates(
             if source.deleted_at is not None or not source.enabled:
                 continue
 
-            checked += 1
-            source_updates, error = _collect_from_source(
-                interest, source, timeframe, fetch, fetch_json
-            )
-            updates.extend(source_updates)
-            if error is not None:
-                errors.append(error)
+            yield interest, source
+
+
+def _updates_response(
+    source_results: list[tuple[list[Update], CollectionError | None]],
+    checked: int,
+    timeframe: Timeframe,
+) -> UpdatesResponse:
+    updates: list[Update] = []
+    errors: list[CollectionError] = []
+
+    for source_updates, error in source_results:
+        updates.extend(source_updates)
+        if error is not None:
+            errors.append(error)
 
     updates = dedupe_updates(updates)
     updates.sort(key=_sort_key, reverse=True)
@@ -175,3 +182,27 @@ def collect_updates(
         updates=updates,
         errors=errors,
     )
+
+
+async def collect_updates(
+    payload: InterestsPayload,
+    timeframe: Timeframe,
+    fetch: FetchFn = fetch_url,
+    fetch_json: JsonFetchFn = default_fetch_json,
+) -> UpdatesResponse:
+    sources = list(_enabled_sources(payload))
+    source_results: list[tuple[list[Update], CollectionError | None]] = list(
+        await asyncio.gather(
+            *(
+                _collect_from_source(
+                    interest,
+                    source,
+                    timeframe,
+                    fetch,
+                    fetch_json,
+                )
+                for interest, source in sources
+            )
+        )
+    )
+    return _updates_response(source_results, checked=len(sources), timeframe=timeframe)

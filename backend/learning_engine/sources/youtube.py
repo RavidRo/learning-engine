@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from urllib.parse import parse_qs, urlparse
 
 from learning_engine.models import CollectedUpdate
@@ -40,7 +40,7 @@ def _extract_channel_id(html: bytes) -> str:
     raise ValueError("Could not find a YouTube channel ID in the channel page")
 
 
-def youtube_feed_url(source_url: str, fetch: Callable[[str], bytes]) -> str:
+async def youtube_feed_url(source_url: str, fetch: Callable[[str], Awaitable[bytes]]) -> str:
     stripped = source_url.strip()
     if not stripped:
         raise ValueError("YouTube channel source URL is required")
@@ -55,8 +55,9 @@ def youtube_feed_url(source_url: str, fetch: Callable[[str], bytes]) -> str:
     elif not urlparse(page_url).scheme:
         page_url = f"https://www.youtube.com/@{page_url.lstrip('@')}"
 
-    return YOUTUBE_FEED_URL.format(channel_id=_extract_channel_id(fetch(page_url)))
+    return YOUTUBE_FEED_URL.format(channel_id=_extract_channel_id(await fetch(page_url)))
 
 
-def collect_youtube_channel(source_url: str, fetch: Callable[[str], bytes]) -> list[CollectedUpdate]:
-    return parse_feed_items(fetch(youtube_feed_url(source_url, fetch)), watch_keywords=[], ignore_keywords=[])
+async def collect_youtube_channel(source_url: str, fetch: Callable[[str], Awaitable[bytes]]) -> list[CollectedUpdate]:
+    feed_url = await youtube_feed_url(source_url, fetch)
+    return parse_feed_items(await fetch(feed_url), watch_keywords=[], ignore_keywords=[])

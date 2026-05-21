@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, cast
 
+import httpx
 import uvicorn
 from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
@@ -14,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from learning_engine.collector import collect_updates
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
+from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
 from learning_engine.models import InterestsPayload, UpdatesResponse
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
 from learning_engine.timeframe import Timeframe
@@ -29,7 +31,9 @@ def create_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(_api: FastAPI) -> AsyncIterator[None]:
         ensure_data_file()
-        yield
+        async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+            _api.state.http_fetcher = HttpFetcher(client)
+            yield
 
     api = FastAPI(
         title="Learning Engine",
@@ -59,9 +63,17 @@ def create_app() -> FastAPI:
         }
 
     @api.get("/api/updates", response_model=UpdatesResponse)
-    def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
+    async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
-        return collect_updates(read_interests(), timeframe=timeframe)
+        fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
+        if fetcher is None:
+            return await collect_updates(read_interests(), timeframe=timeframe)
+        return await collect_updates(
+            read_interests(),
+            timeframe=timeframe,
+            fetch=fetcher.fetch_url,
+            fetch_json=fetcher.fetch_json,
+        )
 
     api.mount(
         "/",

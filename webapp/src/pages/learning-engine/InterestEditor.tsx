@@ -1,4 +1,4 @@
-import { type Dispatch, useEffect, useReducer, useRef } from "react";
+import { type Dispatch, type FormEvent, useReducer } from "react";
 
 import {
   createDraftSource,
@@ -30,6 +30,7 @@ type DraftAction =
   | { type: "setName"; name: string }
   | { type: "setPriority"; priority: Priority }
   | { type: "setSourceEnabled"; enabled: boolean; id: string }
+  | { type: "setSourceIgnoreKeywords"; id: string; ignoreKeywords: string[] }
   | { type: "setSourceLabel"; id: string; label: string }
   | { type: "setSourceType"; id: string; sourceType: SourceType }
   | { type: "setSourceUrl"; id: string; url: string };
@@ -67,6 +68,14 @@ const draftReducer = (draft: InterestDraft, action: DraftAction): InterestDraft 
         sources: updateSource(draft.sources, action.id, (source) => ({
           ...source,
           enabled: action.enabled,
+        })),
+      };
+    case "setSourceIgnoreKeywords":
+      return {
+        ...draft,
+        sources: updateSource(draft.sources, action.id, (source) => ({
+          ...source,
+          ignoreKeywords: action.ignoreKeywords,
         })),
       };
     case "setSourceLabel":
@@ -107,6 +116,14 @@ const isValidDraft = (draft: InterestDraft): boolean =>
 
 const sourceDisplayName = (source: InterestSource, index: number): string =>
   source.label.trim() || `Source ${index + 1}`;
+
+const keywordText = (keywords: string[]): string => keywords.join(", ");
+
+const parseKeywordText = (text: string): string[] =>
+  text
+    .split(",")
+    .map((keyword) => keyword.trim())
+    .filter(Boolean);
 
 const BasicInterestFields = ({
   dispatch,
@@ -270,6 +287,21 @@ const SourceEditorCard = ({
         value={source.url}
       />
     </label>
+    <label>
+      Ignore keywords
+      <input
+        name={`source-${source.id}-ignore-keywords`}
+        onChange={(event) =>
+          dispatch({
+            id: source.id,
+            ignoreKeywords: parseKeywordText(event.currentTarget.value),
+            type: "setSourceIgnoreKeywords",
+          })
+        }
+        placeholder="nightly, webinar"
+        value={keywordText(source.ignoreKeywords)}
+      />
+    </label>
   </section>
 );
 
@@ -317,32 +349,21 @@ export const InterestEditor = ({
   const initialDraft =
     interest === null ? createEmptyInterestDraft() : createInterestDraft(interest);
   const [draft, dispatch] = useReducer(draftReducer, initialDraft);
-  const didMount = useRef(false);
-  const onUpdateInterestRef = useRef(onUpdateInterest);
   const isEditing = interest !== null;
   const sources = visibleSources(draft);
-  onUpdateInterestRef.current = onUpdateInterest;
 
-  useEffect(() => {
-    if (!isEditing) {
-      return undefined;
+  const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+
+    if (!isValidDraft(draft)) {
+      return;
     }
 
-    if (!didMount.current) {
-      didMount.current = true;
-      return undefined;
+    if (isEditing) {
+      onUpdateInterest(draft);
+      return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      onUpdateInterestRef.current(draft);
-    }, 500);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [draft, isEditing]);
-
-  const handleCreate = (): void => {
     onCreateInterest(draft);
   };
 
@@ -360,22 +381,13 @@ export const InterestEditor = ({
         ) : null}
       </div>
 
-      <form className="form-grid" onSubmit={(event) => event.preventDefault()}>
+      <form className="form-grid" onSubmit={handleSubmit}>
         <BasicInterestFields dispatch={dispatch} draft={draft} />
         <SourcesEditor dispatch={dispatch} sources={sources} />
 
-        {isEditing ? (
-          <p className="autosave-note">Changes save automatically after you pause typing.</p>
-        ) : (
-          <button
-            className="button primary"
-            disabled={!isValidDraft(draft)}
-            type="button"
-            onClick={handleCreate}
-          >
-            Create interest
-          </button>
-        )}
+        <button className="button primary" disabled={!isValidDraft(draft)} type="submit">
+          {isEditing ? "Save changes" : "Create interest"}
+        </button>
       </form>
     </aside>
   );

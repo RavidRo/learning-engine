@@ -652,6 +652,51 @@ textarea {
 .updates-callout.empty {
   border-style: dashed;
 }
+.source-error-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+}
+.source-error-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  padding: 10px;
+}
+.source-error-item strong {
+  display: block;
+  color: #78350f;
+  font-size: 13px;
+}
+.source-error-item span {
+  display: block;
+  margin-top: 3px;
+  color: #92400e;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.source-error-item details {
+  color: #78350f;
+  font-size: 12px;
+}
+.source-error-item summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.source-error-item p {
+  margin: 8px 0 0;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #78350f;
+  padding: 8px;
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 
 .updates-panel {
   display: grid;
@@ -695,23 +740,33 @@ textarea {
 
 .briefing {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 18px;
+  gap: 14px;
   margin-top: 18px;
-  align-items: start;
 }
-pre {
+.briefing-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.briefing-header p:not(.section-label) {
   margin: 0;
-  overflow: auto;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.prompt-card {
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #18181b;
-  color: #f4f4f5;
-  padding: 16px;
+  background: var(--surface-muted);
+  padding: 14px;
+}
+.prompt-card p {
+  margin: 0;
+  color: var(--text);
   font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
   line-height: 1.6;
-  white-space: pre-wrap;
 }
 
 .toast {
@@ -783,6 +838,7 @@ pre {
   }
   .source-editor-header,
   .source-editor-title,
+  .briefing-header,
   .weekly-group-header,
   .weekly-update-item div {
     flex-direction: column;

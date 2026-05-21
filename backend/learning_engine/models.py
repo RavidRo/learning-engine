@@ -45,6 +45,11 @@ class InterestSource(BaseModel):
     label: str = "Source"
     type: SourceType
     url: str
+    ignore_keywords: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("ignoreKeywords", "ignore_keywords"),
+        serialization_alias="ignoreKeywords",
+    )
     enabled: bool = True
     deleted_at: str | None = Field(
         default=None,
@@ -81,6 +86,21 @@ class InterestSource(BaseModel):
         if not url:
             raise ValueError("Source URL is required")
         return url
+
+    @field_validator("ignore_keywords", mode="before")
+    @classmethod
+    def normalize_ignore_keywords(cls, value: object) -> list[str]:
+        if value is None:
+            return []
+
+        if isinstance(value, str):
+            candidates = value.split(",")
+        elif isinstance(value, list):
+            candidates = value
+        else:
+            return []
+
+        return [keyword for item in candidates if (keyword := str(item).strip())]
 
 
 class Interest(BaseModel):

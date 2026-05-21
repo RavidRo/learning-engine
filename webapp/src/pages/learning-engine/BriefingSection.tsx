@@ -1,9 +1,44 @@
-export const BriefingSection = () => (
-  <section id="briefing" className="panel briefing">
-    <div>
-      <p className="section-label">Next ritual</p>
-      <h2>Evening briefing prompt</h2>
-    </div>
-    <pre>Read my Learning Engine interests and prepare an evening briefing.</pre>
-  </section>
-);
+import { useEffect, useState } from "react";
+
+const briefingPrompt = "Read my Learning Engine interests and prepare an evening briefing.";
+
+export const BriefingSection = () => {
+  const [didCopy, setDidCopy] = useState(false);
+
+  useEffect(() => {
+    if (!didCopy) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setDidCopy(false);
+    }, 1400);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [didCopy]);
+
+  const copyPrompt = async (): Promise<void> => {
+    await navigator.clipboard.writeText(briefingPrompt);
+    setDidCopy(true);
+  };
+
+  return (
+    <section id="briefing" className="panel briefing">
+      <div className="briefing-header">
+        <div>
+          <p className="section-label">Briefing</p>
+          <h2>Evening prompt</h2>
+          <p>Use this when you want the engine to turn the current interests into a review.</p>
+        </div>
+        <button className="button ghost compact" type="button" onClick={() => void copyPrompt()}>
+          {didCopy ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <div className="prompt-card">
+        <p>{briefingPrompt}</p>
+      </div>
+    </section>
+  );
+};
