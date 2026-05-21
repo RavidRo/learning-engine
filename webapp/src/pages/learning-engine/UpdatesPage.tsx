@@ -1,9 +1,12 @@
+import { type ChangeEvent } from "react";
+
 import { type Update } from "./schemas";
 import { type UpdatesPayload } from "./types";
 
-type WeeklyUpdatesPageProps = {
+type UpdatesPageProps = {
   days: number;
   isChecking: boolean;
+  onDaysChange: (days: number) => void;
   onRefresh: () => void;
   updates: UpdatesPayload | null;
   updatesError: string | null;
@@ -13,6 +16,8 @@ type UpdateGroup = {
   interestName: string;
   updates: Update[];
 };
+
+const updateDayOptions = [2, 7, 14, 30] as const;
 
 const groupUpdates = (updates: Update[]): UpdateGroup[] => {
   const groups = new Map<string, Update[]>();
@@ -31,8 +36,11 @@ const groupUpdates = (updates: Update[]): UpdateGroup[] => {
 const updateKey = (update: Update): string =>
   `${update.interest_name}-${update.source_url}-${update.url}`;
 
+const updateWindowLabel = (days: number): string =>
+  days === 1 ? "the last day" : `the last ${days} days`;
+
 const UpdateItem = ({ update }: { update: Update }) => (
-  <article className="weekly-update-item">
+  <article className="update-item-card">
     <div>
       <span>
         {update.source_label} · {update.source_type}
@@ -46,8 +54,8 @@ const UpdateItem = ({ update }: { update: Update }) => (
 );
 
 const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
-  <section className="weekly-update-group">
-    <div className="weekly-group-header">
+  <section className="update-group">
+    <div className="update-group-header">
       <div>
         <h3>{group.interestName}</h3>
         <p>
@@ -55,7 +63,7 @@ const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
         </p>
       </div>
     </div>
-    <div className="weekly-update-items">
+    <div className="update-items">
       {group.updates.map((update) => (
         <UpdateItem key={updateKey(update)} update={update} />
       ))}
@@ -64,7 +72,7 @@ const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
 );
 
 const UpdatesSummary = ({ payload }: { payload: UpdatesPayload }) => (
-  <aside className="weekly-summary">
+  <aside className="updates-summary">
     <div className="summary-box">
       <strong>{payload.updates.length}</strong>
       <span>updates found</span>
@@ -116,60 +124,94 @@ const SourceErrors = ({ payload }: { payload: UpdatesPayload }) =>
 const RequestError = ({ updatesError }: { updatesError: string | null }) =>
   updatesError === null ? null : (
     <div className="updates-callout error">
-      <strong>Could not load weekly updates</strong>
+      <strong>Could not load updates</strong>
       <span>{updatesError}</span>
     </div>
   );
 
-const EmptyUpdates = () => (
+const EmptyUpdates = ({ days }: { days: number }) => (
   <div className="updates-callout empty">
     <strong>No updates found</strong>
-    <span>The enabled sources did not publish matching updates in the last week.</span>
+    <span>The enabled sources did not publish matching updates in {updateWindowLabel(days)}.</span>
   </div>
 );
 
+const UpdateDaysSelect = ({
+  days,
+  onDaysChange,
+}: {
+  days: number;
+  onDaysChange: (days: number) => void;
+}) => {
+  const handleChange = (event: ChangeEvent<HTMLSelectElement>): void => {
+    onDaysChange(Number(event.target.value));
+  };
+
+  return (
+    <label className="days-select-control">
+      <span>Show</span>
+      <select value={days} onChange={handleChange} aria-label="Update time window">
+        {updateDayOptions.map((option) => (
+          <option key={option} value={option}>
+            Last {option} days
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
+
 // fallow-ignore-next-line complexity
-export const WeeklyUpdatesPage = ({
+export const UpdatesPage = ({
   days,
   isChecking,
+  onDaysChange,
   onRefresh,
   updates,
   updatesError,
-}: WeeklyUpdatesPageProps) => {
+}: UpdatesPageProps) => {
   const groups = groupUpdates(updates?.updates ?? []);
 
   return (
-    <section id="updates" className="panel weekly-updates-page">
+    <section id="updates" className="panel updates-page">
       <div className="panel-header row">
         <div>
-          <p className="section-label">Weekly updates</p>
-          <h2>Last {days} days</h2>
+          <p className="section-label">Updates</p>
+          <h2>{updateWindowLabel(days)}</h2>
           <p className="panel-copy">
             A focused view of all updates grouped by interest. Refreshing checks the enabled sources
             with <code>/api/updates?days={days}</code>.
           </p>
         </div>
-        <button className="button primary" type="button" onClick={onRefresh} disabled={isChecking}>
-          {isChecking ? "Refreshing..." : "Refresh"}
-        </button>
+        <div className="updates-header-actions">
+          <UpdateDaysSelect days={days} onDaysChange={onDaysChange} />
+          <button
+            className="button primary"
+            type="button"
+            onClick={onRefresh}
+            disabled={isChecking}
+          >
+            {isChecking ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
 
       {isChecking && updates === null ? (
         <div className="updates-callout loading">
           <strong>Checking sources...</strong>
-          <span>Collecting updates from enabled sources for the last week.</span>
+          <span>Collecting updates from enabled sources for {updateWindowLabel(days)}.</span>
         </div>
       ) : null}
 
       <RequestError updatesError={updatesError} />
 
       {updates === null ? null : (
-        <div className="weekly-layout">
+        <div className="updates-layout">
           <UpdatesSummary payload={updates} />
-          <div className="weekly-feed">
+          <div className="updates-feed">
             <SourceErrors payload={updates} />
             {groups.length === 0 ? (
-              <EmptyUpdates />
+              <EmptyUpdates days={days} />
             ) : (
               groups.map((group) => <UpdateGroupCard group={group} key={group.interestName} />)
             )}
