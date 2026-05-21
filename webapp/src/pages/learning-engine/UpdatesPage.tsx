@@ -178,10 +178,7 @@ export const UpdatesPage = ({
         <div>
           <p className="section-label">Updates</p>
           <h2>{updateWindowLabel(days)}</h2>
-          <p className="panel-copy">
-            A focused view of all updates grouped by interest. Refreshing checks the enabled sources
-            with <code>/api/updates?days={days}</code>.
-          </p>
+          <p className="panel-copy">Updates grouped by interest.</p>
         </div>
         <div className="updates-header-actions">
           <UpdateDaysSelect days={days} onDaysChange={onDaysChange} />

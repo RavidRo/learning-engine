@@ -137,6 +137,7 @@ button:disabled {
 
 .hero-copy {
   max-width: 720px;
+  min-width: 0;
 }
 .eyebrow,
 .section-label {
@@ -177,6 +178,7 @@ h3 {
   color: var(--text-soft);
   font-size: 14px;
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .hero-actions {
@@ -248,6 +250,7 @@ h3 {
   display: flex;
   align-items: center;
   gap: 14px;
+  min-width: 0;
   padding: 12px;
 }
 .summary-header {
@@ -268,6 +271,7 @@ h3 {
 .stats-grid {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
 }
 .stat,
@@ -301,6 +305,7 @@ h3 {
 }
 .panel {
   border-radius: 8px;
+  min-width: 0;
   padding: 18px;
 }
 .panel-header {
@@ -528,6 +533,12 @@ textarea {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.panel-copy code {
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: break-word;
 }
 .save-status {
   display: inline-flex;
@@ -835,7 +846,7 @@ textarea {
 
 @media (max-width: 640px) {
   .shell {
-    width: min(100% - 28px, 1120px);
+    width: min(1120px, calc(100% - 28px));
     padding-top: 18px;
   }
   .topbar {
@@ -868,6 +879,10 @@ textarea {
   }
   .row {
     flex-direction: column;
+  }
+  .panel,
+  .panel-copy {
+    max-width: calc(100vw - 28px);
   }
   .header-actions {
     width: 100%;
