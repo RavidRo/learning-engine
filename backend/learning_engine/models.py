@@ -45,6 +45,11 @@ class InterestSource(BaseModel):
     label: str = "Source"
     type: SourceType
     url: str
+    image_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("imageUrl", "image_url"),
+        serialization_alias="imageUrl",
+    )
     ignore_keywords: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("ignoreKeywords", "ignore_keywords"),
@@ -66,7 +71,7 @@ class InterestSource(BaseModel):
             return _SOURCE_TYPE_ALIASES[normalized]
         raise ValueError(f"Source type must be one of: {', '.join(SOURCE_TYPES)}")
 
-    @field_validator("id", "deleted_at", mode="before")
+    @field_validator("id", "image_url", "deleted_at", mode="before")
     @classmethod
     def strip_optional_strings(cls, value: object) -> str | None:
         if value is None:
@@ -168,6 +173,7 @@ class Update(CollectedUpdate):
     interest_name: str = "Interest"
     source_id: str | None = None
     source_label: str = "Source"
+    source_image_url: str | None = None
     source_url: str
     source_type: SourceType = "feed"
 

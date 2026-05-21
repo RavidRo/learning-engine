@@ -106,6 +106,7 @@ def _enrich_updates(
             interest_name=interest.name,
             source_id=source.id,
             source_label=source.label,
+            source_image_url=source.image_url,
             source_url=source.url,
             source_type=source.type,
             **source_update.model_dump(),

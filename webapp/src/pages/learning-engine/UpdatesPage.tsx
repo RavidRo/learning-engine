@@ -1,4 +1,4 @@
-import { type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 
 import { type Update } from "./schemas";
 import { type UpdatesPayload } from "./types";
@@ -39,17 +39,46 @@ const updateKey = (update: Update): string =>
 const updateWindowLabel = (days: number): string =>
   days === 1 ? "the last day" : `the last ${days} days`;
 
+const sourceInitial = (label: string): string => label.trim().charAt(0).toUpperCase() || "•";
+
+const SourceAvatar = ({ update }: { update: Update }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = update.source_image_url?.trim();
+  const showImage = imageUrl !== undefined && imageUrl !== "" && !imageFailed;
+
+  if (!showImage) {
+    return (
+      <span className="source-avatar fallback" aria-hidden="true">
+        {sourceInitial(update.source_label)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="source-avatar"
+      src={imageUrl}
+      alt=""
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+    />
+  );
+};
+
 const UpdateItem = ({ update }: { update: Update }) => (
   <article className="update-item-card">
-    <div>
-      <span>
-        {update.source_label} · {update.source_type}
-      </span>
-      {update.published ? <span>{update.published}</span> : null}
+    <SourceAvatar update={update} />
+    <div className="update-item-content">
+      <div className="update-item-meta">
+        <span>
+          {update.source_label} · {update.source_type}
+        </span>
+        {update.published ? <span>{update.published}</span> : null}
+      </div>
+      <a href={update.url} target="_blank" rel="noreferrer">
+        {update.title ?? "Untitled update"}
+      </a>
     </div>
-    <a href={update.url} target="_blank" rel="noreferrer">
-      {update.title ?? "Untitled update"}
-    </a>
   </article>
 );
 

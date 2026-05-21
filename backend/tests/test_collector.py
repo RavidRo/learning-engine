@@ -45,6 +45,25 @@ def test_source_type_accepts_new_human_friendly_aliases() -> None:
     )
 
 
+def test_source_accepts_optional_image_url_with_camel_case_alias() -> None:
+    source = InterestSource.model_validate(
+        {
+            "type": "feed",
+            "url": "https://example.com/feed.xml",
+            "imageUrl": " https://example.com/logo.png ",
+        }
+    )
+
+    assert source.image_url == "https://example.com/logo.png"
+    assert source.model_dump(mode="json", by_alias=True)["imageUrl"] == "https://example.com/logo.png"
+
+
+def test_source_treats_blank_image_url_as_missing() -> None:
+    source = InterestSource.model_validate({"type": "feed", "url": "https://example.com/feed.xml", "imageUrl": "  "})
+
+    assert source.image_url is None
+
+
 def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
     updates = [
         Update(source_url="https://example.com/a", source_type="feed", summary="first"),
@@ -91,6 +110,35 @@ async def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> Non
     assert called_urls == ["https://www.youtube.com/feeds/videos.xml?channel_id=UCabcabcabcabcabcabcabc"]
     assert result.updates[0].source_type == "youtube_channel"
     assert result.updates[0].title == "New lecture"
+
+
+@pytest.mark.anyio
+async def test_collect_updates_carries_source_image_url_to_updates() -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Images",
+                    "sources": [
+                        {
+                            "id": "with-image",
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                            "imageUrl": "https://example.com/avatar.png",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_image_url == "https://example.com/avatar.png"
 
 
 @pytest.mark.anyio
