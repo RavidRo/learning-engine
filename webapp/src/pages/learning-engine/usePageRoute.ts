@@ -58,7 +58,7 @@ const serverRouteSnapshot = (): PageView => "updates";
 export const navigateToView = (view: PageView): void => {
   const nextPath = pathByView[view];
 
-  if (window.location.pathname === nextPath) {
+  if (normalizePathname(window.location.pathname) === nextPath) {
     return;
   }
 
