@@ -8,9 +8,24 @@ const pathByView: Record<PageView, string> = {
   updates: "/updates",
 };
 
+/** Removes a trailing slash so route comparisons accept canonical equivalents. */
+const normalizePathname = (pathname: string): string => {
+  if (pathname === "/") {
+    return pathname;
+  }
+
+  if (pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+
+  return pathname;
+};
+
 /** Maps a URL pathname to the matching PageView, defaulting to updates. */
 const viewFromPathname = (pathname: string): PageView => {
-  if (pathname === pathByView.interests) {
+  const normalizedPathname = normalizePathname(pathname);
+
+  if (normalizedPathname === pathByView.interests) {
     return "interests";
   }
 
