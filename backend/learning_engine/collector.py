@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Iterable, Mapping, MutableMapping
+from collections.abc import Awaitable, Callable, Iterable, Iterator, Mapping, MutableMapping
+from contextlib import contextmanager
 from dataclasses import dataclass
+from threading import Lock
 
 import httpx
 
@@ -41,6 +43,7 @@ class SourceUpdatesCacheOptions:
     cache: SourceUpdatesCache
     scope: str | None = None
     in_flight: SourceUpdatesInFlight | None = None
+    lock: Lock | None = None
 
 
 __all__ = [
@@ -64,6 +67,16 @@ class _SourceCollectionContext:
     source_updates_cache: SourceUpdatesCache | None
     source_updates_cache_scope: str | None
     source_updates_in_flight: SourceUpdatesInFlight | None
+    source_updates_lock: Lock | None
+
+
+@contextmanager
+def _locked(lock: Lock | None) -> Iterator[None]:
+    if lock is None:
+        yield
+        return
+    with lock:
+        yield
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -196,27 +209,39 @@ async def _get_source_updates(
     if source_updates_cache is None:
         return await _collect_source_updates_value(source, context.fetch, context.fetch_json)
 
-    if cache_key in source_updates_cache:
-        return _copy_source_updates_cache_value(source_updates_cache[cache_key])
+    with _locked(context.source_updates_lock):
+        if cache_key in source_updates_cache:
+            return _copy_source_updates_cache_value(source_updates_cache[cache_key])
 
     if context.source_updates_in_flight is None:
         result = await _collect_source_updates_value(source, context.fetch, context.fetch_json)
-        source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
+        with _locked(context.source_updates_lock):
+            source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
         return result
 
-    task = context.source_updates_in_flight.get(cache_key)
-    if task is not None:
+    created_task = False
+    with _locked(context.source_updates_lock):
+        task = context.source_updates_in_flight.get(cache_key)
+        if task is None:
+            task = asyncio.create_task(_collect_source_updates_value(source, context.fetch, context.fetch_json))
+            context.source_updates_in_flight[cache_key] = task
+            created_task = True
+
+    if not created_task:
         return _copy_source_updates_cache_value(await task)
 
-    task = asyncio.create_task(_collect_source_updates_value(source, context.fetch, context.fetch_json))
-    context.source_updates_in_flight[cache_key] = task
     try:
         result = await task
-    finally:
-        if context.source_updates_in_flight.get(cache_key) is task:
-            del context.source_updates_in_flight[cache_key]
+    except BaseException:
+        with _locked(context.source_updates_lock):
+            if context.source_updates_in_flight.get(cache_key) is task:
+                del context.source_updates_in_flight[cache_key]
+        raise
 
-    source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
+    with _locked(context.source_updates_lock):
+        if context.source_updates_in_flight.get(cache_key) is task:
+            source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
+            del context.source_updates_in_flight[cache_key]
     return result
 
 
@@ -279,10 +304,12 @@ async def collect_updates(
         cache = source_updates_cache.cache
         cache_scope = source_updates_cache.scope
         in_flight = source_updates_cache.in_flight
+        lock = source_updates_cache.lock
     else:
         cache = source_updates_cache
         cache_scope = None
         in_flight = None
+        lock = None
     if cache is not None and in_flight is None:
         in_flight = {}
     context = _SourceCollectionContext(
@@ -292,6 +319,7 @@ async def collect_updates(
         source_updates_cache=cache,
         source_updates_cache_scope=cache_scope,
         source_updates_in_flight=in_flight,
+        source_updates_lock=lock,
     )
     source_results: list[tuple[list[Update], CollectionError | None]] = list(
         await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))

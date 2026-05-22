@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
+from threading import Lock
 from typing import Annotated, cast
 
 import httpx
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
         ttl=SOURCE_UPDATES_CACHE_TTL_SECONDS,
     )
     api.state.source_updates_in_flight = {}
+    api.state.source_updates_lock = Lock()
 
     @api.get("/", include_in_schema=False)
     def index() -> RedirectResponse:
@@ -71,8 +73,9 @@ def create_app() -> FastAPI:
     @api.post("/api/interests")
     def save_interests(payload: InterestsPayload) -> dict[str, object]:
         write_interests(payload)
-        api.state.source_updates_cache.clear()
-        api.state.source_updates_in_flight.clear()
+        with api.state.source_updates_lock:
+            api.state.source_updates_cache.clear()
+            api.state.source_updates_in_flight.clear()
         return {
             "ok": True,
             "saved": read_interests().model_dump(mode="json", by_alias=True),
@@ -82,12 +85,14 @@ def create_app() -> FastAPI:
     async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
         cache_scope = "all" if days is None else f"days:{days}"
-        source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
-        source_updates_in_flight = cast(SourceUpdatesInFlight, api.state.source_updates_in_flight)
+        with api.state.source_updates_lock:
+            source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
+            source_updates_in_flight = cast(SourceUpdatesInFlight, api.state.source_updates_in_flight)
         source_updates_cache_options = SourceUpdatesCacheOptions(
-            source_updates_cache,
-            cache_scope,
-            source_updates_in_flight,
+            cache=source_updates_cache,
+            scope=cache_scope,
+            in_flight=source_updates_in_flight,
+            lock=api.state.source_updates_lock,
         )
         fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
         if fetcher is None:
