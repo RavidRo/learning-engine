@@ -14,7 +14,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from learning_engine.collector import SourceUpdatesCache, collect_updates
+from learning_engine.collector import SourceUpdatesCache, SourceUpdatesCacheOptions, collect_updates
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
 from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
 from learning_engine.models import InterestsPayload, UpdatesResponse
@@ -65,6 +65,7 @@ def create_app() -> FastAPI:
     @api.post("/api/interests")
     def save_interests(payload: InterestsPayload) -> dict[str, object]:
         write_interests(payload)
+        api.state.source_updates_cache.clear()
         return {
             "ok": True,
             "saved": read_interests().model_dump(mode="json", by_alias=True),
@@ -73,13 +74,15 @@ def create_app() -> FastAPI:
     @api.get("/api/updates", response_model=UpdatesResponse)
     async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
+        cache_scope = "all" if days is None else f"days:{days}"
         source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
+        source_updates_cache_options = SourceUpdatesCacheOptions(source_updates_cache, cache_scope)
         fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
         if fetcher is None:
             response = await collect_updates(
                 read_interests(),
                 timeframe=timeframe,
-                source_updates_cache=source_updates_cache,
+                source_updates_cache=source_updates_cache_options,
             )
         else:
             response = await collect_updates(
@@ -87,7 +90,7 @@ def create_app() -> FastAPI:
                 timeframe=timeframe,
                 fetch=fetcher.fetch_url,
                 fetch_json=fetcher.fetch_json,
-                source_updates_cache=source_updates_cache,
+                source_updates_cache=source_updates_cache_options,
             )
         return response
 

@@ -177,17 +177,17 @@ def test_updates_endpoint_cache_key_includes_selected_days(monkeypatch: pytest.M
     second = client.get("/api/updates?days=30")
     repeated_first = client.get("/api/updates?days=7")
 
-    assert calls == ["https://example.com/feed.xml"]
+    assert calls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
     assert first.json()["updates"][0]["title"] == "call-1"
-    assert second.json()["updates"][0]["title"] == "call-1"
+    assert second.json()["updates"][0]["title"] == "call-2"
     assert repeated_first.json()["updates"][0]["title"] == "call-1"
 
 
-def test_saving_interests_preserves_unchanged_source_cache_and_fetches_new_sources(
+def test_saving_interests_clears_source_cache(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     saved_payloads: list[InterestsPayload] = []
-    current_payload = _payload("https://example.com/first.xml")
+    current_payload = _payload()
     calls: list[str] = []
 
     def read_interests() -> InterestsPayload:
@@ -206,10 +206,10 @@ def test_saving_interests_preserves_unchanged_source_cache_and_fetches_new_sourc
     client = TestClient(create_app())
 
     assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
-    saved = _payload("https://example.com/second.xml").model_dump(mode="json", by_alias=True)
+    saved = _payload().model_dump(mode="json", by_alias=True)
     client.post("/api/interests", json=saved)
     assert client.get("/api/updates").json()["updates"][0]["title"] == "call-2"
-    assert calls == ["https://example.com/first.xml", "https://example.com/second.xml"]
+    assert calls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
 
 
 def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest.MonkeyPatch) -> None:
