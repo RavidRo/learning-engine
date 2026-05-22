@@ -3,7 +3,7 @@ import importlib
 import pytest
 from fastapi.testclient import TestClient
 
-from learning_engine.app import app, create_app
+from learning_engine.app import UpdatesCache, app, create_app
 from learning_engine.models import CollectionError, InterestsPayload, Update, UpdatesResponse
 from learning_engine.timeframe import Timeframe
 
@@ -82,8 +82,12 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
     )
 
 
-@pytest.mark.parametrize("query", ["", "?days=7"])
-def test_updates_endpoint_reuses_cached_response_for_five_minutes(monkeypatch: pytest.MonkeyPatch, query: str) -> None:
+@pytest.mark.parametrize(("query", "expected_path"), [(None, "/api/updates"), (7, "/api/updates?days=7")])
+def test_updates_endpoint_reuses_cached_response_for_five_minutes(
+    monkeypatch: pytest.MonkeyPatch,
+    query: int | None,
+    expected_path: str,
+) -> None:
     current_time = 1000.0
     calls: list[str] = []
 
@@ -102,14 +106,53 @@ def test_updates_endpoint_reuses_cached_response_for_five_minutes(monkeypatch: p
     monkeypatch.setattr(app_module, "collect_updates", collect_updates)
     client = TestClient(create_app())
 
-    first = client.get(f"/api/updates{query}")
-    second = client.get(f"/api/updates{query}")
+    path = "/api/updates" if query is None else f"/api/updates?days={query}"
+    first = client.get(path)
+    second = client.get(path)
 
     assert first.status_code == HTTP_OK
     assert second.status_code == HTTP_OK
+    assert path == expected_path
     assert calls == ["https://example.com/feed.xml"]
     assert first.json() == second.json()
     assert second.json()["updates"][0]["title"] == "call-1"
+
+
+def test_updates_cache_prunes_expired_entries_before_storing(monkeypatch: pytest.MonkeyPatch) -> None:
+    current_time = 1000.0
+
+    def monotonic() -> float:
+        return current_time
+
+    monkeypatch.setattr(app_module, "monotonic", monotonic)
+    cache = UpdatesCache(ttl_seconds=300)
+
+    cache.set((7,), _response("old"))
+    current_time += 301
+    cache.set((30,), _response("new"))
+
+    assert cache.get((7,)) is None
+    assert cache.get((30,)) == _response("new")
+
+
+def test_updates_cache_evicts_earliest_expiring_entry_when_full(monkeypatch: pytest.MonkeyPatch) -> None:
+    current_time = 1000.0
+
+    def monotonic() -> float:
+        return current_time
+
+    monkeypatch.setattr(app_module, "monotonic", monotonic)
+    cache = UpdatesCache(ttl_seconds=300, max_entries=2)
+
+    cache.set((7,), _response("oldest"))
+    current_time += 1
+    cache.set((14,), _response("middle"))
+    current_time += 1
+    cache.set((30,), _response("newest"))
+
+    assert cache.get((7,)) is None
+    assert cache.get((14,)) == _response("middle")
+    assert cache.get((30,)) == _response("newest")
 
 
 def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -23,6 +23,7 @@ from learning_engine.storage import ensure_data_file, read_interests, write_inte
 from learning_engine.timeframe import Timeframe
 
 UPDATES_CACHE_TTL_SECONDS = 5 * 60
+UPDATES_CACHE_MAX_ENTRIES = 128
 
 
 def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
@@ -40,8 +41,13 @@ class _UpdatesCacheEntry:
 class UpdatesCache:
     """Small in-process TTL cache for complete update responses, including partial errors."""
 
-    def __init__(self, ttl_seconds: int = UPDATES_CACHE_TTL_SECONDS) -> None:
+    def __init__(
+        self,
+        ttl_seconds: int = UPDATES_CACHE_TTL_SECONDS,
+        max_entries: int = UPDATES_CACHE_MAX_ENTRIES,
+    ) -> None:
         self._ttl_seconds = ttl_seconds
+        self._max_entries = max_entries
         self._entries: dict[tuple[int | None], _UpdatesCacheEntry] = {}
 
     def get(self, key: tuple[int | None]) -> UpdatesResponse | None:
@@ -54,15 +60,32 @@ class UpdatesCache:
         return entry.response.model_copy(deep=True)
 
     def set(self, key: tuple[int | None], response: UpdatesResponse) -> UpdatesResponse:
+        now = monotonic()
+        self._prune_expired_entries(now)
         cached = response.model_copy(deep=True)
         self._entries[key] = _UpdatesCacheEntry(
-            expires_at=monotonic() + self._ttl_seconds,
+            expires_at=now + self._ttl_seconds,
             response=cached,
         )
+        self._enforce_max_entries()
         return cached.model_copy(deep=True)
 
     def clear(self) -> None:
         self._entries.clear()
+
+    def _prune_expired_entries(self, now: float) -> None:
+        for key, entry in list(self._entries.items()):
+            if entry.expires_at <= now:
+                self._entries.pop(key, None)
+
+    def _enforce_max_entries(self) -> None:
+        overflow = len(self._entries) - self._max_entries
+        if overflow <= 0:
+            return
+
+        oldest_keys = sorted(self._entries, key=lambda key: self._entries[key].expires_at)
+        for key in oldest_keys[:overflow]:
+            self._entries.pop(key, None)
 
 
 def create_app() -> FastAPI:
