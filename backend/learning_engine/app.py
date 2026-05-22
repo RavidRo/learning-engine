@@ -14,7 +14,12 @@ from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from learning_engine.collector import SourceUpdatesCache, SourceUpdatesCacheOptions, collect_updates
+from learning_engine.collector import (
+    SourceUpdatesCache,
+    SourceUpdatesCacheOptions,
+    SourceUpdatesInFlight,
+    collect_updates,
+)
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
 from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
 from learning_engine.models import InterestsPayload, UpdatesResponse
@@ -49,6 +54,7 @@ def create_app() -> FastAPI:
         maxsize=SOURCE_UPDATES_CACHE_MAX_ENTRIES,
         ttl=SOURCE_UPDATES_CACHE_TTL_SECONDS,
     )
+    api.state.source_updates_in_flight = {}
 
     @api.get("/", include_in_schema=False)
     def index() -> RedirectResponse:
@@ -66,6 +72,7 @@ def create_app() -> FastAPI:
     def save_interests(payload: InterestsPayload) -> dict[str, object]:
         write_interests(payload)
         api.state.source_updates_cache.clear()
+        api.state.source_updates_in_flight.clear()
         return {
             "ok": True,
             "saved": read_interests().model_dump(mode="json", by_alias=True),
@@ -76,7 +83,12 @@ def create_app() -> FastAPI:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
         cache_scope = "all" if days is None else f"days:{days}"
         source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
-        source_updates_cache_options = SourceUpdatesCacheOptions(source_updates_cache, cache_scope)
+        source_updates_in_flight = cast(SourceUpdatesInFlight, api.state.source_updates_in_flight)
+        source_updates_cache_options = SourceUpdatesCacheOptions(
+            source_updates_cache,
+            cache_scope,
+            source_updates_in_flight,
+        )
         fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
         if fetcher is None:
             response = await collect_updates(

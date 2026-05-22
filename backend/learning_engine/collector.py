@@ -33,12 +33,14 @@ JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
 SourceUpdatesCacheValue = tuple[list[CollectedUpdate], str | None]
 SourceUpdatesCache = MutableMapping[SourceUpdatesCacheKey, SourceUpdatesCacheValue]
+SourceUpdatesInFlight = MutableMapping[SourceUpdatesCacheKey, asyncio.Task[SourceUpdatesCacheValue]]
 
 
 @dataclass(frozen=True, slots=True)
 class SourceUpdatesCacheOptions:
     cache: SourceUpdatesCache
     scope: str | None = None
+    in_flight: SourceUpdatesInFlight | None = None
 
 
 __all__ = [
@@ -46,6 +48,7 @@ __all__ = [
     "SourceUpdatesCacheKey",
     "SourceUpdatesCacheOptions",
     "SourceUpdatesCacheValue",
+    "SourceUpdatesInFlight",
     "collect_updates",
     "dedupe_updates",
     "parse_feed_items",
@@ -60,6 +63,7 @@ class _SourceCollectionContext:
     fetch_json: JsonFetchFn
     source_updates_cache: SourceUpdatesCache | None
     source_updates_cache_scope: str | None
+    source_updates_in_flight: SourceUpdatesInFlight | None
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -160,20 +164,18 @@ def _collection_error(interest: Interest, source: InterestSource, error: str) ->
     )
 
 
-async def _get_source_updates(
+def _copy_source_updates_cache_value(value: SourceUpdatesCacheValue) -> SourceUpdatesCacheValue:
+    updates, error = value
+    return [update.model_copy(deep=True) for update in updates], error
+
+
+async def _collect_source_updates_value(
     source: InterestSource,
     fetch: FetchFn,
     fetch_json: JsonFetchFn,
-    cache_scope: str | None,
-    source_updates_cache: SourceUpdatesCache | None,
 ) -> SourceUpdatesCacheValue:
-    cache_key = _source_updates_cache_key(source, cache_scope)
-    if source_updates_cache is not None and cache_key in source_updates_cache:
-        updates, error = source_updates_cache[cache_key]
-        return [update.model_copy(deep=True) for update in updates], error
-
     try:
-        result: SourceUpdatesCacheValue = await _collect_source_updates(source, fetch, fetch_json), None
+        return await _collect_source_updates(source, fetch, fetch_json), None
     except (
         OSError,
         UnicodeError,
@@ -182,11 +184,39 @@ async def _get_source_updates(
         TypeError,
         KeyError,
     ) as exc:
-        result = [], str(exc)
+        return [], str(exc)
 
-    if source_updates_cache is not None:
-        updates, error = result
-        source_updates_cache[cache_key] = ([update.model_copy(deep=True) for update in updates], error)
+
+async def _get_source_updates(
+    source: InterestSource,
+    context: _SourceCollectionContext,
+) -> SourceUpdatesCacheValue:
+    source_updates_cache = context.source_updates_cache
+    cache_key = _source_updates_cache_key(source, context.source_updates_cache_scope)
+    if source_updates_cache is None:
+        return await _collect_source_updates_value(source, context.fetch, context.fetch_json)
+
+    if cache_key in source_updates_cache:
+        return _copy_source_updates_cache_value(source_updates_cache[cache_key])
+
+    if context.source_updates_in_flight is None:
+        result = await _collect_source_updates_value(source, context.fetch, context.fetch_json)
+        source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
+        return result
+
+    task = context.source_updates_in_flight.get(cache_key)
+    if task is not None:
+        return _copy_source_updates_cache_value(await task)
+
+    task = asyncio.create_task(_collect_source_updates_value(source, context.fetch, context.fetch_json))
+    context.source_updates_in_flight[cache_key] = task
+    try:
+        result = await task
+    finally:
+        if context.source_updates_in_flight.get(cache_key) is task:
+            del context.source_updates_in_flight[cache_key]
+
+    source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
     return result
 
 
@@ -195,13 +225,7 @@ async def _collect_from_source(
     source: InterestSource,
     context: _SourceCollectionContext,
 ) -> tuple[list[Update], CollectionError | None]:
-    source_updates, error = await _get_source_updates(
-        source,
-        context.fetch,
-        context.fetch_json,
-        context.source_updates_cache_scope,
-        context.source_updates_cache,
-    )
+    source_updates, error = await _get_source_updates(source, context)
     collection_error = _collection_error(interest, source, error) if error is not None else None
     return _enrich_updates(interest, source, source_updates, context.timeframe), collection_error
 
@@ -250,18 +274,24 @@ async def collect_updates(
 ) -> UpdatesResponse:
     sources = list(_enabled_sources(payload))
     cache: SourceUpdatesCache | None
+    in_flight: SourceUpdatesInFlight | None
     if isinstance(source_updates_cache, SourceUpdatesCacheOptions):
         cache = source_updates_cache.cache
         cache_scope = source_updates_cache.scope
+        in_flight = source_updates_cache.in_flight
     else:
         cache = source_updates_cache
         cache_scope = None
+        in_flight = None
+    if cache is not None and in_flight is None:
+        in_flight = {}
     context = _SourceCollectionContext(
         timeframe=timeframe,
         fetch=fetch,
         fetch_json=fetch_json,
         source_updates_cache=cache,
         source_updates_cache_scope=cache_scope,
+        source_updates_in_flight=in_flight,
     )
     source_results: list[tuple[list[Update], CollectionError | None]] = list(
         await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))
