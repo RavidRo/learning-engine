@@ -3,6 +3,7 @@ import { useEffect, useReducer, useState } from "react";
 
 import { fetchInterests, fetchUpdates, saveInterests } from "./api";
 import { createInterest, updateInterestFromDraft } from "./interestForm";
+import { navigateToView, usePageRoute } from "./usePageRoute";
 import {
   type Interest,
   type LearningEnginePageActions,
@@ -140,7 +141,7 @@ const createLearningEngineActions = (
 export const useLearningEnginePageState = () => {
   const queryClient = useQueryClient();
   const [toast, showToast] = useAutoDismissToast();
-  const [view, setView] = useState<PageView>("interests");
+  const view = usePageRoute();
   const [updateDays, setUpdateDays] = useState(defaultUpdateDays);
   const currentUpdatesQueryKey = updatesQueryKey(updateDays);
 
@@ -160,7 +161,7 @@ export const useLearningEnginePageState = () => {
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
   const actions = createLearningEngineActions(
     interests,
-    setView,
+    navigateToView,
     saveInterestsMutation.mutate,
     () => {
       void updatesQuery.refetch().then((result) => {

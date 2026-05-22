@@ -7,7 +7,7 @@ type TopNavigationProps = {
 
 export const TopNavigation = ({ onChangeView, view }: TopNavigationProps) => (
   <nav className="topbar" aria-label="Main navigation">
-    <a className="brand" href="#top" aria-label="Learning Engine home">
+    <a className="brand" href="/updates" aria-label="Learning Engine updates">
       <img
         className="brand-mark"
         src="/favicon.svg"
@@ -20,18 +20,18 @@ export const TopNavigation = ({ onChangeView, view }: TopNavigationProps) => (
     </a>
     <div className="navlinks" aria-label="Sections">
       <button
-        className={view === "interests" ? "nav-button active" : "nav-button"}
-        type="button"
-        onClick={() => onChangeView("interests")}
-      >
-        Interests
-      </button>
-      <button
         className={view === "updates" ? "nav-button active" : "nav-button"}
         type="button"
         onClick={() => onChangeView("updates")}
       >
         Updates
+      </button>
+      <button
+        className={view === "interests" ? "nav-button active" : "nav-button"}
+        type="button"
+        onClick={() => onChangeView("interests")}
+      >
+        Manage interests
       </button>
       <a href="#briefing">Briefing</a>
     </div>
