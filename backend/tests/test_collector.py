@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from learning_engine.collector import SourceUpdatesCacheOptions, collect_updates, dedupe_updates
+from learning_engine.collector import collect_updates, dedupe_updates
 from learning_engine.models import CollectedUpdate, InterestSource, InterestsPayload, Update
 from learning_engine.sources.spotify import spotify_show_id
 from learning_engine.sources.twitter import twitter_username
@@ -128,7 +128,7 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_coalesces_concurrent_cache_misses_for_equivalent_sources() -> None:
+async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently() -> None:
     rss = b"""<rss><channel><item><title>Cached update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
     payload = InterestsPayload.model_validate(
@@ -160,50 +160,7 @@ async def test_collect_updates_coalesces_concurrent_cache_misses_for_equivalent_
     )
 
     assert result.sources_checked == CONCURRENT_SOURCE_COUNT
-    assert called_urls == ["https://example.com/feed.xml"]
-
-
-@pytest.mark.anyio
-async def test_collect_updates_coalesces_shared_cache_misses_across_concurrent_calls() -> None:
-    rss = b"""<rss><channel><item><title>Shared cached update</title><link>https://example.com/update</link>
-    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
-    payload = InterestsPayload.model_validate(
-        {
-            "interests": [
-                {
-                    "name": "Shared cache",
-                    "sources": [{"id": "feed", "type": "feed", "url": "https://example.com/feed.xml"}],
-                }
-            ]
-        }
-    )
-    called_urls: list[str] = []
-
-    async def fetch(url: str) -> bytes:
-        called_urls.append(url)
-        await asyncio.sleep(0.05)
-        return rss
-
-    cache_options = SourceUpdatesCacheOptions(cache={}, scope="all", in_flight={})
-
-    await asyncio.gather(
-        collect_updates(
-            payload,
-            timeframe=ALL_TIMEFRAME,
-            fetch=fetch,
-            fetch_json=unused_fetch_json,
-            source_updates_cache=cache_options,
-        ),
-        collect_updates(
-            payload,
-            timeframe=ALL_TIMEFRAME,
-            fetch=fetch,
-            fetch_json=unused_fetch_json,
-            source_updates_cache=cache_options,
-        ),
-    )
-
-    assert called_urls == ["https://example.com/feed.xml"]
+    assert called_urls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
 
 
 @pytest.mark.anyio

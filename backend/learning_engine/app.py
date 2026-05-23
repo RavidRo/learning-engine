@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from threading import Lock
 from typing import Annotated, cast
 
 import httpx
@@ -18,7 +17,6 @@ from fastapi.staticfiles import StaticFiles
 from learning_engine.collector import (
     SourceUpdatesCache,
     SourceUpdatesCacheOptions,
-    SourceUpdatesInFlight,
     collect_updates,
 )
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
@@ -27,7 +25,7 @@ from learning_engine.models import InterestsPayload, UpdatesResponse
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
 from learning_engine.timeframe import Timeframe
 
-SOURCE_UPDATES_CACHE_TTL_SECONDS = 5 * 60
+SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
 SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
 
 
@@ -53,10 +51,8 @@ def create_app() -> FastAPI:
     )
     api.state.source_updates_cache = TTLCache(
         maxsize=SOURCE_UPDATES_CACHE_MAX_ENTRIES,
-        ttl=SOURCE_UPDATES_CACHE_TTL_SECONDS,
+        ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
-    api.state.source_updates_in_flight = {}
-    api.state.source_updates_lock = Lock()
 
     @api.get("/", include_in_schema=False)
     def index() -> RedirectResponse:
@@ -73,9 +69,6 @@ def create_app() -> FastAPI:
     @api.post("/api/interests")
     def save_interests(payload: InterestsPayload) -> dict[str, object]:
         write_interests(payload)
-        with api.state.source_updates_lock:
-            api.state.source_updates_cache.clear()
-            api.state.source_updates_in_flight.clear()
         return {
             "ok": True,
             "saved": read_interests().model_dump(mode="json", by_alias=True),
@@ -85,14 +78,10 @@ def create_app() -> FastAPI:
     async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
         cache_scope = "all" if days is None else f"days:{days}"
-        with api.state.source_updates_lock:
-            source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
-            source_updates_in_flight = cast(SourceUpdatesInFlight, api.state.source_updates_in_flight)
+        source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
         source_updates_cache_options = SourceUpdatesCacheOptions(
             cache=source_updates_cache,
             scope=cache_scope,
-            in_flight=source_updates_in_flight,
-            lock=api.state.source_updates_lock,
         )
         fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
         if fetcher is None:

@@ -136,6 +136,7 @@ def test_create_app_uses_cachetools_ttl_cache() -> None:
 
     assert isinstance(api.state.source_updates_cache, TTLCache)
     assert api.state.source_updates_cache.maxsize == app_module.SOURCE_UPDATES_CACHE_MAX_ENTRIES
+    assert api.state.source_updates_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
 
 
 def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -183,7 +184,7 @@ def test_updates_endpoint_cache_key_includes_selected_days(monkeypatch: pytest.M
     assert repeated_first.json()["updates"][0]["title"] == "call-1"
 
 
-def test_saving_interests_clears_source_cache(
+def test_saving_interests_keeps_source_cache(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     saved_payloads: list[InterestsPayload] = []
@@ -208,8 +209,8 @@ def test_saving_interests_clears_source_cache(
     assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
     saved = _payload().model_dump(mode="json", by_alias=True)
     client.post("/api/interests", json=saved)
-    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-2"
-    assert calls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
+    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
+    assert calls == ["https://example.com/feed.xml"]
 
 
 def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest.MonkeyPatch) -> None:
