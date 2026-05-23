@@ -31,6 +31,7 @@ type DraftAction =
   | { type: "setPriority"; priority: Priority }
   | { type: "setSourceEnabled"; enabled: boolean; id: string }
   | { type: "setSourceIgnoreKeywords"; id: string; ignoreKeywords: string[] }
+  | { type: "setSourceImageUrl"; id: string; imageUrl: string }
   | { type: "setSourceLabel"; id: string; label: string }
   | { type: "setSourceType"; id: string; sourceType: SourceType }
   | { type: "setSourceUrl"; id: string; url: string };
@@ -76,6 +77,14 @@ const draftReducer = (draft: InterestDraft, action: DraftAction): InterestDraft 
         sources: updateSource(draft.sources, action.id, (source) => ({
           ...source,
           ignoreKeywords: action.ignoreKeywords,
+        })),
+      };
+    case "setSourceImageUrl":
+      return {
+        ...draft,
+        sources: updateSource(draft.sources, action.id, (source) => ({
+          ...source,
+          imageUrl: action.imageUrl,
         })),
       };
     case "setSourceLabel":
@@ -285,6 +294,21 @@ const SourceEditorCard = ({
         placeholder="URL, @handle, channel ID, or Spotify show URI"
         required
         value={source.url}
+      />
+    </label>
+    <label>
+      Image URL
+      <input
+        name={`source-${source.id}-image-url`}
+        onChange={(event) =>
+          dispatch({
+            id: source.id,
+            imageUrl: event.currentTarget.value,
+            type: "setSourceImageUrl",
+          })
+        }
+        placeholder="https://example.com/avatar.png"
+        value={source.imageUrl ?? ""}
       />
     </label>
     <label>

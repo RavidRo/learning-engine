@@ -45,6 +45,11 @@ class InterestSource(BaseModel):
     label: str = "Source"
     type: SourceType
     url: str
+    image_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("imageUrl", "image_url"),
+        serialization_alias="imageUrl",
+    )
     ignore_keywords: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("ignoreKeywords", "ignore_keywords"),
@@ -73,6 +78,13 @@ class InterestSource(BaseModel):
             return None
         stripped = str(value).strip()
         return stripped or None
+
+    @field_validator("image_url", mode="before")
+    @classmethod
+    def normalize_image_url(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        return str(value).strip()
 
     @field_validator("label", mode="before")
     @classmethod
@@ -160,16 +172,21 @@ class CollectedUpdate(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
 
 
-FeedUpdate: TypeAlias = CollectedUpdate
-
-
-class Update(CollectedUpdate):
+class SourceInterest(BaseModel):
     interest_id: str | None = None
     interest_name: str = "Interest"
     source_id: str | None = None
     source_label: str = "Source"
+    source_image_url: str | None = None
     source_url: str
     source_type: SourceType = "feed"
+
+
+FeedUpdate: TypeAlias = CollectedUpdate
+
+
+class Update(CollectedUpdate):
+    source_interest: SourceInterest
 
 
 class CollectionError(BaseModel):

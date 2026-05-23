@@ -16,6 +16,7 @@ const sourceSchema = z.object({
     .string()
     .nullish()
     .transform((id) => id ?? crypto.randomUUID()),
+  imageUrl: z.string().nullable().optional().catch(null),
   ignoreKeywords: z.array(z.string()).catch([]),
   label: z.string().catch("Source"),
   type: sourceTypeSchema,
@@ -39,12 +40,17 @@ export const interestsPayloadSchema = z.object({
   interests: z.array(interestSchema).catch([]),
 });
 
-const updateSchema = z.object({
+const sourceInterestSchema = z.object({
   interest_name: z.string().catch("Interest"),
-  published: z.string().optional(),
+  source_image_url: z.string().nullable().optional().catch(null),
   source_label: z.string().catch("Source"),
   source_type: sourceTypeSchema.catch("feed"),
   source_url: z.string(),
+});
+
+const updateSchema = z.object({
+  published: z.string().optional(),
+  source_interest: sourceInterestSchema,
   title: z.string().optional(),
   url: z.string(),
 });

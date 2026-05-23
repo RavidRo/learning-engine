@@ -202,9 +202,9 @@ async def test_collect_updates_fetches_enabled_sources_only() -> None:
 
     assert fetched_urls == ["https://example.com/typescript.xml"]
     assert result.sources_checked == 1
-    assert result.updates[0].interest_name == "TypeScript"
-    assert result.updates[0].source_id == "typescript-feed"
-    assert result.updates[0].source_label == "TypeScript feed"
+    assert result.updates[0].source_interest.interest_name == "TypeScript"
+    assert result.updates[0].source_interest.source_id == "typescript-feed"
+    assert result.updates[0].source_interest.source_label == "TypeScript feed"
     assert result.updates[0].title == "TypeScript Beta"
 
 
@@ -329,8 +329,8 @@ async def test_collect_updates_uses_page_sources() -> None:
     )
 
     assert fetched_urls == ["https://example.com/news"]
-    assert result.updates[0].source_type == "page"
-    assert result.updates[0].source_url == "https://example.com/news"
+    assert result.updates[0].source_interest.source_type == "page"
+    assert result.updates[0].source_interest.source_url == "https://example.com/news"
     assert result.updates[0].url == "https://example.com/news/claude-model"
 
 

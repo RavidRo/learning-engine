@@ -1,4 +1,4 @@
-import { type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 
 import { type Update } from "./schemas";
 import { type UpdatesPayload } from "./types";
@@ -23,8 +23,9 @@ const groupUpdates = (updates: Update[]): UpdateGroup[] => {
   const groups = new Map<string, Update[]>();
 
   updates.forEach((update) => {
-    const group = groups.get(update.interest_name) ?? [];
-    groups.set(update.interest_name, [...group, update]);
+    const interestName = update.source_interest.interest_name;
+    const group = groups.get(interestName) ?? [];
+    groups.set(interestName, [...group, update]);
   });
 
   return [...groups.entries()].map(([interestName, groupedUpdates]) => ({
@@ -34,22 +35,51 @@ const groupUpdates = (updates: Update[]): UpdateGroup[] => {
 };
 
 const updateKey = (update: Update): string =>
-  `${update.interest_name}-${update.source_url}-${update.url}`;
+  `${update.source_interest.interest_name}-${update.source_interest.source_url}-${update.url}`;
 
 const updateWindowLabel = (days: number): string =>
   days === 1 ? "the last day" : `the last ${days} days`;
 
+const sourceInitial = (label: string): string => label.trim().charAt(0).toUpperCase() || "•";
+
+const SourceAvatar = ({ update }: { update: Update }) => {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUrl = update.source_interest.source_image_url?.trim();
+  const showImage = imageUrl !== undefined && imageUrl !== "" && !imageFailed;
+
+  if (!showImage) {
+    return (
+      <span className="source-avatar fallback" aria-hidden="true">
+        {sourceInitial(update.source_interest.source_label)}
+      </span>
+    );
+  }
+
+  return (
+    <img
+      className="source-avatar"
+      src={imageUrl}
+      alt=""
+      loading="lazy"
+      onError={() => setImageFailed(true)}
+    />
+  );
+};
+
 const UpdateItem = ({ update }: { update: Update }) => (
   <article className="update-item-card">
-    <div>
-      <span>
-        {update.source_label} · {update.source_type}
-      </span>
-      {update.published ? <span>{update.published}</span> : null}
+    <SourceAvatar update={update} />
+    <div className="update-item-content">
+      <div className="update-item-meta">
+        <span>
+          {update.source_interest.source_label} · {update.source_interest.source_type}
+        </span>
+        {update.published ? <span>{update.published}</span> : null}
+      </div>
+      <a href={update.url} target="_blank" rel="noreferrer">
+        {update.title ?? "Untitled update"}
+      </a>
     </div>
-    <a href={update.url} target="_blank" rel="noreferrer">
-      {update.title ?? "Untitled update"}
-    </a>
   </article>
 );
 
@@ -82,7 +112,9 @@ const UpdatesSummary = ({ payload }: { payload: UpdatesPayload }) => (
       <span>sources checked</span>
     </div>
     <div className="summary-box">
-      <strong>{new Set(payload.updates.map((update) => update.interest_name)).size}</strong>
+      <strong>
+        {new Set(payload.updates.map((update) => update.source_interest.interest_name)).size}
+      </strong>
       <span>interests with updates</span>
     </div>
   </aside>
