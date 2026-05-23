@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from learning_engine.collector import collect_updates, dedupe_updates
-from learning_engine.models import CollectedUpdate, InterestSource, InterestsPayload, Update
+from learning_engine.models import CollectedUpdate, InterestSource, InterestsPayload, SourceInterest, Update
 from learning_engine.sources.spotify import spotify_show_id
 from learning_engine.sources.twitter import twitter_username
 from learning_engine.timeframe import Timeframe
@@ -66,8 +66,14 @@ def test_source_preserves_blank_image_url_as_empty_string() -> None:
 
 def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
     updates = [
-        Update(source_url="https://example.com/a", source_type="feed", summary="first"),
-        Update(source_url="https://example.com/b", source_type="feed", summary="second"),
+        Update(
+            source_interest=SourceInterest(source_url="https://example.com/a", source_type="feed"),
+            summary="first",
+        ),
+        Update(
+            source_interest=SourceInterest(source_url="https://example.com/b", source_type="feed"),
+            summary="second",
+        ),
     ]
 
     assert dedupe_updates(updates) == updates
@@ -108,12 +114,12 @@ async def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> Non
     result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
 
     assert called_urls == ["https://www.youtube.com/feeds/videos.xml?channel_id=UCabcabcabcabcabcabcabc"]
-    assert result.updates[0].source_type == "youtube_channel"
+    assert result.updates[0].source_interest.source_type == "youtube_channel"
     assert result.updates[0].title == "New lecture"
 
 
 @pytest.mark.anyio
-async def test_collect_updates_carries_source_image_url_to_updates() -> None:
+async def test_collect_updates_carries_source_interest_to_updates() -> None:
     async def fetch(_url: str) -> bytes:
         return b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
         <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
@@ -138,7 +144,9 @@ async def test_collect_updates_carries_source_image_url_to_updates() -> None:
 
     result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
 
-    assert result.updates[0].source_image_url == "https://example.com/avatar.png"
+    assert result.updates[0].source_interest.interest_name == "Images"
+    assert result.updates[0].source_interest.source_id == "with-image"
+    assert result.updates[0].source_interest.source_image_url == "https://example.com/avatar.png"
 
 
 @pytest.mark.anyio

@@ -172,10 +172,7 @@ class CollectedUpdate(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
 
 
-FeedUpdate: TypeAlias = CollectedUpdate
-
-
-class Update(CollectedUpdate):
+class SourceInterest(BaseModel):
     interest_id: str | None = None
     interest_name: str = "Interest"
     source_id: str | None = None
@@ -183,6 +180,13 @@ class Update(CollectedUpdate):
     source_image_url: str | None = None
     source_url: str
     source_type: SourceType = "feed"
+
+
+FeedUpdate: TypeAlias = CollectedUpdate
+
+
+class Update(CollectedUpdate):
+    source_interest: SourceInterest
 
 
 class CollectionError(BaseModel):
