@@ -62,7 +62,6 @@ class _SourceCollectionContext:
     source_updates_cache_scope: str | None
 
 
-
 def _dedupe_part(value: str | None) -> str | None:
     if value is None:
         return None
