@@ -9,16 +9,24 @@ from typing import Annotated, cast
 
 import httpx
 import uvicorn
+from cachetools import TTLCache
 from fastapi import FastAPI, Query
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from learning_engine.collector import collect_updates
+from learning_engine.collector import (
+    SourceUpdatesCache,
+    SourceUpdatesCacheOptions,
+    collect_updates,
+)
 from learning_engine.config import HOST, PORT, PUBLIC_DIR
 from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
 from learning_engine.models import InterestsPayload, UpdatesResponse
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
 from learning_engine.timeframe import Timeframe
+
+SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
+SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
 
 
 def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
@@ -40,6 +48,10 @@ def create_app() -> FastAPI:
         summary="Local-first API for personal interests and daily briefing source collection.",
         version="0.3.0",
         lifespan=lifespan,
+    )
+    api.state.source_updates_cache = TTLCache(
+        maxsize=SOURCE_UPDATES_CACHE_MAX_ENTRIES,
+        ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
 
     @api.get("/", include_in_schema=False)
@@ -65,15 +77,28 @@ def create_app() -> FastAPI:
     @api.get("/api/updates", response_model=UpdatesResponse)
     async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
+        cache_scope = "all" if days is None else f"days:{days}"
+        source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
+        source_updates_cache_options = SourceUpdatesCacheOptions(
+            cache=source_updates_cache,
+            scope=cache_scope,
+        )
         fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
         if fetcher is None:
-            return await collect_updates(read_interests(), timeframe=timeframe)
-        return await collect_updates(
-            read_interests(),
-            timeframe=timeframe,
-            fetch=fetcher.fetch_url,
-            fetch_json=fetcher.fetch_json,
-        )
+            response = await collect_updates(
+                read_interests(),
+                timeframe=timeframe,
+                source_updates_cache=source_updates_cache_options,
+            )
+        else:
+            response = await collect_updates(
+                read_interests(),
+                timeframe=timeframe,
+                fetch=fetcher.fetch_url,
+                fetch_json=fetcher.fetch_json,
+                source_updates_cache=source_updates_cache_options,
+            )
+        return response
 
     api.mount(
         "/",

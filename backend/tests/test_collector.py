@@ -128,6 +128,42 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently() -> None:
+    rss = b"""<rss><channel><item><title>Cached update</title><link>https://example.com/update</link>
+    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Parallel cache",
+                    "sources": [
+                        {"id": "first", "type": "feed", "url": "https://example.com/feed.xml"},
+                        {"id": "second", "type": "feed", "url": "https://example.com/feed.xml"},
+                    ],
+                }
+            ]
+        }
+    )
+    called_urls: list[str] = []
+
+    async def fetch(url: str) -> bytes:
+        called_urls.append(url)
+        await asyncio.sleep(0.05)
+        return rss
+
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        fetch=fetch,
+        fetch_json=unused_fetch_json,
+        source_updates_cache={},
+    )
+
+    assert result.sources_checked == CONCURRENT_SOURCE_COUNT
+    assert called_urls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
+
+
+@pytest.mark.anyio
 async def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
     called_urls: list[str] = []
 

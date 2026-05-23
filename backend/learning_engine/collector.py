@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable, Iterable, Mapping
+from collections.abc import Awaitable, Callable, Iterable, Mapping, MutableMapping
+from dataclasses import dataclass
 
 import httpx
 
@@ -29,12 +30,36 @@ from learning_engine.timeframe import Timeframe
 
 FetchFn = Callable[[str], Awaitable[bytes]]
 JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
+SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
+SourceUpdatesCacheValue = tuple[list[CollectedUpdate], str | None]
+SourceUpdatesCache = MutableMapping[SourceUpdatesCacheKey, SourceUpdatesCacheValue]
+
+
+@dataclass(frozen=True, slots=True)
+class SourceUpdatesCacheOptions:
+    cache: SourceUpdatesCache
+    scope: str | None = None
+
+
 __all__ = [
+    "SourceUpdatesCache",
+    "SourceUpdatesCacheKey",
+    "SourceUpdatesCacheOptions",
+    "SourceUpdatesCacheValue",
     "collect_updates",
     "dedupe_updates",
     "parse_feed_items",
     "parse_page_items",
 ]
+
+
+@dataclass(frozen=True, slots=True)
+class _SourceCollectionContext:
+    timeframe: Timeframe
+    fetch: FetchFn
+    fetch_json: JsonFetchFn
+    source_updates_cache: SourceUpdatesCache | None
+    source_updates_cache_scope: str | None
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -119,15 +144,34 @@ def _enrich_updates(
     ]
 
 
-async def _collect_from_source(
-    interest: Interest,
+def _source_updates_cache_key(source: InterestSource, cache_scope: str | None) -> SourceUpdatesCacheKey:
+    return (source.type, source.url, tuple(source.ignore_keywords), cache_scope)
+
+
+def _collection_error(interest: Interest, source: InterestSource, error: str) -> CollectionError:
+    return CollectionError(
+        interest_id=interest.id,
+        interest_name=interest.name,
+        source_id=source.id,
+        source_label=source.label,
+        source_url=source.url,
+        source_type=source.type,
+        error=error,
+    )
+
+
+def _copy_source_updates_cache_value(value: SourceUpdatesCacheValue) -> SourceUpdatesCacheValue:
+    updates, error = value
+    return [update.model_copy(deep=True) for update in updates], error
+
+
+async def _collect_source_updates_value(
     source: InterestSource,
-    timeframe: Timeframe,
     fetch: FetchFn,
     fetch_json: JsonFetchFn,
-) -> tuple[list[Update], CollectionError | None]:
+) -> SourceUpdatesCacheValue:
     try:
-        source_updates = await _collect_source_updates(source, fetch, fetch_json)
+        return await _collect_source_updates(source, fetch, fetch_json), None
     except (
         OSError,
         UnicodeError,
@@ -136,17 +180,34 @@ async def _collect_from_source(
         TypeError,
         KeyError,
     ) as exc:
-        return [], CollectionError(
-            interest_id=interest.id,
-            interest_name=interest.name,
-            source_id=source.id,
-            source_label=source.label,
-            source_url=source.url,
-            source_type=source.type,
-            error=str(exc),
-        )
+        return [], str(exc)
 
-    return _enrich_updates(interest, source, source_updates, timeframe), None
+
+async def _get_source_updates(
+    source: InterestSource,
+    context: _SourceCollectionContext,
+) -> SourceUpdatesCacheValue:
+    source_updates_cache = context.source_updates_cache
+    cache_key = _source_updates_cache_key(source, context.source_updates_cache_scope)
+    if source_updates_cache is None:
+        return await _collect_source_updates_value(source, context.fetch, context.fetch_json)
+
+    if cache_key in source_updates_cache:
+        return _copy_source_updates_cache_value(source_updates_cache[cache_key])
+
+    result = await _collect_source_updates_value(source, context.fetch, context.fetch_json)
+    source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
+    return result
+
+
+async def _collect_from_source(
+    interest: Interest,
+    source: InterestSource,
+    context: _SourceCollectionContext,
+) -> tuple[list[Update], CollectionError | None]:
+    source_updates, error = await _get_source_updates(source, context)
+    collection_error = _collection_error(interest, source, error) if error is not None else None
+    return _enrich_updates(interest, source, source_updates, context.timeframe), collection_error
 
 
 def _enabled_sources(payload: InterestsPayload) -> Iterable[tuple[Interest, InterestSource]]:
@@ -189,20 +250,24 @@ async def collect_updates(
     timeframe: Timeframe,
     fetch: FetchFn = fetch_url,
     fetch_json: JsonFetchFn = default_fetch_json,
+    source_updates_cache: SourceUpdatesCache | SourceUpdatesCacheOptions | None = None,
 ) -> UpdatesResponse:
     sources = list(_enabled_sources(payload))
+    cache: SourceUpdatesCache | None
+    if isinstance(source_updates_cache, SourceUpdatesCacheOptions):
+        cache = source_updates_cache.cache
+        cache_scope = source_updates_cache.scope
+    else:
+        cache = source_updates_cache
+        cache_scope = None
+    context = _SourceCollectionContext(
+        timeframe=timeframe,
+        fetch=fetch,
+        fetch_json=fetch_json,
+        source_updates_cache=cache,
+        source_updates_cache_scope=cache_scope,
+    )
     source_results: list[tuple[list[Update], CollectionError | None]] = list(
-        await asyncio.gather(
-            *(
-                _collect_from_source(
-                    interest,
-                    source,
-                    timeframe,
-                    fetch,
-                    fetch_json,
-                )
-                for interest, source in sources
-            )
-        )
+        await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))
     )
     return _updates_response(source_results, checked=len(sources), timeframe=timeframe)
