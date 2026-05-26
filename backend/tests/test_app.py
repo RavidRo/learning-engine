@@ -11,6 +11,7 @@ from learning_engine.models import (
     CollectionError,
     InterestSource,
     InterestsPayload,
+    SourceInterest,
     Update,
     UpdatesResponse,
 )
@@ -70,11 +71,13 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
         since="2026-05-15T12:00:00Z",
         updates=[
             Update(
-                interest_id="typescript",
-                interest_name="TypeScript",
-                source_id="feed",
-                source_url="https://example.com/feed.xml",
-                source_type="feed",
+                source_interest=SourceInterest(
+                    interest_id="typescript",
+                    interest_name="TypeScript",
+                    source_id="feed",
+                    source_url="https://example.com/feed.xml",
+                    source_type="feed",
+                ),
                 title=title,
                 url=f"https://example.com/{title}",
                 published_at="2026-05-15T12:00:00Z",
