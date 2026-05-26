@@ -2,9 +2,9 @@
 
 <!-- What does this PR change and why? -->
 
-## Linear Issue
+## Linear Issue (Optional)
 
-<!-- Link the Linear issue (e.g., https://linear.app/... or ABC-123) -->
+<!-- Optional: link a Linear issue when applicable (e.g., https://linear.app/... or ABC-123). -->
 
 ## Visual Changes
 
