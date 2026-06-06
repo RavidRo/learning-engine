@@ -11,15 +11,13 @@ import httpx
 import uvicorn
 from cachetools import TTLCache
 from fastapi import FastAPI, Query
-from fastapi.responses import RedirectResponse
-from fastapi.staticfiles import StaticFiles
 
 from learning_engine.collector import (
     SourceUpdatesCache,
     SourceUpdatesCacheOptions,
     collect_updates,
 )
-from learning_engine.config import HOST, PORT, PUBLIC_DIR
+from learning_engine.config import HOST, PORT
 from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
 from learning_engine.models import InterestsPayload, UpdatesResponse
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
@@ -54,10 +52,6 @@ def create_app() -> FastAPI:
         ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
 
-    @api.get("/", include_in_schema=False)
-    def index() -> RedirectResponse:
-        return RedirectResponse(url="/index.html")
-
     @api.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -75,7 +69,9 @@ def create_app() -> FastAPI:
         }
 
     @api.get("/api/updates", response_model=UpdatesResponse)
-    async def updates(days: Annotated[int | None, Query(ge=1)] = None) -> UpdatesResponse:
+    async def updates(
+        days: Annotated[int | None, Query(ge=1)] = None,
+    ) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
         cache_scope = "all" if days is None else f"days:{days}"
         source_updates_cache = cast(SourceUpdatesCache, api.state.source_updates_cache)
@@ -100,11 +96,6 @@ def create_app() -> FastAPI:
             )
         return response
 
-    api.mount(
-        "/",
-        StaticFiles(directory=PUBLIC_DIR, html=True, check_dir=False),
-        name="public",
-    )
     return api
 
 
