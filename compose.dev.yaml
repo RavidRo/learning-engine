@@ -19,6 +19,7 @@ services:
       - "5173:5173"
     volumes:
       - ./webapp/index.html:/app/index.html:ro
+      - ./webapp/public:/app/public:ro
       - ./webapp/src:/app/src
       - ./webapp/tsconfig.app.json:/app/tsconfig.app.json:ro
       - ./webapp/tsconfig.json:/app/tsconfig.json:ro

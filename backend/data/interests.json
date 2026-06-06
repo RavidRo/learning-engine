@@ -11,6 +11,7 @@
           "label": "InfoQ",
           "type": "feed",
           "url": "https://feed.infoq.com",
+          "imageUrl": null,
           "ignoreKeywords": [
             "cloud"
           ],
@@ -32,6 +33,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://www.typescriptlang.org/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -41,6 +43,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://devblogs.microsoft.com/typescript/feed/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -60,6 +63,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://voidzero.dev/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -69,6 +73,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://voidzero.dev/feed.xml",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -88,6 +93,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://astral.sh/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -97,6 +103,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://astral.sh/blog/rss.xml",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -116,6 +123,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://react.dev/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -125,6 +133,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://react.dev/rss.xml",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -144,6 +153,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://www.python.org/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -153,6 +163,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://blog.python.org/feeds/posts/default",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -172,6 +183,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://t3.codes/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -181,6 +193,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://github.com/pingdotgg/t3code/releases.atom",
+          "imageUrl": null,
           "ignoreKeywords": [
             "nightly"
           ],
@@ -202,6 +215,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://hermes-agent.nousresearch.com/docs/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -211,6 +225,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://github.com/NousResearch/hermes-agent/releases.atom",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -230,6 +245,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://openai.com/news/",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -239,6 +255,7 @@
           "label": "Updates feed",
           "type": "feed",
           "url": "https://openai.com/news/rss.xml",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null
@@ -258,6 +275,7 @@
           "label": "Official site",
           "type": "page",
           "url": "https://www.anthropic.com/news",
+          "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
           "deletedAt": null

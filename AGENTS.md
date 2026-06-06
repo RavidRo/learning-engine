@@ -14,6 +14,11 @@
 The project uses Taskfile for running all common commands and verifications.
 Run `task --list` to see various tasks.
 
+## Pull Requests
+
+- When opening a PR, include screenshots of any changed visual interface in the PR description.
+- If there are no visual changes, explicitly state that no screenshots are needed.
+
 ## Glossary
 
 See .contextive/definitions.yml for project related terms.
