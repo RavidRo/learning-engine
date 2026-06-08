@@ -65,7 +65,7 @@ async def test_resolve_spotify_image_uses_show_metadata(
 
 
 @pytest.mark.anyio
-async def test_resolve_spotify_image_returns_null_without_credentials(
+async def test_resolve_spotify_image_raises_configuration_error_without_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("SPOTIFY_BEARER_TOKEN", raising=False)
