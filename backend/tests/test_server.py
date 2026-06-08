@@ -1,10 +1,10 @@
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
 
-from learning_engine.collector import collect_updates
+from learning_engine.collector import SourceUpdatesCacheOptions, collect_updates
 from learning_engine.models import Interest, InterestsPayload
 from learning_engine.sources.feed import parse_feed_items
 from learning_engine.storage import DEFAULT_DATA
@@ -22,6 +22,22 @@ async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, o
 
 async def no_source_image(*_args: object) -> str | None:
     return None
+
+
+class StubHttpFetcher:
+    def __init__(
+        self,
+        fetch: Callable[[str], Awaitable[bytes]],
+        fetch_json: Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]],
+    ) -> None:
+        self._fetch = fetch
+        self._fetch_json = fetch_json
+
+    async def fetch_url(self, url: str) -> bytes:
+        return await self._fetch(url)
+
+    async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]:
+        return await self._fetch_json(url, headers)
 
 
 def test_normalize_interest_keeps_general_topic_and_sources() -> None:
@@ -201,8 +217,8 @@ async def test_collect_updates_fetches_enabled_sources_only(monkeypatch: pytest.
     result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
-        fetch=fetch_url,
-        fetch_json=unused_fetch_json,
+        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert fetched_urls == ["https://example.com/typescript.xml"]
@@ -247,8 +263,8 @@ async def test_collect_updates_uses_source_ignore_keywords() -> None:
     result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
-        fetch=fetch_url,
-        fetch_json=unused_fetch_json,
+        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert [update.title for update in result.updates] == ["T3 Code stable release"]
@@ -287,8 +303,8 @@ async def test_collect_updates_can_filter_to_recent_days() -> None:
     result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
-        fetch=fetch_url,
-        fetch_json=unused_fetch_json,
+        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert result.since == "2026-05-01T12:00:00Z"
@@ -330,8 +346,8 @@ async def test_collect_updates_uses_page_sources(monkeypatch: pytest.MonkeyPatch
     result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
-        fetch=fetch_url,
-        fetch_json=unused_fetch_json,
+        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert fetched_urls == ["https://example.com/news"]
@@ -366,8 +382,8 @@ async def test_collect_updates_reports_source_errors() -> None:
     result = await collect_updates(
         InterestsPayload.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
-        fetch=fetch_url,
-        fetch_json=unused_fetch_json,
+        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert result.sources_checked == 1

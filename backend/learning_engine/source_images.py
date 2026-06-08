@@ -11,6 +11,7 @@ import feedparser
 import httpx
 
 from learning_engine.config import spotify_bearer_token
+from learning_engine.fetching import HttpFetcherProtocol
 from learning_engine.models import SourceType
 from learning_engine.sources.spotify import SPOTIFY_API_ORIGIN, spotify_show_id
 from learning_engine.sources.youtube import youtube_channel_page_url
@@ -176,8 +177,7 @@ async def _resolve_page_image(source_url: str, fetch: FetchFn) -> str | None:
 async def resolve_source_image(
     source_type: SourceType,
     source_url: str,
-    fetch: FetchFn,
-    fetch_json: JsonFetchFn,
+    http_fetcher: HttpFetcherProtocol,
 ) -> str | None:
     """Resolve a source image URL or raise a classified resolver error."""
 
@@ -185,9 +185,9 @@ async def resolve_source_image(
         return None
 
     if source_type == "youtube_channel":
-        return await _resolve_youtube_image(source_url, fetch)
+        return await _resolve_youtube_image(source_url, http_fetcher.fetch_url)
     if source_type == "spotify_podcast":
-        return await _resolve_spotify_image(source_url, fetch_json)
+        return await _resolve_spotify_image(source_url, http_fetcher.fetch_json)
     if source_type == "feed":
-        return await _resolve_feed_image(source_url, fetch)
-    return await _resolve_page_image(source_url, fetch)
+        return await _resolve_feed_image(source_url, http_fetcher.fetch_url)
+    return await _resolve_page_image(source_url, http_fetcher.fetch_url)

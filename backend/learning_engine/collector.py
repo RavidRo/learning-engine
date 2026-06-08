@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Awaitable, Callable, Iterable, Mapping, MutableMapping
+from collections.abc import Iterable, MutableMapping
 from dataclasses import dataclass
 
 import httpx
 
 from learning_engine.dates import format_datetime, parse_datetime
-from learning_engine.fetching import fetch_json as default_fetch_json
-from learning_engine.fetching import fetch_url
+from learning_engine.fetching import HttpFetcherProtocol
 from learning_engine.models import (
     CollectedUpdate,
     CollectionError,
@@ -36,8 +35,6 @@ from learning_engine.sources.youtube import collect_youtube_channel
 from learning_engine.text import keyword_matches, searchable_text
 from learning_engine.timeframe import Timeframe
 
-FetchFn = Callable[[str], Awaitable[bytes]]
-JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
 SourceUpdatesCacheValue = tuple[list[CollectedUpdate], str | None]
 SourceUpdatesCache = MutableMapping[SourceUpdatesCacheKey, SourceUpdatesCacheValue]
@@ -65,9 +62,8 @@ __all__ = [
 @dataclass(frozen=True, slots=True)
 class _SourceCollectionContext:
     timeframe: Timeframe
-    fetch: FetchFn
-    fetch_json: JsonFetchFn
-    source_updates_cache: SourceUpdatesCache | None
+    http_fetcher: HttpFetcherProtocol
+    source_updates_cache: SourceUpdatesCache
     source_updates_cache_scope: str | None
 
 
@@ -83,7 +79,7 @@ async def _source_image_url(source: InterestSource, context: _SourceCollectionCo
     if manual_image_url is not None:
         return manual_image_url
     try:
-        image_url = await resolve_source_image(source.type, source.url, context.fetch, context.fetch_json)
+        image_url = await resolve_source_image(source.type, source.url, context.http_fetcher)
     except SourceImageConfigurationError as exc:
         logger.info(
             "Source image configuration is unavailable",
@@ -150,27 +146,30 @@ def dedupe_updates(updates: list[Update]) -> list[Update]:
 
 async def _collect_source_updates(
     source: InterestSource,
-    fetch: FetchFn,
-    fetch_json: JsonFetchFn,
+    http_fetcher: HttpFetcherProtocol,
 ) -> list[CollectedUpdate]:
     if source.type == "feed":
-        return parse_feed_items(await fetch(source.url), watch_keywords=[], ignore_keywords=source.ignore_keywords)
+        return parse_feed_items(
+            await http_fetcher.fetch_url(source.url),
+            watch_keywords=[],
+            ignore_keywords=source.ignore_keywords,
+        )
 
     if source.type == "page":
         return parse_page_items(
-            await fetch(source.url),
+            await http_fetcher.fetch_url(source.url),
             source.url,
             watch_keywords=[],
             ignore_keywords=source.ignore_keywords,
         )
 
     if source.type == "youtube_channel":
-        return await collect_youtube_channel(source.url, fetch)
+        return await collect_youtube_channel(source.url, http_fetcher.fetch_url)
 
     if source.type == "twitter_account":
-        return await collect_twitter_account(source.url, fetch_json)
+        return await collect_twitter_account(source.url, http_fetcher.fetch_json)
 
-    return await collect_spotify_podcast(source.url, fetch_json)
+    return await collect_spotify_podcast(source.url, http_fetcher.fetch_json)
 
 
 def _enrich_updates(
@@ -225,11 +224,10 @@ def _copy_source_updates_cache_value(value: SourceUpdatesCacheValue) -> SourceUp
 
 async def _collect_source_updates_value(
     source: InterestSource,
-    fetch: FetchFn,
-    fetch_json: JsonFetchFn,
+    http_fetcher: HttpFetcherProtocol,
 ) -> SourceUpdatesCacheValue:
     try:
-        return await _collect_source_updates(source, fetch, fetch_json), None
+        return await _collect_source_updates(source, http_fetcher), None
     except (
         OSError,
         UnicodeError,
@@ -247,13 +245,11 @@ async def _get_source_updates(
 ) -> SourceUpdatesCacheValue:
     source_updates_cache = context.source_updates_cache
     cache_key = _source_updates_cache_key(source, context.source_updates_cache_scope)
-    if source_updates_cache is None:
-        return await _collect_source_updates_value(source, context.fetch, context.fetch_json)
 
     if cache_key in source_updates_cache:
         return _copy_source_updates_cache_value(source_updates_cache[cache_key])
 
-    result = await _collect_source_updates_value(source, context.fetch, context.fetch_json)
+    result = await _collect_source_updates_value(source, context.http_fetcher)
     source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
     return result
 
@@ -307,24 +303,15 @@ def _updates_response(
 async def collect_updates(
     payload: InterestsPayload,
     timeframe: Timeframe,
-    fetch: FetchFn = fetch_url,
-    fetch_json: JsonFetchFn = default_fetch_json,
-    source_updates_cache: SourceUpdatesCache | SourceUpdatesCacheOptions | None = None,
+    http_fetcher: HttpFetcherProtocol,
+    source_updates_cache: SourceUpdatesCacheOptions,
 ) -> UpdatesResponse:
     sources = list(_enabled_sources(payload))
-    cache: SourceUpdatesCache | None
-    if isinstance(source_updates_cache, SourceUpdatesCacheOptions):
-        cache = source_updates_cache.cache
-        cache_scope = source_updates_cache.scope
-    else:
-        cache = source_updates_cache
-        cache_scope = None
     context = _SourceCollectionContext(
         timeframe=timeframe,
-        fetch=fetch,
-        fetch_json=fetch_json,
-        source_updates_cache=cache,
-        source_updates_cache_scope=cache_scope,
+        http_fetcher=http_fetcher,
+        source_updates_cache=source_updates_cache.cache,
+        source_updates_cache_scope=source_updates_cache.scope,
     )
     source_results: list[tuple[list[Update], CollectionError | None]] = list(
         await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))

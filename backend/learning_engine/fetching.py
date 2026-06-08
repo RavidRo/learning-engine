@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import cast
+from typing import Protocol, cast
 from urllib.parse import urlparse
 
 import httpx
@@ -12,6 +12,12 @@ from learning_engine.config import USER_AGENT
 
 ALLOWED_URL_SCHEMES = frozenset({"http", "https"})
 REQUEST_TIMEOUT_SECONDS = 15.0
+
+
+class HttpFetcherProtocol(Protocol):
+    async def fetch_url(self, url: str) -> bytes: ...
+
+    async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]: ...
 
 
 def _validate_url(url: str) -> None:

@@ -3,7 +3,29 @@
 		"./backend"
 	],
 	"cSpell.words": [
+		"addopts",
+		"cachetools",
+		"contextive",
+		"datetimez",
+		"dedupe",
+		"errmsg",
+		"fastapi",
+		"feedparser",
+		"flynt",
+		"httpx",
+		"isort",
+		"mccabe",
+		"mypy",
 		"openspec",
-		"opsx"
+		"opsx",
+		"pathlib",
+		"Pycodestyle",
+		"pydantic",
+		"Pyflakes",
+		"pygrep",
+		"Pylint",
+		"pythonpath",
+		"tryceratops",
+		"uvicorn"
 	],
 }

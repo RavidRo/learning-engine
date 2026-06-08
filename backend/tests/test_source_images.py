@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 
 import httpx
 import pytest
@@ -23,6 +23,22 @@ async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, o
     raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
 
 
+class StubHttpFetcher:
+    def __init__(
+        self,
+        fetch: Callable[[str], Awaitable[bytes]],
+        fetch_json: Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]],
+    ) -> None:
+        self._fetch = fetch
+        self._fetch_json = fetch_json
+
+    async def fetch_url(self, url: str) -> bytes:
+        return await self._fetch(url)
+
+    async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]:
+        return await self._fetch_json(url, headers)
+
+
 @pytest.mark.anyio
 async def test_resolve_youtube_image_uses_channel_page_metadata() -> None:
     called_urls: list[str] = []
@@ -31,7 +47,7 @@ async def test_resolve_youtube_image_uses_channel_page_metadata() -> None:
         called_urls.append(url)
         return b"""<html><meta property="og:image" content="https://yt.example/avatar.jpg"></html>"""
 
-    result = await resolve_source_image("youtube_channel", "@example", fetch, unused_fetch_json)
+    result = await resolve_source_image("youtube_channel", "@example", StubHttpFetcher(fetch, unused_fetch_json))
 
     assert called_urls == ["https://www.youtube.com/@example"]
     assert result == "https://yt.example/avatar.jpg"
@@ -51,8 +67,7 @@ async def test_resolve_spotify_image_uses_show_metadata(
     result = await resolve_source_image(
         "spotify_podcast",
         "https://open.spotify.com/show/show-one",
-        unused_fetch,
-        fetch_json,
+        StubHttpFetcher(unused_fetch, fetch_json),
     )
 
     assert called == [
@@ -75,8 +90,7 @@ async def test_resolve_spotify_image_raises_configuration_error_without_credenti
         await resolve_source_image(
             "spotify_podcast",
             "https://open.spotify.com/show/show-one",
-            unused_fetch,
-            unused_fetch_json,
+            StubHttpFetcher(unused_fetch, unused_fetch_json),
         )
 
 
@@ -87,7 +101,9 @@ async def test_resolve_feed_image_uses_feed_logo() -> None:
           <logo>/assets/feed-logo.png</logo>
         </feed>"""
 
-    result = await resolve_source_image("feed", "https://example.com/feed.xml", fetch, unused_fetch_json)
+    result = await resolve_source_image(
+        "feed", "https://example.com/feed.xml", StubHttpFetcher(fetch, unused_fetch_json)
+    )
 
     assert result == "https://example.com/assets/feed-logo.png"
 
@@ -97,7 +113,7 @@ async def test_resolve_page_image_uses_relative_open_graph_image() -> None:
     async def fetch(_url: str) -> bytes:
         return b"""<html><meta content="/images/card.png" property="og:image"></html>"""
 
-    result = await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+    result = await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
     assert result == "https://example.com/images/card.png"
 
@@ -107,7 +123,7 @@ async def test_resolve_page_image_falls_back_to_icon() -> None:
     async def fetch(_url: str) -> bytes:
         return b"""<html><link href="//cdn.example.com/icon.png" rel="icon"></html>"""
 
-    result = await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+    result = await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
     assert result == "https://cdn.example.com/icon.png"
 
@@ -124,7 +140,7 @@ async def test_resolve_source_image_raises_provider_unavailable_for_5xx() -> Non
         raise _http_status_error(HTTP_SERVER_ERROR)
 
     with pytest.raises(SourceImageProviderUnavailableError, match="Page metadata provider is unavailable"):
-        await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
 
 @pytest.mark.anyio
@@ -133,7 +149,7 @@ async def test_resolve_source_image_raises_http_error_for_4xx() -> None:
         raise _http_status_error(HTTP_BAD_REQUEST)
 
     with pytest.raises(httpx.HTTPStatusError, match="provider response failed"):
-        await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
 
 @pytest.mark.anyio
@@ -142,7 +158,7 @@ async def test_resolve_source_image_raises_transport_errors() -> None:
         raise httpx.ConnectError("network down")
 
     with pytest.raises(httpx.ConnectError, match="network down"):
-        await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
 
 @pytest.mark.anyio
@@ -151,7 +167,7 @@ async def test_resolve_source_image_raises_os_errors() -> None:
         raise OSError("unexpected filesystem edge")
 
     with pytest.raises(OSError, match="unexpected filesystem edge"):
-        await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
 
 @pytest.mark.anyio
@@ -159,7 +175,7 @@ async def test_resolve_source_image_returns_null_on_provider_miss() -> None:
     async def fetch(_url: str) -> bytes:
         return b"<html><head></head><body>No image metadata</body></html>"
 
-    result = await resolve_source_image("page", "https://example.com/news", fetch, unused_fetch_json)
+    result = await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
 
     assert result is None
 
@@ -174,4 +190,4 @@ async def test_resolve_source_image_raises_internal_errors(
     monkeypatch.setattr("learning_engine.source_images._resolve_page_image", fail_resolver)
 
     with pytest.raises(KeyError, match="unexpected shape"):
-        await resolve_source_image("page", "https://example.com/news", unused_fetch, unused_fetch_json)
+        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(unused_fetch, unused_fetch_json))

@@ -18,12 +18,9 @@ from learning_engine.collector import (
     collect_updates,
 )
 from learning_engine.config import HOST, PORT
-from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher, fetch_url
-from learning_engine.fetching import fetch_json as default_fetch_json
+from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher, HttpFetcherProtocol
 from learning_engine.models import InterestsPayload, SourceImageRequest, SourceImageResponse, UpdatesResponse
 from learning_engine.source_images import (
-    FetchFn,
-    JsonFetchFn,
     SourceImageConfigurationError,
     SourceImageProviderError,
     SourceImageProviderUnavailableError,
@@ -47,11 +44,10 @@ def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
 
 async def _source_image_response(
     payload: SourceImageRequest,
-    fetch: FetchFn,
-    fetch_json: JsonFetchFn,
+    http_fetcher: HttpFetcherProtocol,
 ) -> SourceImageResponse:
     try:
-        image_url = await resolve_source_image(payload.type, payload.url, fetch, fetch_json)
+        image_url = await resolve_source_image(payload.type, payload.url, http_fetcher)
     except SourceImageConfigurationError as exc:
         raise HTTPException(status_code=SOURCE_IMAGE_CONFIGURATION_ERROR_STATUS, detail=str(exc)) from exc
     except SourceImageProviderUnavailableError as exc:
@@ -103,10 +99,8 @@ def create_app() -> FastAPI:
 
     @api.post("/api/source-image", response_model=SourceImageResponse)
     async def source_image(payload: SourceImageRequest) -> SourceImageResponse:
-        fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
-        fetch = fetch_url if fetcher is None else fetcher.fetch_url
-        fetch_json = default_fetch_json if fetcher is None else fetcher.fetch_json
-        return await _source_image_response(payload, fetch, fetch_json)
+        fetcher = cast(HttpFetcher, api.state.http_fetcher)
+        return await _source_image_response(payload, fetcher)
 
     @api.get("/api/updates", response_model=UpdatesResponse)
     async def updates(
@@ -119,22 +113,13 @@ def create_app() -> FastAPI:
             cache=source_updates_cache,
             scope=cache_scope,
         )
-        fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
-        if fetcher is None:
-            response = await collect_updates(
-                read_interests(),
-                timeframe=timeframe,
-                source_updates_cache=source_updates_cache_options,
-            )
-        else:
-            response = await collect_updates(
-                read_interests(),
-                timeframe=timeframe,
-                fetch=fetcher.fetch_url,
-                fetch_json=fetcher.fetch_json,
-                source_updates_cache=source_updates_cache_options,
-            )
-        return response
+        fetcher = cast(HttpFetcher, api.state.http_fetcher)
+        return await collect_updates(
+            read_interests(),
+            timeframe=timeframe,
+            http_fetcher=fetcher,
+            source_updates_cache=source_updates_cache_options,
+        )
 
     return api
 

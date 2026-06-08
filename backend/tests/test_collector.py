@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import UTC, datetime
 
 import pytest
 
-from learning_engine.collector import collect_updates, dedupe_updates
+from learning_engine.collector import SourceUpdatesCacheOptions, collect_updates, dedupe_updates
 from learning_engine.models import CollectedUpdate, InterestSource, InterestsPayload, SourceInterest, Update
 from learning_engine.source_images import SourceImageConfigurationError, SourceImageProviderUnavailableError
 from learning_engine.sources.spotify import spotify_show_id
@@ -29,6 +29,22 @@ async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, o
 
 async def no_source_image(*_args: object) -> str | None:
     return None
+
+
+class StubHttpFetcher:
+    def __init__(
+        self,
+        fetch: Callable[[str], Awaitable[bytes]],
+        fetch_json: Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]],
+    ) -> None:
+        self._fetch = fetch
+        self._fetch_json = fetch_json
+
+    async def fetch_url(self, url: str) -> bytes:
+        return await self._fetch(url)
+
+    async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]:
+        return await self._fetch_json(url, headers)
 
 
 def test_update_enriches_generic_collected_update_without_feed_specific_base() -> None:
@@ -118,7 +134,12 @@ async def test_collect_updates_uses_youtube_channel_feed_for_channel_id(monkeypa
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert called_urls == ["https://www.youtube.com/feeds/videos.xml?channel_id=UCabcabcabcabcabcabcabc"]
     assert result.updates[0].source_interest.source_type == "youtube_channel"
@@ -149,7 +170,12 @@ async def test_collect_updates_carries_source_interest_to_updates() -> None:
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.updates[0].source_interest.interest_name == "Images"
     assert result.updates[0].source_interest.source_id == "with-image"
@@ -183,7 +209,12 @@ async def test_collect_updates_uses_manual_source_image_before_resolver(monkeypa
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.updates[0].source_interest.source_image_url == "https://example.com/manual.png"
 
@@ -211,7 +242,12 @@ async def test_collect_updates_uses_automatic_source_image_when_manual_is_missin
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.updates[0].source_interest.source_image_url == "https://example.com/auto.png"
     assert payload.interests[0].sources[0].image_url is None
@@ -238,7 +274,12 @@ async def test_collect_updates_keeps_null_source_image_when_resolver_misses(monk
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.updates[0].source_interest.source_image_url is None
 
@@ -268,7 +309,12 @@ async def test_collect_updates_logs_and_continues_when_source_image_provider_fai
     )
 
     with caplog.at_level(logging.INFO, logger="learning_engine.collector"):
-        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+        result = await collect_updates(
+            payload,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        )
 
     assert result.updates[0].source_interest.source_image_url is None
     assert "Source image provider is unavailable" in caplog.text
@@ -299,7 +345,12 @@ async def test_collect_updates_logs_and_continues_when_source_image_configuratio
     )
 
     with caplog.at_level(logging.INFO, logger="learning_engine.collector"):
-        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+        result = await collect_updates(
+            payload,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        )
 
     assert result.updates[0].source_interest.source_image_url is None
     assert "Source image configuration is unavailable" in caplog.text
@@ -330,7 +381,12 @@ async def test_collect_updates_logs_and_continues_when_source_image_resolver_cra
     )
 
     with caplog.at_level(logging.ERROR, logger="learning_engine.collector"):
-        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+        result = await collect_updates(
+            payload,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        )
 
     assert result.updates[0].source_interest.source_image_url is None
     assert "Source image resolver failed during update collection" in caplog.text
@@ -364,7 +420,12 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
         active_fetches -= 1
         return rss
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.sources_checked == CONCURRENT_SOURCE_COUNT
     assert max_active_fetches == CONCURRENT_SOURCE_COUNT
@@ -400,9 +461,8 @@ async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently(
     result = await collect_updates(
         payload,
         timeframe=ALL_TIMEFRAME,
-        fetch=fetch,
-        fetch_json=unused_fetch_json,
-        source_updates_cache={},
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
     )
 
     assert result.sources_checked == CONCURRENT_SOURCE_COUNT
@@ -437,7 +497,12 @@ async def test_collect_updates_resolves_youtube_handle_before_fetching_feed(monk
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert called_urls == [
         "https://www.youtube.com/@example",
@@ -476,7 +541,12 @@ async def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pyte
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(unused_fetch, fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert [url for url, _headers in called] == [
         "https://api.x.com/2/users/by/username/xdevelopers",
@@ -501,7 +571,12 @@ async def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: 
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=unused_fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert result.updates == []
     assert result.errors[0].source_id == "x"
@@ -538,7 +613,12 @@ async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytes
         }
     )
 
-    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=unused_fetch, fetch_json=fetch_json)
+    result = await collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(unused_fetch, fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
 
     assert called == [
         (

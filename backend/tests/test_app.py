@@ -66,9 +66,9 @@ def test_source_image_endpoint_returns_resolved_image(monkeypatch: pytest.Monkey
         return "https://yt.example/avatar.jpg"
 
     monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
-    client = TestClient(create_app())
 
-    response = client.post("/api/source-image", json={"type": "youtube", "url": " @example "})
+    with TestClient(create_app()) as client:
+        response = client.post("/api/source-image", json={"type": "youtube", "url": " @example "})
 
     assert response.status_code == HTTP_OK
     assert response.json() == {"imageUrl": "https://yt.example/avatar.jpg"}
@@ -79,9 +79,9 @@ def test_source_image_endpoint_returns_null_on_resolver_miss(monkeypatch: pytest
         return None
 
     monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
-    client = TestClient(create_app())
 
-    response = client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"})
+    with TestClient(create_app()) as client:
+        response = client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"})
 
     assert response.status_code == HTTP_OK
     assert response.json() == {"imageUrl": None}
@@ -122,9 +122,9 @@ def test_source_image_endpoint_returns_matching_error_for_resolver_failures(
         raise resolver_error
 
     monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
-    client = TestClient(create_app())
 
-    response = client.post("/api/source-image", json={"type": "spotify_podcast", "url": "spotify:show:show-one"})
+    with TestClient(create_app()) as client:
+        response = client.post("/api/source-image", json={"type": "spotify_podcast", "url": "spotify:show:show-one"})
 
     assert response.status_code == expected_status
     assert response.json() == {"detail": expected_detail}
@@ -146,15 +146,15 @@ def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pyte
     monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
     monkeypatch.setattr(app_module, "read_interests", read_interests)
     monkeypatch.setattr(app_module, "write_interests", write_interests)
-    client = TestClient(create_app())
 
-    assert client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"}).json() == {
-        "imageUrl": "https://example.com/dynamic.png"
-    }
-    saved = payload.model_dump(mode="json", by_alias=True)
-    client.post("/api/interests", json=saved)
+    with TestClient(create_app()) as client:
+        assert client.post(
+            "/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"}
+        ).json() == {"imageUrl": "https://example.com/dynamic.png"}
+        saved = payload.model_dump(mode="json", by_alias=True)
+        client.post("/api/interests", json=saved)
 
-    assert client.get("/api/interests").json()["interests"][0]["sources"][0]["imageUrl"] is None
+        assert client.get("/api/interests").json()["interests"][0]["sources"][0]["imageUrl"] is None
 
 
 def test_updates_rejects_non_positive_days() -> None:
@@ -240,11 +240,11 @@ def test_updates_endpoint_reuses_cached_response_for_five_minutes(
 
     monkeypatch.setattr(app_module, "read_interests", _read_default_payload)
     monkeypatch.setattr(collector_module, "_collect_source_updates", collect_source_updates)
-    client = TestClient(create_app())
 
     path = "/api/updates" if query is None else f"/api/updates?days={query}"
-    first = client.get(path)
-    second = client.get(path)
+    with TestClient(create_app()) as client:
+        first = client.get(path)
+        second = client.get(path)
 
     assert first.status_code == HTTP_OK
     assert second.status_code == HTTP_OK
@@ -278,11 +278,11 @@ def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch
     monkeypatch.setattr(collector_module, "_collect_source_updates", collect_source_updates)
     api = create_app()
     api.state.source_updates_cache = TTLCache(maxsize=128, ttl=300, timer=monotonic)
-    client = TestClient(api)
 
-    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
-    current_time += 301
-    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-2"
+    with TestClient(api) as client:
+        assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
+        current_time += 301
+        assert client.get("/api/updates").json()["updates"][0]["title"] == "call-2"
     assert calls == EXPECTED_EXPIRED_CALLS
 
 
@@ -295,11 +295,11 @@ def test_updates_endpoint_cache_key_includes_selected_days(monkeypatch: pytest.M
 
     monkeypatch.setattr(app_module, "read_interests", _read_default_payload)
     monkeypatch.setattr(collector_module, "_collect_source_updates", collect_source_updates)
-    client = TestClient(create_app())
 
-    first = client.get("/api/updates?days=7")
-    second = client.get("/api/updates?days=30")
-    repeated_first = client.get("/api/updates?days=7")
+    with TestClient(create_app()) as client:
+        first = client.get("/api/updates?days=7")
+        second = client.get("/api/updates?days=30")
+        repeated_first = client.get("/api/updates?days=7")
 
     assert calls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
     assert first.json()["updates"][0]["title"] == "call-1"
@@ -327,12 +327,12 @@ def test_saving_interests_keeps_source_cache(
     monkeypatch.setattr(app_module, "read_interests", read_interests)
     monkeypatch.setattr(app_module, "write_interests", write_interests)
     monkeypatch.setattr(collector_module, "_collect_source_updates", collect_source_updates)
-    client = TestClient(create_app())
 
-    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
-    saved = _payload().model_dump(mode="json", by_alias=True)
-    client.post("/api/interests", json=saved)
-    assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
+    with TestClient(create_app()) as client:
+        assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
+        saved = _payload().model_dump(mode="json", by_alias=True)
+        client.post("/api/interests", json=saved)
+        assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
     assert calls == ["https://example.com/feed.xml"]
 
 
@@ -346,10 +346,10 @@ def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest
 
     monkeypatch.setattr(app_module, "read_interests", _read_default_payload)
     monkeypatch.setattr(collector_module, "_collect_source_updates", collect_source_updates)
-    client = TestClient(create_app())
 
-    first = client.get("/api/updates")
-    second = client.get("/api/updates")
+    with TestClient(create_app()) as client:
+        first = client.get("/api/updates")
+        second = client.get("/api/updates")
 
     assert calls == 1
     assert first.json() == second.json()
