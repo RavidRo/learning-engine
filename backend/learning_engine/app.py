@@ -10,7 +10,7 @@ from typing import Annotated, cast
 import httpx
 import uvicorn
 from cachetools import TTLCache
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query, status
 
 from learning_engine.collector import (
     SourceUpdatesCache,
@@ -18,19 +18,52 @@ from learning_engine.collector import (
     collect_updates,
 )
 from learning_engine.config import HOST, PORT
-from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher
-from learning_engine.models import InterestsPayload, UpdatesResponse
+from learning_engine.fetching import REQUEST_TIMEOUT_SECONDS, HttpFetcher, fetch_url
+from learning_engine.fetching import fetch_json as default_fetch_json
+from learning_engine.models import InterestsPayload, SourceImageRequest, SourceImageResponse, UpdatesResponse
+from learning_engine.source_images import (
+    FetchFn,
+    JsonFetchFn,
+    SourceImageConfigurationError,
+    SourceImageProviderError,
+    SourceImageProviderUnavailableError,
+    resolve_source_image,
+)
 from learning_engine.storage import ensure_data_file, read_interests, write_interests
 from learning_engine.timeframe import Timeframe
 
 SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
 SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
+SOURCE_IMAGE_CONFIGURATION_ERROR_STATUS = status.HTTP_400_BAD_REQUEST
+SOURCE_IMAGE_PROVIDER_UNAVAILABLE_STATUS = status.HTTP_503_SERVICE_UNAVAILABLE
+SOURCE_IMAGE_PROVIDER_ERROR_STATUS = status.HTTP_502_BAD_GATEWAY
 
 
 def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
     if days is None:
         return Timeframe(start=datetime.min.replace(tzinfo=UTC), end=now)
     return Timeframe.ending_at(now, timedelta(days=days))
+
+
+async def _source_image_response(
+    payload: SourceImageRequest,
+    fetch: FetchFn,
+    fetch_json: JsonFetchFn,
+) -> SourceImageResponse:
+    try:
+        image_url = await resolve_source_image(payload.type, payload.url, fetch, fetch_json)
+    except SourceImageConfigurationError as exc:
+        raise HTTPException(status_code=SOURCE_IMAGE_CONFIGURATION_ERROR_STATUS, detail=str(exc)) from exc
+    except SourceImageProviderUnavailableError as exc:
+        raise HTTPException(status_code=SOURCE_IMAGE_PROVIDER_UNAVAILABLE_STATUS, detail=str(exc)) from exc
+    except SourceImageProviderError as exc:
+        raise HTTPException(status_code=SOURCE_IMAGE_PROVIDER_ERROR_STATUS, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not resolve source image",
+        ) from exc
+    return SourceImageResponse(image_url=image_url)
 
 
 def create_app() -> FastAPI:
@@ -67,6 +100,13 @@ def create_app() -> FastAPI:
             "ok": True,
             "saved": read_interests().model_dump(mode="json", by_alias=True),
         }
+
+    @api.post("/api/source-image", response_model=SourceImageResponse)
+    async def source_image(payload: SourceImageRequest) -> SourceImageResponse:
+        fetcher = cast(HttpFetcher | None, getattr(api.state, "http_fetcher", None))
+        fetch = fetch_url if fetcher is None else fetcher.fetch_url
+        fetch_json = default_fetch_json if fetcher is None else fetcher.fetch_json
+        return await _source_image_response(payload, fetch, fetch_json)
 
     @api.get("/api/updates", response_model=UpdatesResponse)
     async def updates(

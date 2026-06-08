@@ -2,4 +2,8 @@
 	"python.analysis.extraPaths": [
 		"./backend"
 	],
+	"cSpell.words": [
+		"openspec",
+		"opsx"
+	],
 }

@@ -115,6 +115,31 @@ class InterestSource(BaseModel):
         return [keyword for item in candidates if (keyword := str(item).strip())]
 
 
+class SourceImageRequest(BaseModel):
+    """Source fields needed to resolve derived image metadata."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    type: SourceType
+    url: str
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def normalize_source_type(cls, value: object) -> SourceType:
+        return InterestSource.normalize_source_type(value)
+
+    @field_validator("url", mode="before")
+    @classmethod
+    def strip_url(cls, value: object) -> str:
+        return InterestSource.strip_url(value)
+
+
+class SourceImageResponse(BaseModel):
+    """Dynamically resolved source image metadata."""
+
+    image_url: str | None = Field(default=None, serialization_alias="imageUrl")
+
+
 class Interest(BaseModel):
     """A general topic tracked by the Learning Engine."""
 

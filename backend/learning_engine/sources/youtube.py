@@ -40,6 +40,22 @@ def _extract_channel_id(html: bytes) -> str:
     raise ValueError("Could not find a YouTube channel ID in the channel page")
 
 
+def youtube_channel_page_url(source_url: str) -> str:
+    stripped = source_url.strip()
+    if not stripped:
+        raise ValueError("YouTube channel source URL is required")
+
+    channel_id = _channel_id_from_url(stripped) or (stripped if CHANNEL_ID_PATTERN.fullmatch(stripped) else None)
+    if channel_id is not None:
+        return f"https://www.youtube.com/channel/{channel_id}"
+
+    if stripped.startswith("@"):
+        return f"https://www.youtube.com/{stripped}"
+    if not urlparse(stripped).scheme:
+        return f"https://www.youtube.com/@{stripped.lstrip('@')}"
+    return stripped
+
+
 async def youtube_feed_url(source_url: str, fetch: Callable[[str], Awaitable[bytes]]) -> str:
     stripped = source_url.strip()
     if not stripped:
@@ -49,12 +65,7 @@ async def youtube_feed_url(source_url: str, fetch: Callable[[str], Awaitable[byt
     if channel_id is not None:
         return YOUTUBE_FEED_URL.format(channel_id=channel_id)
 
-    page_url = stripped
-    if page_url.startswith("@"):
-        page_url = f"https://www.youtube.com/{page_url}"
-    elif not urlparse(page_url).scheme:
-        page_url = f"https://www.youtube.com/@{page_url.lstrip('@')}"
-
+    page_url = youtube_channel_page_url(stripped)
     return YOUTUBE_FEED_URL.format(channel_id=_extract_channel_id(await fetch(page_url)))
 
 

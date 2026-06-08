@@ -1,6 +1,6 @@
-import { type Interest, type UpdatesPayload } from "./schemas";
+import { type Interest, type SourceImagePayload, type UpdatesPayload } from "./schemas";
 
-export type { Interest, UpdatesPayload };
+export type { Interest, SourceImagePayload, UpdatesPayload };
 export type InterestSource = Interest["sources"][number];
 
 export type Priority = "high" | "medium" | "low";

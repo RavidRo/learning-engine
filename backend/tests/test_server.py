@@ -20,6 +20,10 @@ async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, o
     raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
 
 
+async def no_source_image(*_args: object) -> str | None:
+    return None
+
+
 def test_normalize_interest_keeps_general_topic_and_sources() -> None:
     interest = Interest.model_validate(
         {
@@ -128,7 +132,8 @@ def test_parse_atom_feed_uses_feedparser_normalization() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_fetches_enabled_sources_only() -> None:
+async def test_collect_updates_fetches_enabled_sources_only(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     payload = {
         "interests": [
             {
@@ -291,7 +296,8 @@ async def test_collect_updates_can_filter_to_recent_days() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_uses_page_sources() -> None:
+async def test_collect_updates_uses_page_sources(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     payload = {
         "interests": [
             {

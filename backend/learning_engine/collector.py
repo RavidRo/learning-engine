@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Awaitable, Callable, Iterable, Mapping, MutableMapping
 from dataclasses import dataclass
 
@@ -21,6 +22,12 @@ from learning_engine.models import (
     Update,
     UpdatesResponse,
 )
+from learning_engine.source_images import (
+    SourceImageConfigurationError,
+    SourceImageProviderError,
+    SourceImageProviderUnavailableError,
+    resolve_source_image,
+)
 from learning_engine.sources.feed import parse_feed_items
 from learning_engine.sources.page import parse_page_items
 from learning_engine.sources.spotify import collect_spotify_podcast
@@ -34,6 +41,7 @@ JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
 SourceUpdatesCacheValue = tuple[list[CollectedUpdate], str | None]
 SourceUpdatesCache = MutableMapping[SourceUpdatesCacheKey, SourceUpdatesCacheValue]
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +69,51 @@ class _SourceCollectionContext:
     fetch_json: JsonFetchFn
     source_updates_cache: SourceUpdatesCache | None
     source_updates_cache_scope: str | None
+
+
+def _manual_source_image_url(source: InterestSource) -> str | None:
+    if source.image_url is None:
+        return None
+    stripped = source.image_url.strip()
+    return stripped or None
+
+
+async def _source_image_url(source: InterestSource, context: _SourceCollectionContext) -> str | None:
+    manual_image_url = _manual_source_image_url(source)
+    if manual_image_url is not None:
+        return manual_image_url
+    try:
+        image_url = await resolve_source_image(source.type, source.url, context.fetch, context.fetch_json)
+    except SourceImageConfigurationError as exc:
+        logger.info(
+            "Source image configuration is unavailable",
+            extra={"source_type": source.type, "source_url": source.url, "reason": str(exc)},
+        )
+        return None
+    except SourceImageProviderError as exc:
+        log_message = (
+            "Source image provider is unavailable"
+            if isinstance(exc, SourceImageProviderUnavailableError)
+            else "Source image provider metadata is unavailable"
+        )
+        logger.info(
+            log_message,
+            extra={"source_type": source.type, "source_url": source.url, "reason": str(exc)},
+        )
+        return None
+    except Exception:
+        logger.exception(
+            "Source image resolver failed during update collection",
+            extra={"source_type": source.type, "source_url": source.url},
+        )
+        return None
+
+    if image_url is None:
+        logger.info(
+            "Source image provider metadata did not include an image",
+            extra={"source_type": source.type, "source_url": source.url},
+        )
+    return image_url
 
 
 def _dedupe_part(value: str | None) -> str | None:
@@ -125,6 +178,7 @@ def _enrich_updates(
     source: InterestSource,
     source_updates: list[CollectedUpdate],
     timeframe: Timeframe,
+    source_image_url: str | None,
 ) -> list[Update]:
     return [
         Update(
@@ -133,7 +187,7 @@ def _enrich_updates(
                 interest_name=interest.name,
                 source_id=source.id,
                 source_label=source.label,
-                source_image_url=source.image_url,
+                source_image_url=source_image_url,
                 source_url=source.url,
                 source_type=source.type,
             ),
@@ -211,7 +265,8 @@ async def _collect_from_source(
 ) -> tuple[list[Update], CollectionError | None]:
     source_updates, error = await _get_source_updates(source, context)
     collection_error = _collection_error(interest, source, error) if error is not None else None
-    return _enrich_updates(interest, source, source_updates, context.timeframe), collection_error
+    source_image_url = await _source_image_url(source, context) if source_updates else _manual_source_image_url(source)
+    return _enrich_updates(interest, source, source_updates, context.timeframe, source_image_url), collection_error
 
 
 def _enabled_sources(payload: InterestsPayload) -> Iterable[tuple[Interest, InterestSource]]:
