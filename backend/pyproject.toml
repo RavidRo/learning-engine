@@ -17,7 +17,8 @@ dependencies = [
 dev = [
     "mypy>=1.13.0",
     "pip>=26.1.1",
-    "pytest>=8.3.0",
+    "pytest>=9.0.0",
+    "pytest-cov>=7.0.0",
     "ruff>=0.8.0",
     "uv>=0.11.14",
     "vulture>=2.16",
@@ -181,6 +182,17 @@ files = ["learning_engine"]
 module = ["uvicorn"]
 ignore_missing_imports = true
 
-[tool.pytest.ini_options]
-addopts = "--capture=sys"
+[tool.pytest]
+addopts = [
+    "--capture=sys",
+    "--cov=learning_engine",
+    "--cov-report=term-missing",
+]
 pythonpath = ["."]
+
+[tool.coverage.run]
+branch = true
+source = ["learning_engine"]
+
+[tool.coverage.report]
+show_missing = true
