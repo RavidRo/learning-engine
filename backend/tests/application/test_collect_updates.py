@@ -13,22 +13,19 @@ from learning_engine.application.collect_updates import (
     collect_updates,
     dedupe_updates,
 )
-from learning_engine.application.ports import HttpFetcher
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
     SourceImageProviderUnavailableError,
 )
+from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.models import (
-    InterestsPayload,
-    SourceInterest,
-    SourceType,
-    Update,
-    UpdatesResponse,
+from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.source_types import SourceType
+from learning_engine.domain.updates import SourceInterest, Update
+from learning_engine.infrastructure.fetching import Fetcher
+from learning_engine.infrastructure.source_collectors.registry import (
+    SourceUpdateCollectorRegistry,
 )
-from learning_engine.infrastructure.source_collectors.registry import SourceUpdateCollectorRegistry
-from learning_engine.infrastructure.source_collectors.spotify import spotify_show_id
-from learning_engine.infrastructure.source_collectors.twitter import twitter_username
 
 NOW = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
 ALL_TIMEFRAME = Timeframe(start=datetime.min.replace(tzinfo=UTC), end=NOW)
@@ -48,16 +45,18 @@ async def no_source_image(*_args: object) -> str | None:
 
 
 class StubSourceImageProvider:
-    def __init__(self, resolve_source_image: Callable[..., Awaitable[str | None]] = no_source_image) -> None:
+    def __init__(
+        self,
+        resolve_source_image: Callable[..., Awaitable[str | None]] = no_source_image,
+    ) -> None:
         self._resolve_source_image = resolve_source_image
 
     async def resolve_source_image(
         self,
         source_type: SourceType,
         source_url: str,
-        http_fetcher: HttpFetcher,
     ) -> str | None:
-        return await self._resolve_source_image(source_type, source_url, http_fetcher)
+        return await self._resolve_source_image(source_type, source_url)
 
 
 class StubHttpFetcher:
@@ -80,7 +79,7 @@ async def _collect_updates(
     payload: InterestsPayload,
     *,
     timeframe: Timeframe,
-    http_fetcher: HttpFetcher,
+    http_fetcher: Fetcher,
     source_updates_cache: SourceUpdatesCacheOptions,
     source_image_provider: StubSourceImageProvider | None = None,
 ) -> UpdatesResponse:
@@ -88,8 +87,7 @@ async def _collect_updates(
         payload,
         timeframe=timeframe,
         dependencies=CollectUpdatesDependencies(
-            http_fetcher=http_fetcher,
-            source_update_collector=SourceUpdateCollectorRegistry(),
+            source_update_collector=SourceUpdateCollectorRegistry(http_fetcher),
             source_image_provider=source_image_provider or StubSourceImageProvider(),
         ),
         source_updates_cache=source_updates_cache,
@@ -99,11 +97,25 @@ async def _collect_updates(
 def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
     updates = [
         Update(
-            source_interest=SourceInterest(source_url="https://example.com/a", source_type="feed"),
+            source_interest=SourceInterest(
+                interest_id=None,
+                interest_name="Interest",
+                source_id=None,
+                source_label="Source",
+                source_url="https://example.com/a",
+                source_type="feed",
+            ),
             summary="first",
         ),
         Update(
-            source_interest=SourceInterest(source_url="https://example.com/b", source_type="feed"),
+            source_interest=SourceInterest(
+                interest_id=None,
+                interest_name="Interest",
+                source_id=None,
+                source_label="Source",
+                source_url="https://example.com/b",
+                source_type="feed",
+            ),
             summary="second",
         ),
     ]
@@ -406,8 +418,16 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
                 {
                     "name": "Parallel",
                     "sources": [
-                        {"id": "first", "type": "feed", "url": "https://example.com/first.xml"},
-                        {"id": "second", "type": "feed", "url": "https://example.com/second.xml"},
+                        {
+                            "id": "first",
+                            "type": "feed",
+                            "url": "https://example.com/first.xml",
+                        },
+                        {
+                            "id": "second",
+                            "type": "feed",
+                            "url": "https://example.com/second.xml",
+                        },
                     ],
                 }
             ]
@@ -445,8 +465,16 @@ async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently()
                 {
                     "name": "Parallel cache",
                     "sources": [
-                        {"id": "first", "type": "feed", "url": "https://example.com/feed.xml"},
-                        {"id": "second", "type": "feed", "url": "https://example.com/feed.xml"},
+                        {
+                            "id": "first",
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                        },
+                        {
+                            "id": "second",
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                        },
                     ],
                 }
             ]
@@ -467,7 +495,10 @@ async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently()
     )
 
     assert result.sources_checked == CONCURRENT_SOURCE_COUNT
-    assert called_urls == ["https://example.com/feed.xml", "https://example.com/feed.xml"]
+    assert called_urls == [
+        "https://example.com/feed.xml",
+        "https://example.com/feed.xml",
+    ]
 
 
 @pytest.mark.anyio
@@ -512,8 +543,10 @@ async def test_collect_updates_resolves_youtube_handle_before_fetching_feed() ->
 
 
 @pytest.mark.anyio
-async def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("TWITTER_BEARER_TOKEN", "test-token")
+async def test_collect_updates_uses_x_api_for_twitter_accounts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("X_BEARER_TOKEN", "test-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 
     async def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
@@ -557,8 +590,9 @@ async def test_collect_updates_uses_x_api_for_twitter_accounts(monkeypatch: pyte
 
 
 @pytest.mark.anyio
-async def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("TWITTER_BEARER_TOKEN", raising=False)
+async def test_collect_updates_propagates_missing_twitter_credentials(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
     payload = InterestsPayload.model_validate(
         {
@@ -571,21 +605,20 @@ async def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: 
         }
     )
 
-    result = await _collect_updates(
-        payload,
-        timeframe=ALL_TIMEFRAME,
-        http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
-        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
-    )
-
-    assert result.updates == []
-    assert result.errors[0].source_id == "x"
-    assert result.errors[0].error == "Twitter bearer token is required for twitter_account sources"
+    with pytest.raises(ValueError, match="Twitter bearer token is required for twitter_account sources"):
+        await _collect_updates(
+            payload,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
+            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        )
 
 
 @pytest.mark.anyio
-async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPOTIFY_BEARER_TOKEN", "spotify-token")
+async def test_collect_updates_uses_spotify_show_episodes_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("SPOTIFY_ACCESS_TOKEN", "spotify-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 
     async def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
@@ -606,7 +639,12 @@ async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytes
             "interests": [
                 {
                     "name": "Podcast",
-                    "sources": [{"type": "spotify_podcast", "url": "https://open.spotify.com/show/show-one"}],
+                    "sources": [
+                        {
+                            "type": "spotify_podcast",
+                            "url": "https://open.spotify.com/show/show-one",
+                        }
+                    ],
                 }
             ]
         }
@@ -627,10 +665,3 @@ async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytes
     ]
     assert result.updates[0].title == "Episode one"
     assert result.updates[0].url == "https://open.spotify.com/episode/episode-one"
-
-
-def test_source_identifier_helpers_accept_common_forms() -> None:
-    assert twitter_username("https://twitter.com/openai") == "openai"
-    assert twitter_username("@openai") == "openai"
-    assert spotify_show_id("spotify:show:show-id") == "show-id"
-    assert spotify_show_id("https://open.spotify.com/show/show-id?si=abc") == "show-id"

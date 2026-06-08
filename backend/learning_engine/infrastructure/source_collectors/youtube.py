@@ -6,15 +6,21 @@ import re
 from collections.abc import Awaitable, Callable
 from urllib.parse import parse_qs, urlparse
 
-from learning_engine.domain.models import CollectedUpdate
+from learning_engine.application.resolve_source_image import SourceImageConfigurationError
+from learning_engine.config import YOUTUBE_FEED_URL
+from learning_engine.domain.updates import SourceUpdate
 from learning_engine.infrastructure.source_collectors.feed import parse_feed_items
+from learning_engine.infrastructure.source_collectors.image_metadata import (
+    FetchFn,
+    fetch_provider_bytes,
+    html_image_url,
+)
 
 CHANNEL_ID_PATTERN = re.compile(r"\bUC[\w-]{20,}\b")
 CHANNEL_ID_META_PATTERN = re.compile(
     r"<meta\s+(?:itemprop=[\"']channelId[\"']\s+content|content)=[\"'](UC[\w-]{20,})[\"']",
     re.IGNORECASE,
 )
-YOUTUBE_FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
 
 
 def _channel_id_from_url(url: str) -> str | None:
@@ -69,6 +75,14 @@ async def youtube_feed_url(source_url: str, fetch: Callable[[str], Awaitable[byt
     return YOUTUBE_FEED_URL.format(channel_id=_extract_channel_id(await fetch(page_url)))
 
 
-async def collect_youtube_channel(source_url: str, fetch: Callable[[str], Awaitable[bytes]]) -> list[CollectedUpdate]:
+async def collect_youtube_channel(source_url: str, fetch: Callable[[str], Awaitable[bytes]]) -> list[SourceUpdate]:
     feed_url = await youtube_feed_url(source_url, fetch)
     return parse_feed_items(await fetch(feed_url), watch_keywords=[], ignore_keywords=[])
+
+
+async def resolve_youtube_image(source_url: str, fetch: FetchFn) -> str | None:
+    try:
+        page_url = youtube_channel_page_url(source_url)
+    except ValueError as exc:
+        raise SourceImageConfigurationError("YouTube channel source URL is invalid") from exc
+    return html_image_url(await fetch_provider_bytes(page_url, fetch, "YouTube"), page_url)

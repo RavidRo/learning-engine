@@ -6,12 +6,11 @@ from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 from urllib.parse import quote, urlparse
 
-from learning_engine.common.dates import format_datetime, parse_datetime
-from learning_engine.config import twitter_bearer_token
-from learning_engine.domain.models import CollectedUpdate
+from learning_engine.common.dates import parse_datetime
+from learning_engine.config import X_API_ORIGIN, twitter_bearer_token
+from learning_engine.domain.updates import SourceUpdate
 
 JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
-X_API_ORIGIN = "https://api.x.com/2"
 
 
 def twitter_username(source_url: str) -> str:
@@ -52,19 +51,20 @@ def _tweet_url(username: str, tweet_id: object) -> str | None:
     return f"https://x.com/{username}/status/{tweet_id}"
 
 
-def _tweet_update(username: str, tweet: Mapping[str, object]) -> CollectedUpdate:
+def _tweet_update(username: str, tweet: Mapping[str, object]) -> SourceUpdate:
     text = str(tweet.get("text") or "").strip()
     created_at = str(tweet.get("created_at") or "").strip() or None
-    return CollectedUpdate(
+    published_at = parse_datetime(created_at)
+    return SourceUpdate(
         title=text[:120] or None,
         url=_tweet_url(username, tweet.get("id")),
         summary=text or None,
-        published=created_at,
-        published_at=format_datetime(parse_datetime(created_at)),
+        published=published_at,
+        published_at=published_at,
     )
 
 
-async def collect_twitter_account(source_url: str, fetch_json: JsonFetchFn) -> list[CollectedUpdate]:
+async def collect_twitter_account(source_url: str, fetch_json: JsonFetchFn) -> list[SourceUpdate]:
     username = twitter_username(source_url)
     headers = _headers()
     user = await fetch_json(f"{X_API_ORIGIN}/users/by/username/{quote(username)}", headers)

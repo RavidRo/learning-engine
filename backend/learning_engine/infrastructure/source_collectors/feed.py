@@ -6,9 +6,15 @@ from typing import Any, cast
 
 import feedparser
 
-from learning_engine.common.dates import format_datetime, parse_datetime
+from learning_engine.common.dates import parse_datetime
 from learning_engine.common.text import keyword_matches, searchable_text, strip_markup
-from learning_engine.domain.models import FeedUpdate
+from learning_engine.domain.updates import SourceUpdate
+from learning_engine.infrastructure.source_collectors.image_metadata import (
+    FetchFn,
+    fetch_provider_bytes,
+    first_feed_image,
+    html_image_url,
+)
 
 
 def _entry_value(entry: Any, key: str) -> str | None:
@@ -41,12 +47,12 @@ def parse_feed_items(
     feed_bytes: bytes,
     watch_keywords: list[str],
     ignore_keywords: list[str],
-) -> list[FeedUpdate]:
+) -> list[SourceUpdate]:
     """Parse RSS/Atom bytes into normalized feed updates."""
 
     parsed_feed = feedparser.parse(feed_bytes)
     entries = cast(list[Any], parsed_feed.get("entries", []))
-    updates: list[FeedUpdate] = []
+    updates: list[SourceUpdate] = []
 
     for entry in entries:
         title = strip_markup(_entry_value(entry, "title"))
@@ -59,14 +65,25 @@ def parse_feed_items(
             continue
 
         updates.append(
-            FeedUpdate(
+            SourceUpdate(
                 title=title,
                 url=url,
                 summary=summary,
-                published=published,
-                published_at=format_datetime(parse_datetime(published)),
+                published=parse_datetime(published),
+                published_at=parse_datetime(published),
                 matched_keywords=matched,
             )
         )
 
     return updates
+
+
+async def resolve_feed_image(source_url: str, fetch: FetchFn) -> str | None:
+    feed_bytes = await fetch_provider_bytes(source_url, fetch, "Feed")
+    parsed = feedparser.parse(feed_bytes)
+    feed = parsed.get("feed", {})
+    if isinstance(feed, dict):
+        resolved = first_feed_image(cast(dict[str, Any], feed), source_url)
+        if resolved is not None:
+            return resolved
+    return html_image_url(feed_bytes, source_url)

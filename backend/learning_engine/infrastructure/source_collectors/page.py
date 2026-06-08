@@ -5,9 +5,14 @@ from __future__ import annotations
 import re
 from urllib.parse import urljoin, urlparse
 
-from learning_engine.common.dates import format_datetime, parse_datetime
+from learning_engine.common.dates import parse_datetime
 from learning_engine.common.text import keyword_matches, searchable_text, strip_markup
-from learning_engine.domain.models import FeedUpdate
+from learning_engine.domain.updates import SourceUpdate
+from learning_engine.infrastructure.source_collectors.image_metadata import (
+    FetchFn,
+    fetch_provider_bytes,
+    html_image_url,
+)
 
 MIN_PAGE_LINK_TITLE_LENGTH = 8
 PAGE_LINK_CONTEXT_CHARS = 500
@@ -49,11 +54,11 @@ def parse_page_items(
     page_url: str,
     watch_keywords: list[str],
     ignore_keywords: list[str],
-) -> list[FeedUpdate]:
+) -> list[SourceUpdate]:
     """Extract linked update-like items from an official page fallback."""
 
     html = _decode_html(page_bytes)
-    updates: list[FeedUpdate] = []
+    updates: list[SourceUpdate] = []
     seen: set[str] = set()
 
     for match in LINK_PATTERN.finditer(html):
@@ -78,15 +83,20 @@ def parse_page_items(
             continue
 
         published = _published_from_context(context)
+        published_at = parse_datetime(published)
         updates.append(
-            FeedUpdate(
+            SourceUpdate(
                 title=title,
                 url=url,
                 summary=context[:PAGE_LINK_CONTEXT_CHARS] if context is not None else None,
-                published=published,
-                published_at=format_datetime(parse_datetime(published)),
+                published=published_at,
+                published_at=published_at,
                 matched_keywords=matched,
             )
         )
 
     return updates
+
+
+async def resolve_page_image(source_url: str, fetch: FetchFn) -> str | None:
+    return html_image_url(await fetch_provider_bytes(source_url, fetch, "Page"), source_url)

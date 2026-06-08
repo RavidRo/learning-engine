@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from learning_engine.infrastructure.source_collectors.feed import parse_feed_items
 
 
@@ -51,5 +53,5 @@ def test_parse_atom_feed_uses_feedparser_normalization() -> None:
 
     assert len(updates) == 1
     assert updates[0].url == "https://example.com/atom-release"
-    assert updates[0].published_at == "2026-05-15T10:00:00Z"
+    assert updates[0].published_at == datetime(2026, 5, 15, 10, 0, tzinfo=UTC)
     assert updates[0].matched_keywords == ["compiler", "rc"]

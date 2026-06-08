@@ -5,18 +5,22 @@ import pytest
 
 from learning_engine.application.collect_updates import (
     CollectUpdatesDependencies,
+    SourceUpdatesCache,
     SourceUpdatesCacheOptions,
     collect_updates,
 )
-from learning_engine.application.ports import HttpFetcher
+from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.models import InterestsPayload, SourceType, UpdatesResponse
+from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.source_types import SourceType
+from learning_engine.infrastructure.fetching import Fetcher
 from learning_engine.infrastructure.source_collectors.registry import SourceUpdateCollectorRegistry
 
 RECENT_DAYS = 14
 NOW = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
 ALL_TIMEFRAME = Timeframe(start=datetime.min.replace(tzinfo=UTC), end=NOW)
 RECENT_TIMEFRAME = Timeframe.ending_at(NOW, timedelta(days=RECENT_DAYS))
+EXPECTED_RETRY_CALLS = 2
 
 
 async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
@@ -32,9 +36,8 @@ class StubSourceImageProvider:
         self,
         source_type: SourceType,
         source_url: str,
-        http_fetcher: HttpFetcher,
     ) -> str | None:
-        return await no_source_image(source_type, source_url, http_fetcher)
+        return await no_source_image(source_type, source_url)
 
 
 class StubHttpFetcher:
@@ -57,15 +60,14 @@ async def _collect_updates(
     payload: InterestsPayload,
     *,
     timeframe: Timeframe,
-    http_fetcher: HttpFetcher,
+    http_fetcher: Fetcher,
     source_updates_cache: SourceUpdatesCacheOptions,
 ) -> UpdatesResponse:
     return await collect_updates(
         payload,
         timeframe=timeframe,
         dependencies=CollectUpdatesDependencies(
-            http_fetcher=http_fetcher,
-            source_update_collector=SourceUpdateCollectorRegistry(),
+            source_update_collector=SourceUpdateCollectorRegistry(http_fetcher),
             source_image_provider=StubSourceImageProvider(),
         ),
         source_updates_cache=source_updates_cache,
@@ -280,7 +282,7 @@ async def test_collect_updates_uses_page_sources() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_reports_source_errors() -> None:
+async def test_collect_updates_propagates_source_errors_without_caching_them() -> None:
     payload = {
         "interests": [
             {
@@ -298,20 +300,35 @@ async def test_collect_updates_reports_source_errors() -> None:
             }
         ]
     }
+    calls = 0
 
     async def fetch_url(_url: str) -> bytes:
-        raise OSError("network down")
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise OSError("network down")
+        return b"""<rss><channel><item><title>Recovered update</title><link>https://example.com/recovered</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    source_updates_cache: SourceUpdatesCache = {}
+    interests = InterestsPayload.model_validate(payload)
+    http_fetcher = StubHttpFetcher(fetch_url, unused_fetch_json)
+
+    with pytest.raises(OSError, match="network down"):
+        await _collect_updates(
+            interests,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=http_fetcher,
+            source_updates_cache=SourceUpdatesCacheOptions(cache=source_updates_cache),
+        )
 
     result = await _collect_updates(
-        InterestsPayload.model_validate(payload),
+        interests,
         timeframe=ALL_TIMEFRAME,
-        http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
-        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        http_fetcher=http_fetcher,
+        source_updates_cache=SourceUpdatesCacheOptions(cache=source_updates_cache),
     )
 
-    assert result.sources_checked == 1
-    assert result.updates == []
-    assert result.errors[0].interest_id == "typescript"
-    assert result.errors[0].source_id == "typescript-feed"
-    assert result.errors[0].source_url == "https://example.com/typescript.xml"
-    assert result.errors[0].error == "network down"
+    assert calls == EXPECTED_RETRY_CALLS
+    assert result.updates[0].title == "Recovered update"
+    assert result.errors == []

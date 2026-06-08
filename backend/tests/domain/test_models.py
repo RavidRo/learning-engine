@@ -3,27 +3,23 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from learning_engine.domain.models import CollectedUpdate, Interest, InterestSource, Update
+from learning_engine.domain.interests import Interest, InterestSource
+from learning_engine.domain.updates import SourceUpdate, Update
 
 
 def test_update_enriches_generic_collected_update_without_feed_specific_base() -> None:
-    assert issubclass(Update, CollectedUpdate)
-    assert Update.__bases__ == (CollectedUpdate,)
+    assert issubclass(Update, SourceUpdate)
+    assert Update.__bases__ == (SourceUpdate,)
 
 
-def test_source_type_accepts_new_human_friendly_aliases() -> None:
-    assert InterestSource.model_validate({"type": "RSS", "url": "https://example.com/feed.xml"}).type == "feed"
-    assert InterestSource.model_validate({"type": "Webpage", "url": "https://example.com"}).type == "page"
-    assert (
-        InterestSource.model_validate(
-            {"type": "Youtube Channels", "url": "https://youtube.com/channel/UCabcabcabcabcabcabcabc"}
-        ).type
-        == "youtube_channel"
-    )
-    assert InterestSource.model_validate({"type": "Twitter Accounts", "url": "@xdevelopers"}).type == "twitter_account"
-    assert (
-        InterestSource.model_validate({"type": "Spotify Podcasts", "url": "spotify:show:abc"}).type == "spotify_podcast"
-    )
+def test_source_type_requires_canonical_values() -> None:
+    assert InterestSource.model_validate({"type": "feed", "url": "https://example.com/feed.xml"}).type == "feed"
+
+    with pytest.raises(ValidationError, match="Source type must be one of"):
+        InterestSource.model_validate({"type": "RSS", "url": "https://example.com/feed.xml"})
+
+    with pytest.raises(ValidationError, match="Source type must be one of"):
+        InterestSource.model_validate({"type": "youtube-channel", "url": "@example"})
 
 
 def test_source_accepts_optional_image_url_with_camel_case_alias() -> None:
