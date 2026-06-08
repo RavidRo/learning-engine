@@ -9,7 +9,6 @@ from fastapi import FastAPI
 
 from learning_engine.application.collect_updates import SourceUpdatesCache
 from learning_engine.application.ports import (
-    HttpFetcher,
     InterestRepository,
     SourceImageProvider,
     SourceUpdateCollector,
@@ -19,7 +18,6 @@ from learning_engine.application.ports import (
 @dataclass(frozen=True, slots=True)
 class AppState:
     interest_repository: InterestRepository
-    http_fetcher: HttpFetcher
     source_update_collector: SourceUpdateCollector
     source_image_provider: SourceImageProvider
     source_updates_cache: SourceUpdatesCache
@@ -28,7 +26,6 @@ class AppState:
 def get_app_state(api: FastAPI) -> AppState:
     return AppState(
         interest_repository=cast(InterestRepository, api.state.interest_repository),
-        http_fetcher=cast(HttpFetcher, api.state.http_fetcher),
         source_update_collector=cast(SourceUpdateCollector, api.state.source_update_collector),
         source_image_provider=cast(SourceImageProvider, api.state.source_image_provider),
         source_updates_cache=cast(SourceUpdatesCache, api.state.source_updates_cache),

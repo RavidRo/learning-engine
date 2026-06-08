@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Protocol
 
 from learning_engine.domain.interests import InterestSource, InterestsPayload
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceUpdate
-
-
-class HttpFetcher(Protocol):
-    async def fetch_url(self, url: str) -> bytes: ...
-
-    async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]: ...
 
 
 class InterestRepository(Protocol):
@@ -33,5 +26,4 @@ class SourceImageProvider(Protocol):
         self,
         source_type: SourceType,
         source_url: str,
-        http_fetcher: HttpFetcher,
     ) -> str | None: ...

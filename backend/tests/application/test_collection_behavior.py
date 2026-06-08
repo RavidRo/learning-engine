@@ -8,11 +8,11 @@ from learning_engine.application.collect_updates import (
     SourceUpdatesCacheOptions,
     collect_updates,
 )
-from learning_engine.application.ports import HttpFetcher
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.interests import InterestsPayload
 from learning_engine.domain.source_types import SourceType
+from learning_engine.infrastructure.fetching import Fetcher
 from learning_engine.infrastructure.source_collectors.registry import SourceUpdateCollectorRegistry
 
 RECENT_DAYS = 14
@@ -34,9 +34,8 @@ class StubSourceImageProvider:
         self,
         source_type: SourceType,
         source_url: str,
-        http_fetcher: HttpFetcher,
     ) -> str | None:
-        return await no_source_image(source_type, source_url, http_fetcher)
+        return await no_source_image(source_type, source_url)
 
 
 class StubHttpFetcher:
@@ -59,14 +58,13 @@ async def _collect_updates(
     payload: InterestsPayload,
     *,
     timeframe: Timeframe,
-    http_fetcher: HttpFetcher,
+    http_fetcher: Fetcher,
     source_updates_cache: SourceUpdatesCacheOptions,
 ) -> UpdatesResponse:
     return await collect_updates(
         payload,
         timeframe=timeframe,
         dependencies=CollectUpdatesDependencies(
-            http_fetcher=http_fetcher,
             source_update_collector=SourceUpdateCollectorRegistry(http_fetcher),
             source_image_provider=StubSourceImageProvider(),
         ),

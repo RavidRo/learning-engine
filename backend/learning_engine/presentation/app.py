@@ -27,14 +27,20 @@ SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
 SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
 
 
+def _has_state_value(api: FastAPI, name: str) -> bool:
+    return hasattr(api.state, name)
+
+
 @asynccontextmanager
 async def lifespan(api: FastAPI) -> AsyncIterator[None]:
     repository = cast(InterestRepository, api.state.interest_repository)
     repository.ensure_data_file()
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
-        api.state.http_fetcher = HttpxFetcher(client)
-        if not hasattr(api.state, "source_update_collector"):
-            api.state.source_update_collector = SourceUpdateCollectorRegistry(api.state.http_fetcher)
+        http_fetcher = HttpxFetcher(client)
+        if not _has_state_value(api, "source_update_collector"):
+            api.state.source_update_collector = SourceUpdateCollectorRegistry(http_fetcher)
+        if not _has_state_value(api, "source_image_provider"):
+            api.state.source_image_provider = SourceImageResolver(http_fetcher)
         yield
 
 
@@ -50,7 +56,6 @@ def create_app() -> FastAPI:
         ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
     api.state.interest_repository = DEFAULT_STORE
-    api.state.source_image_provider = SourceImageResolver()
 
     @api.get("/api/health")
     def health() -> dict[str, str]:

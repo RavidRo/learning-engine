@@ -10,11 +10,7 @@ from datetime import datetime
 
 import httpx
 
-from learning_engine.application.ports import (
-    HttpFetcher,
-    SourceImageProvider,
-    SourceUpdateCollector,
-)
+from learning_engine.application.ports import SourceImageProvider, SourceUpdateCollector
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
     SourceImageProviderError,
@@ -42,7 +38,6 @@ class SourceUpdatesCacheOptions:
 
 @dataclass(frozen=True, slots=True)
 class CollectUpdatesDependencies:
-    http_fetcher: HttpFetcher
     source_update_collector: SourceUpdateCollector
     source_image_provider: SourceImageProvider
 
@@ -61,7 +56,6 @@ __all__ = [
 @dataclass(frozen=True, slots=True)
 class _SourceCollectionContext:
     timeframe: Timeframe
-    http_fetcher: HttpFetcher
     source_update_collector: SourceUpdateCollector
     source_image_provider: SourceImageProvider
     source_updates_cache: SourceUpdatesCache
@@ -75,7 +69,6 @@ async def _source_image_url(source: InterestSource, context: _SourceCollectionCo
         image_url = await resolve_source_image(
             source.type,
             source.url,
-            context.http_fetcher,
             context.source_image_provider,
         )
     except SourceImageConfigurationError as exc:
@@ -284,7 +277,6 @@ async def collect_updates(
     sources = list(_enabled_sources(interests))
     context = _SourceCollectionContext(
         timeframe=timeframe,
-        http_fetcher=dependencies.http_fetcher,
         source_update_collector=dependencies.source_update_collector,
         source_image_provider=dependencies.source_image_provider,
         source_updates_cache=source_updates_cache.cache,

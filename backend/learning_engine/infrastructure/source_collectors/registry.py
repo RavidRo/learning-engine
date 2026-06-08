@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from learning_engine.application.ports import HttpFetcher
 from learning_engine.domain.interests import InterestSource
 from learning_engine.domain.updates import SourceUpdate
+from learning_engine.infrastructure.fetching import Fetcher
 from learning_engine.infrastructure.source_collectors.feed import parse_feed_items
 from learning_engine.infrastructure.source_collectors.page import parse_page_items
 from learning_engine.infrastructure.source_collectors.spotify import (
@@ -19,7 +19,7 @@ from learning_engine.infrastructure.source_collectors.youtube import (
 
 
 class SourceUpdateCollectorRegistry:
-    def __init__(self, http_fetcher: HttpFetcher) -> None:
+    def __init__(self, http_fetcher: Fetcher) -> None:
         self.http_fetcher = http_fetcher
 
     async def collect_source_updates(

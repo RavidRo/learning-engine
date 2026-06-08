@@ -7,7 +7,6 @@ from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from learning_engine.application.ports import HttpFetcher
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
     SourceImageProviderError,
@@ -54,9 +53,8 @@ class StubSourceImageProvider:
         self,
         source_type: SourceType,
         source_url: str,
-        http_fetcher: HttpFetcher,
     ) -> str | None:
-        return await no_source_image(source_type, source_url, http_fetcher)
+        return await no_source_image(source_type, source_url)
 
 
 class StubSourceUpdateCollector:

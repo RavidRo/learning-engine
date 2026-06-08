@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from learning_engine.application.ports import HttpFetcher, SourceImageProvider
+from learning_engine.application.ports import SourceImageProvider
 from learning_engine.domain.source_types import SourceType
 
 
@@ -21,9 +21,8 @@ class SourceImageProviderUnavailableError(SourceImageProviderError):
 async def resolve_source_image(
     source_type: SourceType,
     source_url: str,
-    http_fetcher: HttpFetcher,
     source_image_provider: SourceImageProvider,
 ) -> str | None:
     """Resolve a source image URL through the configured provider boundary."""
 
-    return await source_image_provider.resolve_source_image(source_type, source_url, http_fetcher)
+    return await source_image_provider.resolve_source_image(source_type, source_url)

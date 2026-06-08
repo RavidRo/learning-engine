@@ -12,7 +12,7 @@ from learning_engine.application.collect_updates import (
     SourceUpdatesCacheOptions,
     collect_updates,
 )
-from learning_engine.application.ports import HttpFetcher, SourceImageProvider
+from learning_engine.application.ports import SourceImageProvider
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
     SourceImageProviderError,
@@ -34,11 +34,10 @@ def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
 
 async def _source_image_response(
     payload: SourceImageRequest,
-    http_fetcher: HttpFetcher,
     source_image_provider: SourceImageProvider,
 ) -> SourceImageResponse:
     try:
-        image_url = await resolve_source_image(payload.source_type, payload.url, http_fetcher, source_image_provider)
+        image_url = await resolve_source_image(payload.source_type, payload.url, source_image_provider)
     except SourceImageConfigurationError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except SourceImageProviderUnavailableError as exc:
@@ -72,7 +71,7 @@ def interests_router(api: FastAPI) -> APIRouter:
     @router.post("/source-image", response_model=SourceImageResponse)
     async def source_image(payload: SourceImageRequest) -> SourceImageResponse:
         app_state = get_app_state(api)
-        return await _source_image_response(payload, app_state.http_fetcher, app_state.source_image_provider)
+        return await _source_image_response(payload, app_state.source_image_provider)
 
     @router.get("/updates", response_model=UpdatesResponse)
     async def updates(
@@ -89,7 +88,6 @@ def interests_router(api: FastAPI) -> APIRouter:
             app_state.interest_repository.read_interests(),
             timeframe=timeframe,
             dependencies=CollectUpdatesDependencies(
-                http_fetcher=app_state.http_fetcher,
                 source_update_collector=app_state.source_update_collector,
                 source_image_provider=app_state.source_image_provider,
             ),
