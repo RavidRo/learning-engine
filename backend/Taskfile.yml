@@ -64,6 +64,7 @@ tasks:
   check:
     desc: Run linting, typing, and tests
     cmds:
+      - task: format:check
       - task: lint
       - task: deadcode
       - task: typecheck

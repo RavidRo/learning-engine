@@ -1,0 +1,1 @@
+"""Source update collector adapters."""

@@ -29,7 +29,7 @@ module = ["feedparser"]
 ignore_missing_imports = true
 
 [project.scripts]
-learning-engine = "learning_engine.app:run"
+learning-engine = "learning_engine.presentation.fastapi_app:run"
 
 [tool.uv]
 package = false

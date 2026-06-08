@@ -1,0 +1,1 @@
+"""Source image resolver adapters."""
