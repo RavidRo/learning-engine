@@ -373,9 +373,14 @@ def test_updates_endpoint_retries_source_errors_instead_of_caching_them(monkeypa
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
     with TestClient(api) as client:
-        with pytest.raises(ValueError, match="network down"):
-            client.get("/api/updates")
-        with pytest.raises(ValueError, match="network down"):
-            client.get("/api/updates")
+        first_response = client.get("/api/updates")
+        second_response = client.get("/api/updates")
+
+    assert first_response.status_code == HTTP_OK
+    assert second_response.status_code == HTTP_OK
+    assert first_response.json()["updates"] == []
+    assert second_response.json()["updates"] == []
+    assert first_response.json()["errors"][0]["error"] == "network down"
+    assert second_response.json()["errors"][0]["error"] == "network down"
 
     assert calls == EXPECTED_RETRY_CALLS

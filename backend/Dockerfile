@@ -13,4 +13,4 @@ COPY learning_engine ./learning_engine
 
 EXPOSE 8765
 
-CMD ["uv", "run", "--no-dev", "uvicorn", "learning_engine.app:app", "--host", "0.0.0.0", "--port", "8765"]
+CMD ["uv", "run", "--no-dev", "uvicorn", "learning_engine.presentation.app:app", "--host", "0.0.0.0", "--port", "8765"]

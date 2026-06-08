@@ -12,7 +12,11 @@ import uvicorn
 from cachetools import TTLCache
 from fastapi import FastAPI
 
-from learning_engine.application.ports import InterestRepository, SourceImageProvider, SourceUpdateCollector
+from learning_engine.application.ports import (
+    InterestRepository,
+    SourceImageProvider,
+    SourceUpdateCollector,
+)
 from learning_engine.config import APPLICATION_VERSION, HOST, PORT
 from learning_engine.infrastructure.fetching import REQUEST_TIMEOUT_SECONDS, Fetcher
 from learning_engine.infrastructure.fetching import HttpFetcher as HttpxFetcher

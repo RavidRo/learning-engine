@@ -456,6 +456,59 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_updates_returns_successes_and_source_errors() -> None:
+    rss = b"""<rss><channel><item><title>Successful update</title><link>https://example.com/update</link>
+    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "id": "python",
+                    "name": "Python",
+                    "sources": [
+                        {
+                            "id": "python-feed",
+                            "label": "Python feed",
+                            "type": "feed",
+                            "url": "https://example.com/python.xml",
+                        },
+                        {
+                            "id": "broken-feed",
+                            "label": "Broken feed",
+                            "type": "feed",
+                            "url": "https://example.com/broken.xml",
+                        },
+                    ],
+                }
+            ]
+        }
+    )
+
+    async def fetch(url: str) -> bytes:
+        if url == "https://example.com/broken.xml":
+            raise OSError("network down")
+        return rss
+
+    result = await _collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
+
+    assert result.sources_checked == CONCURRENT_SOURCE_COUNT
+    assert [update.title for update in result.updates] == ["Successful update"]
+    assert len(result.errors) == 1
+    assert result.errors[0].interest_id == "python"
+    assert result.errors[0].interest_name == "Python"
+    assert result.errors[0].source_id == "broken-feed"
+    assert result.errors[0].source_label == "Broken feed"
+    assert result.errors[0].source_url == "https://example.com/broken.xml"
+    assert result.errors[0].source_type == "feed"
+    assert result.errors[0].error == "network down"
+
+
+@pytest.mark.anyio
 async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently() -> None:
     rss = b"""<rss><channel><item><title>Cached update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
@@ -605,13 +658,16 @@ async def test_collect_updates_propagates_missing_twitter_credentials(
         }
     )
 
-    with pytest.raises(ValueError, match="Twitter bearer token is required for twitter_account sources"):
-        await _collect_updates(
-            payload,
-            timeframe=ALL_TIMEFRAME,
-            http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
-            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
-        )
+    result = await _collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
+
+    assert result.updates == []
+    assert len(result.errors) == 1
+    assert result.errors[0].error == "Twitter bearer token is required for twitter_account sources"
 
 
 @pytest.mark.anyio

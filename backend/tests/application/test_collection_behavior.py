@@ -282,7 +282,7 @@ async def test_collect_updates_uses_page_sources() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_propagates_source_errors_without_caching_them() -> None:
+async def test_collect_updates_reports_source_errors_without_caching_them() -> None:
     payload = {
         "interests": [
             {
@@ -314,13 +314,22 @@ async def test_collect_updates_propagates_source_errors_without_caching_them() -
     interests = InterestsPayload.model_validate(payload)
     http_fetcher = StubHttpFetcher(fetch_url, unused_fetch_json)
 
-    with pytest.raises(OSError, match="network down"):
-        await _collect_updates(
-            interests,
-            timeframe=ALL_TIMEFRAME,
-            http_fetcher=http_fetcher,
-            source_updates_cache=SourceUpdatesCacheOptions(cache=source_updates_cache),
-        )
+    failed_result = await _collect_updates(
+        interests,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=http_fetcher,
+        source_updates_cache=SourceUpdatesCacheOptions(cache=source_updates_cache),
+    )
+
+    assert failed_result.updates == []
+    assert len(failed_result.errors) == 1
+    assert failed_result.errors[0].interest_id == "typescript"
+    assert failed_result.errors[0].interest_name == "TypeScript"
+    assert failed_result.errors[0].source_id == "typescript-feed"
+    assert failed_result.errors[0].source_label == "TypeScript feed"
+    assert failed_result.errors[0].source_url == "https://example.com/typescript.xml"
+    assert failed_result.errors[0].source_type == "feed"
+    assert failed_result.errors[0].error == "network down"
 
     result = await _collect_updates(
         interests,

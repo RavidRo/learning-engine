@@ -15,7 +15,7 @@ from learning_engine.application.resolve_source_image import (
     SourceImageProviderUnavailableError,
     resolve_source_image,
 )
-from learning_engine.application.responses import UpdatesResponse
+from learning_engine.application.responses import CollectionError, UpdatesResponse
 from learning_engine.common.dates import format_datetime
 from learning_engine.common.text import keyword_matches, searchable_text
 from learning_engine.common.timeframe import Timeframe
@@ -220,6 +220,7 @@ def _enabled_sources(
 
 def _updates_response(
     source_results: list[list[Update]],
+    errors: list[CollectionError],
     checked: int,
     timeframe: Timeframe,
 ) -> UpdatesResponse:
@@ -234,6 +235,23 @@ def _updates_response(
         sources_checked=checked,
         since=format_datetime(timeframe.start),
         updates=updates,
+        errors=errors,
+    )
+
+
+def _collection_error(
+    interest: Interest,
+    source: InterestSource,
+    exc: Exception,
+) -> CollectionError:
+    return CollectionError(
+        interest_id=interest.id,
+        interest_name=interest.name,
+        source_id=source.id,
+        source_label=source.label,
+        source_url=source.url,
+        source_type=source.type,
+        error=str(exc) or exc.__class__.__name__,
     )
 
 
@@ -251,7 +269,23 @@ async def collect_updates(
         source_updates_cache=source_updates_cache.cache,
         source_updates_cache_scope=source_updates_cache.scope,
     )
-    source_results: list[list[Update]] = list(
-        await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))
+    collected_results = await asyncio.gather(
+        *(_collect_from_source(interest, source, context) for interest, source in sources),
+        return_exceptions=True,
     )
-    return _updates_response(source_results, checked=len(sources), timeframe=timeframe)
+    source_results: list[list[Update]] = []
+    errors: list[CollectionError] = []
+    for (interest, source), result in zip(sources, collected_results, strict=True):
+        if isinstance(result, Exception):
+            errors.append(_collection_error(interest, source, result))
+            continue
+        if isinstance(result, BaseException):
+            raise result
+        source_results.append(result)
+
+    return _updates_response(
+        source_results,
+        errors=errors,
+        checked=len(sources),
+        timeframe=timeframe,
+    )
