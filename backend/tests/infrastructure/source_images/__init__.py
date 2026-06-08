@@ -1,0 +1,1 @@
+"""Source image adapter tests."""
