@@ -5,7 +5,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Protocol
 
-from learning_engine.domain.models import CollectedUpdate, InterestSource, InterestsPayload, SourceType
+from learning_engine.domain.interests import InterestSource, InterestsPayload
+from learning_engine.domain.source_types import SourceType
+from learning_engine.domain.updates import SourceUpdate
 
 
 class HttpFetcher(Protocol):
@@ -23,11 +25,7 @@ class InterestRepository(Protocol):
 
 
 class SourceUpdateCollector(Protocol):
-    async def collect_source_updates(
-        self,
-        source: InterestSource,
-        http_fetcher: HttpFetcher,
-    ) -> list[CollectedUpdate]: ...
+    async def collect_source_updates(self, source: InterestSource) -> list[SourceUpdate]: ...
 
 
 class SourceImageProvider(Protocol):

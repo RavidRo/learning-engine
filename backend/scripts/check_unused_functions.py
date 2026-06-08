@@ -11,7 +11,7 @@ from typing import TypeGuard
 SOURCE_PACKAGE = "learning_engine"
 USAGE_PATHS = (Path(SOURCE_PACKAGE), Path("tests"))
 MIN_ATTRIBUTE_PARTS = 2
-ENTRY_POINT_FUNCTIONS = frozenset({("learning_engine.presentation.fastapi_app", "run")})
+ENTRY_POINT_FUNCTIONS = frozenset({("learning_engine.presentation.app", "run")})
 
 
 @dataclass(frozen=True)

@@ -9,8 +9,10 @@ from learning_engine.application.collect_updates import (
     collect_updates,
 )
 from learning_engine.application.ports import HttpFetcher
+from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.models import InterestsPayload, SourceType, UpdatesResponse
+from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.source_types import SourceType
 from learning_engine.infrastructure.source_collectors.registry import SourceUpdateCollectorRegistry
 
 RECENT_DAYS = 14
@@ -65,7 +67,7 @@ async def _collect_updates(
         timeframe=timeframe,
         dependencies=CollectUpdatesDependencies(
             http_fetcher=http_fetcher,
-            source_update_collector=SourceUpdateCollectorRegistry(),
+            source_update_collector=SourceUpdateCollectorRegistry(http_fetcher),
             source_image_provider=StubSourceImageProvider(),
         ),
         source_updates_cache=source_updates_cache,

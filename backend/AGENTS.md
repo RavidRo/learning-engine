@@ -1,6 +1,17 @@
 ## Python & Code Style
 
 - Use `None` for missing scalar values. Empty strings are content, not absence.
+- Prefer canonical backend spellings over accepting many aliases.
+- Keep source collection HTTP details inside infrastructure adapters. Compose
+  fetcher-backed collectors at the presentation boundary instead of passing a
+  fetcher through each application call.
+- Use real `datetime` values for update timestamps in backend models and let
+  Pydantic/FastAPI handle JSON serialization.
+- Keep domain model modules focused on domain concepts. Put use-case response
+  DTOs in `application` and FastAPI request/response schemas in `presentation`.
+- Keep source-type-specific image metadata logic with the matching
+  `infrastructure/source_collectors` module; the source image resolver should
+  dispatch, not parse provider-specific metadata.
 
 ## Backend Architecture
 

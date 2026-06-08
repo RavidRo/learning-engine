@@ -1,15 +1,10 @@
 """Framework-visible symbols that Vulture cannot infer statically."""
 
+from learning_engine.application.responses import CollectionError, UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.models import (
-    CollectedUpdate,
-    CollectionError,
-    SourceInterest,
-    Update,
-    UpdatesResponse,
-)
+from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 
-CollectedUpdate.matched_keywords
+SourceUpdate.matched_keywords
 SourceInterest.interest_id
 SourceInterest.interest_name
 SourceInterest.source_id

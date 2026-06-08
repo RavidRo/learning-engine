@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from learning_engine.application.ports import HttpFetcher, SourceImageProvider
-from learning_engine.domain.models import SourceType
+from learning_engine.domain.source_types import SourceType
 
 
 class SourceImageProviderError(Exception):

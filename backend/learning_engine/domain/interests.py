@@ -1,39 +1,14 @@
-"""Pydantic models for interests, sources, and collected updates."""
+"""Interest and source domain models."""
 
 from __future__ import annotations
 
-from typing import Literal, TypeAlias, cast
+from typing import Literal, cast
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
+from learning_engine.domain.source_types import SourceType, normalize_source_type
+
 Priority = Literal["low", "medium", "high"]
-SourceType = Literal["feed", "page", "youtube_channel", "twitter_account", "spotify_podcast"]
-SOURCE_TYPES: tuple[SourceType, ...] = (
-    "feed",
-    "page",
-    "youtube_channel",
-    "twitter_account",
-    "spotify_podcast",
-)
-_SOURCE_TYPE_ALIASES: dict[str, SourceType] = {
-    "feed": "feed",
-    "rss": "feed",
-    "rss_feed": "feed",
-    "page": "page",
-    "webpage": "page",
-    "web_page": "page",
-    "youtube": "youtube_channel",
-    "youtube_channel": "youtube_channel",
-    "youtube_channels": "youtube_channel",
-    "twitter": "twitter_account",
-    "twitter_account": "twitter_account",
-    "twitter_accounts": "twitter_account",
-    "x": "twitter_account",
-    "x_account": "twitter_account",
-    "spotify": "spotify_podcast",
-    "spotify_podcast": "spotify_podcast",
-    "spotify_podcasts": "spotify_podcast",
-}
 
 
 class InterestSource(BaseModel):
@@ -65,11 +40,7 @@ class InterestSource(BaseModel):
     @field_validator("type", mode="before")
     @classmethod
     def normalize_source_type(cls, value: object) -> SourceType:
-        source_type = str(value or "").strip().lower()
-        normalized = source_type.replace("-", "_").replace(" ", "_")
-        if normalized in _SOURCE_TYPE_ALIASES:
-            return _SOURCE_TYPE_ALIASES[normalized]
-        raise ValueError(f"Source type must be one of: {', '.join(SOURCE_TYPES)}")
+        return normalize_source_type(value)
 
     @field_validator("id", "deleted_at", mode="before")
     @classmethod
@@ -113,31 +84,6 @@ class InterestSource(BaseModel):
             return []
 
         return [keyword for item in candidates if (keyword := str(item).strip())]
-
-
-class SourceImageRequest(BaseModel):
-    """Source fields needed to resolve derived image metadata."""
-
-    model_config = ConfigDict(extra="forbid", populate_by_name=True)
-
-    type: SourceType
-    url: str
-
-    @field_validator("type", mode="before")
-    @classmethod
-    def normalize_source_type(cls, value: object) -> SourceType:
-        return InterestSource.normalize_source_type(value)
-
-    @field_validator("url", mode="before")
-    @classmethod
-    def strip_url(cls, value: object) -> str:
-        return InterestSource.strip_url(value)
-
-
-class SourceImageResponse(BaseModel):
-    """Dynamically resolved source image metadata."""
-
-    image_url: str | None = Field(default=None, serialization_alias="imageUrl")
 
 
 class Interest(BaseModel):
@@ -186,47 +132,3 @@ class Interest(BaseModel):
 
 class InterestsPayload(BaseModel):
     interests: list[Interest] = Field(default_factory=list)
-
-
-class CollectedUpdate(BaseModel):
-    title: str | None = None
-    url: str | None = None
-    summary: str | None = None
-    published: str | None = None
-    published_at: str | None = None
-    matched_keywords: list[str] = Field(default_factory=list)
-
-
-class SourceInterest(BaseModel):
-    interest_id: str | None = None
-    interest_name: str = "Interest"
-    source_id: str | None = None
-    source_label: str = "Source"
-    source_image_url: str | None = None
-    source_url: str
-    source_type: SourceType = "feed"
-
-
-FeedUpdate: TypeAlias = CollectedUpdate
-
-
-class Update(CollectedUpdate):
-    source_interest: SourceInterest
-
-
-class CollectionError(BaseModel):
-    interest_id: str | None = None
-    interest_name: str = "Interest"
-    source_id: str | None = None
-    source_label: str = "Source"
-    source_url: str
-    source_type: SourceType
-    error: str
-
-
-class UpdatesResponse(BaseModel):
-    sources_checked: int
-    days: int | None = None
-    since: str | None = None
-    updates: list[Update] = Field(default_factory=list)
-    errors: list[CollectionError] = Field(default_factory=list)

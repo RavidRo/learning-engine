@@ -59,7 +59,7 @@ async def test_resolve_youtube_image_uses_channel_page_metadata() -> None:
 async def test_resolve_spotify_image_uses_show_metadata(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("SPOTIFY_BEARER_TOKEN", "spotify-token")
+    monkeypatch.setenv("SPOTIFY_ACCESS_TOKEN", "spotify-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 
     async def fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
@@ -85,7 +85,6 @@ async def test_resolve_spotify_image_uses_show_metadata(
 async def test_resolve_spotify_image_raises_configuration_error_without_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.delenv("SPOTIFY_BEARER_TOKEN", raising=False)
     monkeypatch.delenv("SPOTIFY_ACCESS_TOKEN", raising=False)
 
     with pytest.raises(SourceImageConfigurationError, match="Spotify bearer token is not configured"):
@@ -189,7 +188,7 @@ async def test_resolve_source_image_raises_internal_errors(
     async def fail_resolver(_source_url: str, _fetch: object) -> str | None:
         raise KeyError("unexpected shape")
 
-    monkeypatch.setattr("learning_engine.infrastructure.source_images.resolver._resolve_page_image", fail_resolver)
+    monkeypatch.setattr("learning_engine.infrastructure.source_images.resolver.resolve_page_image", fail_resolver)
 
     with pytest.raises(KeyError, match="unexpected shape"):
         await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(unused_fetch, unused_fetch_json))

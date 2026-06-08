@@ -13,19 +13,13 @@ from learning_engine.application.resolve_source_image import (
     SourceImageProviderError,
     SourceImageProviderUnavailableError,
 )
-from learning_engine.domain.models import (
-    CollectedUpdate,
-    CollectionError,
-    InterestSource,
-    InterestsPayload,
-    SourceInterest,
-    SourceType,
-    Update,
-    UpdatesResponse,
-)
-from learning_engine.presentation.fastapi_app import app, create_app
+from learning_engine.application.responses import CollectionError, UpdatesResponse
+from learning_engine.domain.interests import InterestSource, InterestsPayload
+from learning_engine.domain.source_types import SourceType
+from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
+from learning_engine.presentation.app import app, create_app
 
-app_module = importlib.import_module("learning_engine.presentation.fastapi_app")
+router_module = importlib.import_module("learning_engine.presentation.interests_router")
 
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
@@ -66,18 +60,11 @@ class StubSourceImageProvider:
 
 
 class StubSourceUpdateCollector:
-    def __init__(
-        self,
-        collect_source_updates: Callable[[InterestSource, HttpFetcher], Awaitable[list[CollectedUpdate]]],
-    ) -> None:
+    def __init__(self, collect_source_updates: Callable[[InterestSource], Awaitable[list[SourceUpdate]]]) -> None:
         self._collect_source_updates = collect_source_updates
 
-    async def collect_source_updates(
-        self,
-        source: InterestSource,
-        http_fetcher: HttpFetcher,
-    ) -> list[CollectedUpdate]:
-        return await self._collect_source_updates(source, http_fetcher)
+    async def collect_source_updates(self, source: InterestSource) -> list[SourceUpdate]:
+        return await self._collect_source_updates(source)
 
 
 def _create_test_app(
@@ -91,10 +78,6 @@ def _create_test_app(
     if source_update_collector is not None:
         api.state.source_update_collector = source_update_collector
     return api
-
-
-def _published_now() -> str:
-    return (datetime.now(UTC) - timedelta(seconds=1)).isoformat()
 
 
 def test_health_endpoint() -> None:
@@ -116,10 +99,10 @@ def test_source_image_endpoint_returns_resolved_image(monkeypatch: pytest.Monkey
         assert source_url == "@example"
         return "https://yt.example/avatar.jpg"
 
-    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app()) as client:
-        response = client.post("/api/source-image", json={"type": "youtube", "url": " @example "})
+        response = client.post("/api/source-image", json={"type": "youtube_channel", "url": " @example "})
 
     assert response.status_code == HTTP_OK
     assert response.json() == {"imageUrl": "https://yt.example/avatar.jpg"}
@@ -129,7 +112,7 @@ def test_source_image_endpoint_returns_null_on_resolver_miss(monkeypatch: pytest
     async def resolve_source_image(*_args: object) -> str | None:
         return None
 
-    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app()) as client:
         response = client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"})
@@ -172,7 +155,7 @@ def test_source_image_endpoint_returns_matching_error_for_resolver_failures(
     async def resolve_source_image(*_args: object) -> str | None:
         raise resolver_error
 
-    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app()) as client:
         response = client.post("/api/source-image", json={"type": "spotify_podcast", "url": "spotify:show:show-one"})
@@ -188,7 +171,7 @@ def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pyte
     async def resolve_source_image(*_args: object) -> str | None:
         return "https://example.com/dynamic.png"
 
-    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app(repository=repository)) as client:
         assert client.post(
@@ -238,12 +221,13 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
                     interest_id="typescript",
                     interest_name="TypeScript",
                     source_id="feed",
+                    source_label="Source",
                     source_url="https://example.com/feed.xml",
                     source_type="feed",
                 ),
                 title=title,
                 url=f"https://example.com/{title}",
-                published_at="2026-05-15T12:00:00Z",
+                published_at=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
             )
         ],
         errors=[]
@@ -253,6 +237,7 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
                 interest_id="typescript",
                 interest_name="TypeScript",
                 source_id="feed",
+                source_label="Source",
                 source_url="https://example.com/feed.xml",
                 source_type="feed",
                 error=error,
@@ -261,11 +246,11 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
     )
 
 
-def _collected_update(title: str) -> CollectedUpdate:
-    return CollectedUpdate(
+def _collected_update(title: str) -> SourceUpdate:
+    return SourceUpdate(
         title=title,
         url=f"https://example.com/{title}",
-        published_at=_published_now(),
+        published_at=datetime.now(UTC) - timedelta(seconds=1),
     )
 
 
@@ -277,7 +262,7 @@ def test_updates_endpoint_reuses_cached_response_for_five_minutes(
 ) -> None:
     calls: list[str] = []
 
-    async def collect_source_updates(source: InterestSource, *_args: object) -> list[CollectedUpdate]:
+    async def collect_source_updates(source: InterestSource, *_args: object) -> list[SourceUpdate]:
         calls.append(source.url)
         return [_collected_update(f"call-{len(calls)}")]
 
@@ -302,6 +287,7 @@ def test_create_app_uses_cachetools_ttl_cache() -> None:
     api = create_app()
 
     assert isinstance(api.state.source_updates_cache, TTLCache)
+    app_module = importlib.import_module("learning_engine.presentation.app")
     assert api.state.source_updates_cache.maxsize == app_module.SOURCE_UPDATES_CACHE_MAX_ENTRIES
     assert api.state.source_updates_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
 
@@ -313,7 +299,7 @@ def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch
     def monotonic() -> float:
         return current_time
 
-    async def collect_source_updates(_source: object, *_args: object) -> list[CollectedUpdate]:
+    async def collect_source_updates(_source: object, *_args: object) -> list[SourceUpdate]:
         nonlocal calls
         calls += 1
         return [_collected_update(f"call-{calls}")]
@@ -334,7 +320,7 @@ def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch
 def test_updates_endpoint_cache_key_includes_selected_days(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[str] = []
 
-    async def collect_source_updates(source: InterestSource, *_args: object) -> list[CollectedUpdate]:
+    async def collect_source_updates(source: InterestSource, *_args: object) -> list[SourceUpdate]:
         calls.append(source.url)
         return [_collected_update(f"call-{len(calls)}")]
 
@@ -359,7 +345,7 @@ def test_saving_interests_keeps_source_cache(
     repository = StubInterestRepository(_payload())
     calls: list[str] = []
 
-    async def collect_source_updates(source: InterestSource, *_args: object) -> list[CollectedUpdate]:
+    async def collect_source_updates(source: InterestSource, *_args: object) -> list[SourceUpdate]:
         calls.append(source.url)
         return [_collected_update(f"call-{len(calls)}")]
 
@@ -378,7 +364,7 @@ def test_saving_interests_keeps_source_cache(
 def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
-    async def collect_source_updates(_source: object, *_args: object) -> list[CollectedUpdate]:
+    async def collect_source_updates(_source: object, *_args: object) -> list[SourceUpdate]:
         nonlocal calls
         calls += 1
         raise ValueError("network down")

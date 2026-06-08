@@ -35,6 +35,11 @@ class Timeframe:
         return cls(start=end - length, end=end)
 
     @classmethod
+    def until(cls, end: datetime) -> Timeframe:
+        """Create a timeframe that includes all representable time until end."""
+        return cls(start=datetime.min.replace(tzinfo=end.tzinfo), end=end)
+
+    @classmethod
     def around(cls, point: datetime, *, radius: timedelta) -> Timeframe:
         """Create a timeframe centered around a point in time."""
         return cls(start=point - radius, end=point + radius)
