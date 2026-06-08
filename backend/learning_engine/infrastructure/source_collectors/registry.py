@@ -47,4 +47,7 @@ class SourceUpdateCollectorRegistry:
         if source.type == "twitter_account":
             return await collect_twitter_account(source.url, self.http_fetcher.fetch_json)
 
-        return await collect_spotify_podcast(source.url, self.http_fetcher.fetch_json)
+        if source.type == "spotify_podcast":
+            return await collect_spotify_podcast(source.url, self.http_fetcher.fetch_json)
+
+        raise ValueError(f"Unsupported source type: {source.type}")

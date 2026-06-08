@@ -16,7 +16,6 @@ SOURCE_TYPES: tuple[SourceType, ...] = (
 
 def normalize_source_type(value: object) -> SourceType:
     source_type = str(value or "").strip().lower()
-    normalized = source_type.replace("-", "_").replace(" ", "_")
-    if normalized in SOURCE_TYPES:
-        return normalized
+    if source_type in SOURCE_TYPES:
+        return source_type
     raise ValueError(f"Source type must be one of: {', '.join(SOURCE_TYPES)}")

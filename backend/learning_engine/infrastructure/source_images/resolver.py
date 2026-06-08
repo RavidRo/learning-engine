@@ -25,7 +25,9 @@ async def resolve_source_image(
         return await resolve_spotify_image(source_url, http_fetcher.fetch_json)
     if source_type == "feed":
         return await resolve_feed_image(source_url, http_fetcher.fetch_url)
-    return await resolve_page_image(source_url, http_fetcher.fetch_url)
+    if source_type == "page":
+        return await resolve_page_image(source_url, http_fetcher.fetch_url)
+    raise ValueError(f"Unsupported source type for image resolution: {source_type}")
 
 
 class SourceImageResolver:

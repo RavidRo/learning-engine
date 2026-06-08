@@ -73,9 +73,9 @@ def _create_test_app(
 ) -> FastAPI:
     api = create_app()
     api.state.interest_repository = repository or StubInterestRepository()
-    api.state.source_image_provider = StubSourceImageProvider()
+    api.state.source_image_provider_factory = lambda _fetcher: StubSourceImageProvider()
     if source_update_collector is not None:
-        api.state.source_update_collector = source_update_collector
+        api.state.source_update_collector_factory = lambda _fetcher: source_update_collector
     return api
 
 

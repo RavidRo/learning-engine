@@ -18,6 +18,9 @@ def test_source_type_requires_canonical_values() -> None:
     with pytest.raises(ValidationError, match="Source type must be one of"):
         InterestSource.model_validate({"type": "RSS", "url": "https://example.com/feed.xml"})
 
+    with pytest.raises(ValidationError, match="Source type must be one of"):
+        InterestSource.model_validate({"type": "youtube-channel", "url": "@example"})
+
 
 def test_source_accepts_optional_image_url_with_camel_case_alias() -> None:
     source = InterestSource.model_validate(
