@@ -42,6 +42,19 @@ const updateWindowLabel = (days: number): string =>
 
 const sourceInitial = (label: string): string => label.trim().charAt(0).toUpperCase() || "•";
 
+const publishedLabelFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+const publishedLabel = (published: Date | undefined): string | null => {
+  if (published === undefined) {
+    return null;
+  }
+
+  return publishedLabelFormatter.format(published);
+};
+
 const SourceAvatar = ({ update }: { update: Update }) => {
   const [imageFailed, setImageFailed] = useState(false);
   const imageUrl = update.source_interest.source_image_url?.trim();
@@ -66,22 +79,26 @@ const SourceAvatar = ({ update }: { update: Update }) => {
   );
 };
 
-const UpdateItem = ({ update }: { update: Update }) => (
-  <article className="update-item-card">
-    <SourceAvatar update={update} />
-    <div className="update-item-content">
-      <div className="update-item-meta">
-        <span>
-          {update.source_interest.source_label} · {update.source_interest.source_type}
-        </span>
-        {update.published ? <span>{update.published}</span> : null}
+const UpdateItem = ({ update }: { update: Update }) => {
+  const label = publishedLabel(update.published);
+
+  return (
+    <article className="update-item-card">
+      <SourceAvatar update={update} />
+      <div className="update-item-content">
+        <div className="update-item-meta">
+          <span>
+            {update.source_interest.source_label} · {update.source_interest.source_type}
+          </span>
+          {label ? <span>{label}</span> : null}
+        </div>
+        <a href={update.url} target="_blank" rel="noreferrer">
+          {update.title ?? "Untitled update"}
+        </a>
       </div>
-      <a href={update.url} target="_blank" rel="noreferrer">
-        {update.title ?? "Untitled update"}
-      </a>
-    </div>
-  </article>
-);
+    </article>
+  );
+};
 
 const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
   <section className="update-group">
