@@ -15,7 +15,7 @@ def parse_datetime(value: str | None) -> datetime | None:
 
     try:
         parsed = parsedate_to_datetime(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         parsed = None
 
     if parsed is None:

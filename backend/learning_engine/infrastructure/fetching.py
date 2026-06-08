@@ -41,9 +41,7 @@ class HttpFetcher:
 
     async def fetch_json(self, url: str, headers: Mapping[str, str]) -> dict[str, object]:
         _validate_url(url)
-        response = await self._client.get(
-            url, headers={"User-Agent": USER_AGENT, **headers}
-        )
+        response = await self._client.get(url, headers={"User-Agent": USER_AGENT, **headers})
         response.raise_for_status()
         payload = response.json()
         if not isinstance(payload, dict):

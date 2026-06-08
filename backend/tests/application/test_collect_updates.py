@@ -229,8 +229,7 @@ async def test_collect_updates_uses_manual_source_image_before_resolver() -> Non
 
 
 @pytest.mark.anyio
-async def test_collect_updates_uses_automatic_source_image_when_manual_is_missing(
-) -> None:
+async def test_collect_updates_uses_automatic_source_image_when_manual_is_missing() -> None:
     async def fetch(_url: str) -> bytes:
         return b"""<rss><channel><item><title>Automatic image</title><link>https://example.com/update</link>
         <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""

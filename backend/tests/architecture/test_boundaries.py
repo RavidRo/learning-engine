@@ -30,6 +30,8 @@ FORBIDDEN_IMPORTS = {
     "infrastructure": frozenset({"learning_engine.presentation"}),
     "presentation": frozenset(),
 }
+
+
 def _layer_for(path: Path) -> str | None:
     relative = path.relative_to(PACKAGE_ROOT)
     first_part = relative.parts[0]

@@ -22,8 +22,7 @@ def test_source_type_accepts_new_human_friendly_aliases() -> None:
     )
     assert InterestSource.model_validate({"type": "Twitter Accounts", "url": "@xdevelopers"}).type == "twitter_account"
     assert (
-        InterestSource.model_validate({"type": "Spotify Podcasts", "url": "spotify:show:abc"}).type
-        == "spotify_podcast"
+        InterestSource.model_validate({"type": "Spotify Podcasts", "url": "spotify:show:abc"}).type == "spotify_podcast"
     )
 
 
