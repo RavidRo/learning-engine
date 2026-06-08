@@ -28,9 +28,6 @@ dev = [
 module = ["feedparser"]
 ignore_missing_imports = true
 
-[project.scripts]
-learning-engine = "learning_engine.presentation.app:run"
-
 [tool.uv]
 package = false
 
@@ -156,10 +153,7 @@ ignore = [
 ]
 
 [tool.vulture]
-paths = [
-    "learning_engine",
-    "vulture_whitelist.py",
-]
+paths = ["learning_engine", "vulture_whitelist.py"]
 ignore_decorators = [
     "@api.get",
     "@api.post",
@@ -167,10 +161,7 @@ ignore_decorators = [
     "@router.post",
     "@field_validator",
 ]
-ignore_names = [
-    "description",
-    "model_config",
-]
+ignore_names = ["description", "model_config"]
 
 [tool.mypy]
 python_version = "3.14"
