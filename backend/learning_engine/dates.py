@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 
 
@@ -41,16 +41,3 @@ def format_datetime(value: datetime | None) -> str | None:
     if value is None:
         return None
     return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
-
-
-def days_cutoff(days: int | None, now: datetime) -> datetime | None:
-    if days is None:
-        return None
-    return now.astimezone(UTC) - timedelta(days=days)
-
-
-def within_window(published: str | None, cutoff: datetime | None) -> bool:
-    if cutoff is None:
-        return True
-    parsed = parse_datetime(published)
-    return parsed is not None and parsed >= cutoff

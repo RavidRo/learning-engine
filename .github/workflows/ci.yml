@@ -41,6 +41,9 @@ jobs:
       - name: Lint backend
         run: task lint
 
+      - name: Check backend dead code
+        run: task deadcode
+
       - name: Check backend formatting
         run: task format:check
 

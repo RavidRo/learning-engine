@@ -20,6 +20,7 @@ dev = [
     "pytest>=8.3.0",
     "ruff>=0.8.0",
     "uv>=0.11.14",
+    "vulture>=2.16",
 ]
 
 [[tool.mypy.overrides]]
@@ -147,6 +148,25 @@ ignore = [
     "RUF001",
     # CLI scripts are allowed to print their artifact summary.
     "T201",
+]
+"vulture_whitelist.py" = [
+    # Vulture whitelists use bare references to mark dynamic framework fields as used.
+    "B018",
+]
+
+[tool.vulture]
+paths = [
+    "learning_engine",
+    "vulture_whitelist.py",
+]
+ignore_decorators = [
+    "@api.get",
+    "@api.post",
+    "@field_validator",
+]
+ignore_names = [
+    "description",
+    "model_config",
 ]
 
 [tool.mypy]

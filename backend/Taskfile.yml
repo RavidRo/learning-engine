@@ -35,6 +35,12 @@ tasks:
     cmds:
       - uv run ruff check .
 
+  deadcode:
+    desc: Check for unused backend code
+    cmds:
+      - uv run python scripts/check_unused_functions.py
+      - uv run vulture
+
   format:
     desc: Format Python files with Ruff
     cmds:
@@ -59,6 +65,7 @@ tasks:
     desc: Run linting, typing, and tests
     cmds:
       - task: lint
+      - task: deadcode
       - task: typecheck
       - task: test
 

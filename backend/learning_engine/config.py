@@ -6,8 +6,6 @@ import os
 from pathlib import Path
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOT = BACKEND_ROOT.parent
-WEBAPP_DIR = PROJECT_ROOT / "webapp"
 DATA_DIR = BACKEND_ROOT / "data"
 INTERESTS_FILE = DATA_DIR / "interests.json"
 HOST = "127.0.0.1"
