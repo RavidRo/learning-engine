@@ -15,13 +15,31 @@ from learning_engine.models import (
     Update,
     UpdatesResponse,
 )
+from learning_engine.source_images import (
+    SourceImageConfigurationError,
+    SourceImageProviderError,
+    SourceImageProviderUnavailableError,
+)
 
 app_module = importlib.import_module("learning_engine.app")
 collector_module = importlib.import_module("learning_engine.collector")
 
 HTTP_OK = 200
+HTTP_BAD_REQUEST = 400
+HTTP_BAD_GATEWAY = 502
+HTTP_SERVICE_UNAVAILABLE = 503
+HTTP_INTERNAL_SERVER_ERROR = 500
 HTTP_UNPROCESSABLE_ENTITY = 422
 EXPECTED_EXPIRED_CALLS = 2
+
+
+async def no_source_image(*_args: object) -> str | None:
+    return None
+
+
+@pytest.fixture(autouse=True)
+def disable_update_source_image_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(collector_module, "resolve_source_image", no_source_image)
 
 
 def _published_now() -> str:
@@ -35,6 +53,108 @@ def test_health_endpoint() -> None:
 
     assert response.status_code == HTTP_OK
     assert response.json() == {"status": "ok"}
+
+
+def test_source_image_endpoint_returns_resolved_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def resolve_source_image(
+        source_type: str,
+        source_url: str,
+        *_args: object,
+    ) -> str | None:
+        assert source_type == "youtube_channel"
+        assert source_url == "@example"
+        return "https://yt.example/avatar.jpg"
+
+    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    client = TestClient(create_app())
+
+    response = client.post("/api/source-image", json={"type": "youtube", "url": " @example "})
+
+    assert response.status_code == HTTP_OK
+    assert response.json() == {"imageUrl": "https://yt.example/avatar.jpg"}
+
+
+def test_source_image_endpoint_returns_null_on_resolver_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def resolve_source_image(*_args: object) -> str | None:
+        return None
+
+    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    client = TestClient(create_app())
+
+    response = client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"})
+
+    assert response.status_code == HTTP_OK
+    assert response.json() == {"imageUrl": None}
+
+
+@pytest.mark.parametrize(
+    ("resolver_error", "expected_status", "expected_detail"),
+    [
+        (
+            SourceImageConfigurationError("Spotify bearer token is not configured"),
+            HTTP_BAD_REQUEST,
+            "Spotify bearer token is not configured",
+        ),
+        (
+            SourceImageProviderUnavailableError("Spotify metadata provider is unavailable"),
+            HTTP_SERVICE_UNAVAILABLE,
+            "Spotify metadata provider is unavailable",
+        ),
+        (
+            SourceImageProviderError("Spotify show metadata did not include an images list"),
+            HTTP_BAD_GATEWAY,
+            "Spotify show metadata did not include an images list",
+        ),
+        (
+            RuntimeError("unexpected resolver failure"),
+            HTTP_INTERNAL_SERVER_ERROR,
+            "Could not resolve source image",
+        ),
+    ],
+)
+def test_source_image_endpoint_returns_matching_error_for_resolver_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    resolver_error: Exception,
+    expected_status: int,
+    expected_detail: str,
+) -> None:
+    async def resolve_source_image(*_args: object) -> str | None:
+        raise resolver_error
+
+    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    client = TestClient(create_app())
+
+    response = client.post("/api/source-image", json={"type": "spotify_podcast", "url": "spotify:show:show-one"})
+
+    assert response.status_code == expected_status
+    assert response.json() == {"detail": expected_detail}
+
+
+def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = _payload()
+    saved_payloads: list[InterestsPayload] = []
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        return "https://example.com/dynamic.png"
+
+    def read_interests() -> InterestsPayload:
+        return saved_payloads[-1] if saved_payloads else payload
+
+    def write_interests(saved_payload: InterestsPayload) -> None:
+        saved_payloads.append(saved_payload)
+
+    monkeypatch.setattr(app_module, "resolve_source_image", resolve_source_image)
+    monkeypatch.setattr(app_module, "read_interests", read_interests)
+    monkeypatch.setattr(app_module, "write_interests", write_interests)
+    client = TestClient(create_app())
+
+    assert client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"}).json() == {
+        "imageUrl": "https://example.com/dynamic.png"
+    }
+    saved = payload.model_dump(mode="json", by_alias=True)
+    client.post("/api/interests", json=saved)
+
+    assert client.get("/api/interests").json()["interests"][0]["sources"][0]["imageUrl"] is None
 
 
 def test_updates_rejects_non_positive_days() -> None:

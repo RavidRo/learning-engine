@@ -73,8 +73,14 @@ export const saveInterestsResponseSchema = z.object({
   saved: interestsPayloadSchema,
 });
 
+export const sourceImageResponseSchema = z.object({
+  imageUrl: z.string().nullable().catch(null),
+});
+
 export type Interest = z.infer<typeof interestSchema>;
 
 export type Update = z.infer<typeof updateSchema>;
 
 export type UpdatesPayload = z.infer<typeof updatesPayloadSchema>;
+
+export type SourceImagePayload = z.infer<typeof sourceImageResponseSchema>;

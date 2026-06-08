@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Mapping
 from datetime import UTC, datetime
 
@@ -8,6 +9,7 @@ import pytest
 
 from learning_engine.collector import collect_updates, dedupe_updates
 from learning_engine.models import CollectedUpdate, InterestSource, InterestsPayload, SourceInterest, Update
+from learning_engine.source_images import SourceImageConfigurationError, SourceImageProviderUnavailableError
 from learning_engine.sources.spotify import spotify_show_id
 from learning_engine.sources.twitter import twitter_username
 from learning_engine.timeframe import Timeframe
@@ -23,6 +25,10 @@ async def unused_fetch(url: str) -> bytes:
 
 async def unused_fetch_json(url: str, headers: Mapping[str, str]) -> dict[str, object]:
     raise AssertionError(f"Unexpected JSON fetch: {url} {headers}")
+
+
+async def no_source_image(*_args: object) -> str | None:
+    return None
 
 
 def test_update_enriches_generic_collected_update_without_feed_specific_base() -> None:
@@ -80,7 +86,8 @@ def test_dedupe_keeps_distinct_updates_when_title_and_url_are_missing() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> None:
+async def test_collect_updates_uses_youtube_channel_feed_for_channel_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     called_urls: list[str] = []
 
     async def fetch(url: str) -> bytes:
@@ -150,6 +157,186 @@ async def test_collect_updates_carries_source_interest_to_updates() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_updates_uses_manual_source_image_before_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Manual image</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        raise AssertionError("Manual source image should skip automatic resolution")
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Manual",
+                    "sources": [
+                        {
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                            "imageUrl": "https://example.com/manual.png",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url == "https://example.com/manual.png"
+
+
+@pytest.mark.anyio
+async def test_collect_updates_uses_automatic_source_image_when_manual_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Automatic image</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        return "https://example.com/auto.png"
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Automatic",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url == "https://example.com/auto.png"
+    assert payload.interests[0].sources[0].image_url is None
+
+
+@pytest.mark.anyio
+async def test_collect_updates_keeps_null_source_image_when_resolver_misses(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>No image</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        return None
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Missing",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url is None
+
+
+@pytest.mark.anyio
+async def test_collect_updates_logs_and_continues_when_source_image_provider_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Provider unavailable</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        raise SourceImageProviderUnavailableError("Feed metadata provider is unavailable")
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Provider",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    with caplog.at_level(logging.INFO, logger="learning_engine.collector"):
+        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url is None
+    assert "Source image provider is unavailable" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_collect_updates_logs_and_continues_when_source_image_configuration_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Configuration missing</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        raise SourceImageConfigurationError("Spotify bearer token is not configured")
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Configuration",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    with caplog.at_level(logging.INFO, logger="learning_engine.collector"):
+        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url is None
+    assert "Source image configuration is unavailable" in caplog.text
+
+
+@pytest.mark.anyio
+async def test_collect_updates_logs_and_continues_when_source_image_resolver_crashes(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss><channel><item><title>Resolver crash</title><link>https://example.com/update</link>
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        raise RuntimeError("unexpected resolver failure")
+
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", resolve_source_image)
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Internal",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    with caplog.at_level(logging.ERROR, logger="learning_engine.collector"):
+        result = await collect_updates(payload, timeframe=ALL_TIMEFRAME, fetch=fetch, fetch_json=unused_fetch_json)
+
+    assert result.updates[0].source_interest.source_image_url is None
+    assert "Source image resolver failed during update collection" in caplog.text
+
+
+@pytest.mark.anyio
 async def test_collect_updates_collects_sources_concurrently() -> None:
     rss = b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
@@ -184,7 +371,10 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 
 
 @pytest.mark.anyio
-async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently() -> None:
+async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     rss = b"""<rss><channel><item><title>Cached update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
     payload = InterestsPayload.model_validate(
@@ -220,7 +410,8 @@ async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently()
 
 
 @pytest.mark.anyio
-async def test_collect_updates_resolves_youtube_handle_before_fetching_feed() -> None:
+async def test_collect_updates_resolves_youtube_handle_before_fetching_feed(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     called_urls: list[str] = []
 
     async def fetch(url: str) -> bytes:
@@ -319,6 +510,7 @@ async def test_collect_updates_reports_missing_twitter_credentials(monkeypatch: 
 
 @pytest.mark.anyio
 async def test_collect_updates_uses_spotify_show_episodes_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("learning_engine.collector.resolve_source_image", no_source_image)
     monkeypatch.setenv("SPOTIFY_BEARER_TOKEN", "spotify-token")
     called: list[tuple[str, Mapping[str, str]]] = []
 

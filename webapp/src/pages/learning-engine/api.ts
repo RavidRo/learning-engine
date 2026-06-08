@@ -1,9 +1,15 @@
 import {
   interestsPayloadSchema,
   saveInterestsResponseSchema,
+  sourceImageResponseSchema,
   updatesPayloadSchema,
 } from "./schemas";
-import { type Interest, type UpdatesPayload } from "./types";
+import {
+  type Interest,
+  type InterestSource,
+  type SourceImagePayload,
+  type UpdatesPayload,
+} from "./types";
 
 /** Reads the best available error message from a failed response. */
 const readError = async (response: Response): Promise<string> => {
@@ -46,4 +52,20 @@ export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
   }
 
   return payload;
+};
+
+export const resolveSourceImage = async (
+  source: Pick<InterestSource, "type" | "url">,
+): Promise<SourceImagePayload> => {
+  const response = await fetch("/api/source-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(source),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return sourceImageResponseSchema.parse(await response.json());
 };

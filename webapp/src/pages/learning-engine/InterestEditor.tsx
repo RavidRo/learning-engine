@@ -1,5 +1,7 @@
-import { type Dispatch, type FormEvent, useReducer } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { type Dispatch, type FormEvent, useEffect, useReducer, useState } from "react";
 
+import { resolveSourceImage } from "./api";
 import {
   createDraftSource,
   createEmptyInterestDraft,
@@ -12,6 +14,7 @@ import {
   type InterestDraft,
   type InterestSource,
   type Priority,
+  type SourceImagePayload,
   type SourceType,
 } from "./types";
 
@@ -21,6 +24,8 @@ type InterestEditorProps = {
   onCreateInterest: (draft: InterestDraft) => void;
   onUpdateInterest: (draft: InterestDraft) => void;
 };
+
+const sourceImagePreviewDelayMs = 450;
 
 type DraftAction =
   | { type: "addSource" }
@@ -133,6 +138,119 @@ const parseKeywordText = (text: string): string[] =>
     .split(",")
     .map((keyword) => keyword.trim())
     .filter(Boolean);
+
+const trimmed = (value: string | null | undefined): string => value?.trim() ?? "";
+
+const useDebouncedValue = (value: string, delayMs: number): string => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedValue(value);
+    }, delayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [delayMs, value]);
+
+  return debouncedValue;
+};
+
+const canResolveSourceImage = (manualImageUrl: string, sourceUrl: string): boolean =>
+  manualImageUrl === "" && sourceUrl !== "";
+
+const sourceImageUrl = (payload: SourceImagePayload | undefined): string =>
+  trimmed(payload?.imageUrl);
+
+const SourceImage = ({ imageUrl }: { imageUrl: string }) => (
+  <img src={imageUrl} alt="" loading="lazy" />
+);
+
+type PreviewMessage = {
+  text: string;
+  visible: boolean;
+};
+
+const firstVisibleMessage = (messages: PreviewMessage[]): string | null =>
+  messages.find((message) => message.visible)?.text ?? null;
+
+const isNoImageFound = (imageUrl: string, isFetched: boolean): boolean =>
+  isFetched && imageUrl === "";
+
+const SourceImagePreviewMessage = ({ message }: { message: string | null }) =>
+  message === null ? null : <span className="source-image-preview-note">{message}</span>;
+
+const OptionalSourceImage = ({ imageUrl }: { imageUrl: string }) =>
+  imageUrl === "" ? null : <SourceImage imageUrl={imageUrl} />;
+
+const previewableImageUrl = (imageUrl: string, message: string | null): string =>
+  message === null ? imageUrl : "";
+
+const SourceImagePreviewResult = ({
+  imageUrl,
+  isDebouncing,
+  isError,
+  isFetched,
+  isFetching,
+}: {
+  imageUrl: string;
+  isDebouncing: boolean;
+  isError: boolean;
+  isFetched: boolean;
+  isFetching: boolean;
+}) => {
+  const message = firstVisibleMessage([
+    { text: "Loading...", visible: isDebouncing },
+    { text: "Loading...", visible: isFetching },
+    { text: "Image preview unavailable", visible: isError },
+    { text: "No image found", visible: isNoImageFound(imageUrl, isFetched) },
+  ]);
+
+  return (
+    <div className="source-image-preview">
+      <span>Preview Image</span>
+      <SourceImagePreviewMessage message={message} />
+      <OptionalSourceImage imageUrl={previewableImageUrl(imageUrl, message)} />
+    </div>
+  );
+};
+
+const SourceImagePreview = ({ source }: { source: InterestSource }) => {
+  const manualImageUrl = trimmed(source.imageUrl);
+  const sourceUrl = source.url.trim();
+  const debouncedSourceUrl = useDebouncedValue(sourceUrl, sourceImagePreviewDelayMs);
+  const imageQuery = useQuery({
+    enabled: canResolveSourceImage(manualImageUrl, debouncedSourceUrl),
+    queryFn: () => resolveSourceImage({ type: source.type, url: debouncedSourceUrl }),
+    queryKey: ["learning-engine", "source-image", source.type, debouncedSourceUrl] as const,
+  });
+  const resolvedImageUrl = sourceImageUrl(imageQuery.data);
+  const isDebouncing = sourceUrl !== debouncedSourceUrl;
+
+  if (manualImageUrl !== "") {
+    return (
+      <div className="source-image-preview">
+        <span>Preview Image</span>
+        <SourceImage imageUrl={manualImageUrl} />
+      </div>
+    );
+  }
+
+  if (sourceUrl === "") {
+    return null;
+  }
+
+  return (
+    <SourceImagePreviewResult
+      imageUrl={resolvedImageUrl}
+      isDebouncing={isDebouncing}
+      isError={imageQuery.isError}
+      isFetched={imageQuery.isFetched}
+      isFetching={imageQuery.isFetching}
+    />
+  );
+};
 
 const BasicInterestFields = ({
   dispatch,
@@ -311,6 +429,7 @@ const SourceEditorCard = ({
         value={source.imageUrl ?? ""}
       />
     </label>
+    <SourceImagePreview source={source} />
     <label>
       Ignore keywords
       <input
