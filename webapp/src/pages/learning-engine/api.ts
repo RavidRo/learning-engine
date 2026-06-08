@@ -2,6 +2,7 @@ import {
   interestsPayloadSchema,
   saveInterestsResponseSchema,
   sourceImageResponseSchema,
+  updatesDisplayErrorMessage,
   updatesPayloadSchema,
 } from "./schemas";
 import {
@@ -43,15 +44,30 @@ export const saveInterests = async (interests: Interest[]): Promise<Interest[]> 
   return payload.saved.interests;
 };
 
-export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
-  const response = await fetch(`/api/updates?days=${days}`);
-  const payload = updatesPayloadSchema.parse(await response.json());
+const parseUpdatesPayload = (responsePayload: unknown): UpdatesPayload => {
+  const payload = updatesPayloadSchema.safeParse(responsePayload);
 
-  if (!response.ok) {
-    throw new Error(payload.error ?? "Failed to fetch updates");
+  if (!payload.success) {
+    throw new Error(updatesDisplayErrorMessage);
   }
 
-  return payload;
+  return payload.data;
+};
+
+const updatesRequestErrorMessage = (responsePayload: unknown, fallback: string): string => {
+  const payload = updatesPayloadSchema.safeParse(responsePayload);
+  return payload.success ? (payload.data.error ?? "Failed to fetch updates") : fallback;
+};
+
+export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
+  const response = await fetch(`/api/updates?days=${days}`);
+  const responsePayload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(updatesRequestErrorMessage(responsePayload, response.statusText));
+  }
+
+  return parseUpdatesPayload(responsePayload);
 };
 
 export const resolveSourceImage = async (

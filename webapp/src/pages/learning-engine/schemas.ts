@@ -48,8 +48,12 @@ const sourceInterestSchema = z.object({
   source_url: z.string(),
 });
 
+export const updatesDisplayErrorMessage = "There was a problem showing the updates.";
+
+const publishedSchema = z.iso.datetime().transform((published) => new Date(published));
+
 const updateSchema = z.object({
-  published: z.string().optional(),
+  published: publishedSchema.optional(),
   source_interest: sourceInterestSchema,
   title: z.string().optional(),
   url: z.string(),
