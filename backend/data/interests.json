@@ -162,7 +162,7 @@
           "id": "python-feed",
           "label": "Updates feed",
           "type": "feed",
-          "url": "https://blog.python.org/feeds/posts/default",
+          "url": "https://blog.python.org/rss.xml",
           "imageUrl": null,
           "ignoreKeywords": [],
           "enabled": true,
