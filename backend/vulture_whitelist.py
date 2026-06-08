@@ -14,8 +14,10 @@ CollectionError.interest_id
 CollectionError.interest_name
 CollectionError.source_id
 CollectionError.source_label
+CollectionError.error
 UpdatesResponse.sources_checked
 UpdatesResponse.since
+UpdatesResponse.errors
 
 # I want to keep for my own satisfaction
 Timeframe.from_point

@@ -27,6 +27,7 @@ HTTP_SERVICE_UNAVAILABLE = 503
 HTTP_INTERNAL_SERVER_ERROR = 500
 HTTP_UNPROCESSABLE_ENTITY = 422
 EXPECTED_EXPIRED_CALLS = 2
+EXPECTED_RETRY_CALLS = 2
 
 
 async def no_source_image(*_args: object) -> str | None:
@@ -359,7 +360,7 @@ def test_saving_interests_keeps_source_cache(
     assert calls == ["https://example.com/feed.xml"]
 
 
-def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_updates_endpoint_retries_source_errors_instead_of_caching_them(monkeypatch: pytest.MonkeyPatch) -> None:
     calls = 0
 
     async def collect_source_updates(_source: object, *_args: object) -> list[SourceUpdate]:
@@ -372,9 +373,9 @@ def test_updates_endpoint_caches_partial_results_with_errors(monkeypatch: pytest
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
     with TestClient(api) as client:
-        first = client.get("/api/updates")
-        second = client.get("/api/updates")
+        with pytest.raises(ValueError, match="network down"):
+            client.get("/api/updates")
+        with pytest.raises(ValueError, match="network down"):
+            client.get("/api/updates")
 
-    assert calls == 1
-    assert first.json() == second.json()
-    assert second.json()["errors"][0]["error"] == "network down"
+    assert calls == EXPECTED_RETRY_CALLS

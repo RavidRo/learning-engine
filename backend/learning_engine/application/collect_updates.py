@@ -8,8 +8,6 @@ from collections.abc import Iterable, MutableMapping
 from dataclasses import dataclass
 from datetime import datetime
 
-import httpx
-
 from learning_engine.application.ports import SourceImageProvider, SourceUpdateCollector
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
@@ -17,7 +15,7 @@ from learning_engine.application.resolve_source_image import (
     SourceImageProviderUnavailableError,
     resolve_source_image,
 )
-from learning_engine.application.responses import CollectionError, UpdatesResponse
+from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.dates import format_datetime
 from learning_engine.common.text import keyword_matches, searchable_text
 from learning_engine.common.timeframe import Timeframe
@@ -25,7 +23,7 @@ from learning_engine.domain.interests import Interest, InterestSource, Interests
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 
 SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
-SourceUpdatesCacheValue = tuple[list[SourceUpdate], str | None]
+SourceUpdatesCacheValue = list[SourceUpdate]
 SourceUpdatesCache = MutableMapping[SourceUpdatesCacheKey, SourceUpdatesCacheValue]
 logger = logging.getLogger(__name__)
 
@@ -178,28 +176,7 @@ def _source_updates_cache_key(source: InterestSource, cache_scope: str | None) -
 def _copy_source_updates_cache_value(
     value: SourceUpdatesCacheValue,
 ) -> SourceUpdatesCacheValue:
-    updates, error = value
-    return [update.model_copy(deep=True) for update in updates], error
-
-
-async def _collect_source_updates_value(
-    source: InterestSource,
-    context: _SourceCollectionContext,
-) -> SourceUpdatesCacheValue:
-    try:
-        return (
-            await context.source_update_collector.collect_source_updates(source),
-            None,
-        )
-    except (
-        OSError,
-        UnicodeError,
-        httpx.HTTPError,
-        ValueError,
-        TypeError,
-        KeyError,
-    ) as exc:
-        return [], str(exc)
+    return [update.model_copy(deep=True) for update in value]
 
 
 async def _get_source_updates(
@@ -212,23 +189,19 @@ async def _get_source_updates(
     if cache_key in source_updates_cache:
         return _copy_source_updates_cache_value(source_updates_cache[cache_key])
 
-    result = await _collect_source_updates_value(source, context)
-    source_updates_cache[cache_key] = _copy_source_updates_cache_value(result)
-    return result
+    source_updates = await context.source_update_collector.collect_source_updates(source)
+    source_updates_cache[cache_key] = _copy_source_updates_cache_value(source_updates)
+    return source_updates
 
 
 async def _collect_from_source(
     interest: Interest,
     source: InterestSource,
     context: _SourceCollectionContext,
-) -> tuple[list[Update], CollectionError | None]:
-    source_updates, error = await _get_source_updates(source, context)
-    collection_error = CollectionError.from_source(interest, source, error) if error is not None else None
+) -> list[Update]:
+    source_updates = await _get_source_updates(source, context)
     source_image_url = await _source_image_url(source, context) if source_updates else source.image_url
-    return (
-        _enrich_updates(interest, source, source_updates, context.timeframe, source_image_url),
-        collection_error,
-    )
+    return _enrich_updates(interest, source, source_updates, context.timeframe, source_image_url)
 
 
 def _enabled_sources(
@@ -246,17 +219,14 @@ def _enabled_sources(
 
 
 def _updates_response(
-    source_results: list[tuple[list[Update], CollectionError | None]],
+    source_results: list[list[Update]],
     checked: int,
     timeframe: Timeframe,
 ) -> UpdatesResponse:
     updates: list[Update] = []
-    errors: list[CollectionError] = []
 
-    for source_updates, error in source_results:
+    for source_updates in source_results:
         updates.extend(source_updates)
-        if error is not None:
-            errors.append(error)
 
     updates = dedupe_updates(updates)
     updates.sort(key=_sort_key, reverse=True)
@@ -264,7 +234,6 @@ def _updates_response(
         sources_checked=checked,
         since=format_datetime(timeframe.start),
         updates=updates,
-        errors=errors,
     )
 
 
@@ -282,7 +251,7 @@ async def collect_updates(
         source_updates_cache=source_updates_cache.cache,
         source_updates_cache_scope=source_updates_cache.scope,
     )
-    source_results: list[tuple[list[Update], CollectionError | None]] = list(
+    source_results: list[list[Update]] = list(
         await asyncio.gather(*(_collect_from_source(interest, source, context) for interest, source in sources))
     )
     return _updates_response(source_results, checked=len(sources), timeframe=timeframe)

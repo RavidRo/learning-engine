@@ -590,7 +590,7 @@ async def test_collect_updates_uses_x_api_for_twitter_accounts(
 
 
 @pytest.mark.anyio
-async def test_collect_updates_reports_missing_twitter_credentials(
+async def test_collect_updates_propagates_missing_twitter_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
@@ -605,16 +605,13 @@ async def test_collect_updates_reports_missing_twitter_credentials(
         }
     )
 
-    result = await _collect_updates(
-        payload,
-        timeframe=ALL_TIMEFRAME,
-        http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
-        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
-    )
-
-    assert result.updates == []
-    assert result.errors[0].source_id == "x"
-    assert result.errors[0].error == "Twitter bearer token is required for twitter_account sources"
+    with pytest.raises(ValueError, match="Twitter bearer token is required for twitter_account sources"):
+        await _collect_updates(
+            payload,
+            timeframe=ALL_TIMEFRAME,
+            http_fetcher=StubHttpFetcher(unused_fetch, unused_fetch_json),
+            source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+        )
 
 
 @pytest.mark.anyio
