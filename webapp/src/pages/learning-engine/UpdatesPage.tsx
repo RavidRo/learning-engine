@@ -205,12 +205,11 @@ export const UpdatesPage = ({
   const groups = groupUpdates(updates?.updates ?? []);
 
   return (
-    <section id="updates" className="panel updates-page">
+    <section id="updates" className="panel updates-page" aria-label="Updates">
       <div className="panel-header row">
-        <div>
+        <div className="updates-header-summary">
           <p className="section-label">Updates</p>
-          <h2>{updateWindowLabel(days)}</h2>
-          <p className="panel-copy">Updates grouped by interest.</p>
+          {updates !== null && <UpdatesSummary payload={updates} />}
         </div>
         <div className="updates-header-actions">
           <UpdateDaysSelect days={days} onDaysChange={onDaysChange} />
@@ -236,15 +235,14 @@ export const UpdatesPage = ({
 
       {updates === null ? null : (
         <div className="updates-layout">
-          <UpdatesSummary payload={updates} />
-          <div className="updates-feed">
+          <section className="updates-feed" aria-label="Updates feed">
             <SourceErrors payload={updates} />
             {groups.length === 0 ? (
               <EmptyUpdates days={days} />
             ) : (
               groups.map((group) => <UpdateGroupCard group={group} key={group.interestName} />)
             )}
-          </div>
+          </section>
         </div>
       )}
     </section>
