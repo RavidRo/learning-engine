@@ -63,6 +63,16 @@ task --list
 
 On the same computer, this works directly. For phone access, the computer and phone need to be on the same network and the servers would need to bind to a LAN-accessible address instead of `127.0.0.1`. That is intentionally not enabled by default for privacy/security.
 
+
+## Codex environment
+
+This repository includes project-scoped Codex configuration in `.codex/`:
+
+- `.codex/config.toml` enables the `workspace-write` sandbox with network access so Codex can research technologies and install dependencies during development tasks.
+- `.codex/setup.sh` prepares the toolchain used by the maintained Taskfiles: Python 3.14 through `uv`, Node.js when the base image does not already provide it, Task, and pnpm 11.1.2. It also installs backend and webapp dependencies so `task check` can run in the environment.
+
+Use `.codex/setup.sh` as the setup script for the Codex environment.
+
 ## Backend stack
 
 - FastAPI serves the JSON API and static UI.
