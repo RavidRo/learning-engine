@@ -12,11 +12,7 @@ The first goal is intentionally small: maintain a personal list of interests and
 - Attach feed or page sources to interests.
 - Check enabled sources for updates from the local UI.
 - Show active/tracked/source counts in a small local summary panel.
-- Store interests in a local JSON file:
-
-```text
-backend/data/interests.json
-```
+- Store interests in PostgreSQL relational tables.
 
 - Enable/disable interests without deleting them.
 - Provide a clear future prompt for evening briefings.
@@ -76,12 +72,24 @@ Use `.codex/setup.sh` as the setup script for the Codex environment.
 ## Backend stack
 
 - FastAPI serves the JSON API and static UI.
+- PostgreSQL stores interest data for the running app in relational tables.
+- SQLModel/SQLAlchemy manage the backend database connection, schema initialization, and persistence rows.
 - Pydantic validates and normalizes interest and source payloads.
 - uv manages the Python environment and lockfile.
 - Ruff enforces linting.
 - mypy checks the typed backend modules in strict mode.
 
 Common workflows live in `Taskfile.yml` so the README does not duplicate command strings.
+
+## Persistence model
+
+Interests are stored relationally instead of as a JSON document:
+
+- `interests` stores interest rows keyed by `interest_id`.
+- `interest_sources` stores source rows keyed by `source_id` and linked to interests.
+- `source_ignore_keywords` stores ignore-keyword rows linked to sources.
+
+The backend keeps the existing Pydantic domain models as the API boundary and uses infrastructure-only SQLModel rows to map those models into the relational schema. Legacy `backend/data/interests.json` data is not migrated automatically on app startup; run `uv run python scripts/migrate_interests_json_to_postgres.py` from `backend/` when you are ready to migrate it into the configured database. Add `--replace` only when you intentionally want to overwrite existing database interests.
 
 ## Docker Compose
 
@@ -99,7 +107,7 @@ task down                # stop both stacks
 task compose:config      # validate both compose files
 ```
 
-The backend API is exposed on `http://localhost:8765` in both modes, and backend data remains mounted at `./backend/data` for local-first persistence.
+The backend API is exposed on `http://localhost:8765` in both modes. Compose also starts PostgreSQL and persists it in the `postgres-data` Docker volume. The legacy `./backend/data/interests.json` file is mounted read-only so you can run the migration script when you are ready.
 
 ## Cloud deployment
 
@@ -107,14 +115,14 @@ Render is the preferred first hosting target for this app because it can host th
 
 ## Privacy note
 
-The interests file may eventually reveal personal interests, professional priorities, people you follow, and private learning goals. Keep it local unless you intentionally decide to sync or publish it.
+The interests database may reveal personal interests, professional priorities, people you follow, and private learning goals. Keep database backups and exported data private unless you intentionally decide to sync or publish them.
 
 ## How Hermes can use it
 
 Ask Hermes:
 
 ```text
-Read my Learning Engine interests from ~/projects/learning-engine/backend/data/interests.json and prepare an evening briefing.
+Read my Learning Engine interests from the Learning Engine API or PostgreSQL database and prepare an evening briefing.
 ```
 
 Hermes can use interests as briefing context and sources as the raw material for update collection.
@@ -151,7 +159,7 @@ learning-engine/
 ├── docs/deployment/       # cloud deployment notes
 ├── backend/
 │   ├── pyproject.toml     # uv project config, dependencies, ruff, mypy, pytest
-│   ├── data/              # Hermes-readable interest store
+│   ├── data/              # legacy JSON seed available to the migration script
 │   ├── learning_engine/   # typed FastAPI backend package
 │   ├── scripts/           # backend/API utility scripts
 │   └── tests/             # backend tests

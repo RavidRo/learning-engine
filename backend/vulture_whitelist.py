@@ -3,6 +3,7 @@
 from learning_engine.application.responses import CollectionError, UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
+from learning_engine.infrastructure.storage import StoredSourceIgnoreKeyword
 
 SourceUpdate.matched_keywords
 SourceInterest.interest_id
@@ -25,3 +26,5 @@ Timeframe.starting_at
 Timeframe.around
 Timeframe.overlaps
 Timeframe.shift
+
+StoredSourceIgnoreKeyword.keyword_id
