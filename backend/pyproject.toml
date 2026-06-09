@@ -156,7 +156,7 @@ ignore = [
 ]
 
 [tool.vulture]
-paths = ["learning_engine", "vulture_whitelist.py"]
+paths = ["learning_engine", "scripts", "vulture_whitelist.py"]
 ignore_decorators = [
     "@api.get",
     "@api.post",
