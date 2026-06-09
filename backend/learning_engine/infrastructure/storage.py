@@ -38,7 +38,7 @@ class StoredInterestSource(SQLModel, table=True):
     source_id: str = Field(primary_key=True)
     interest_id: str = Field(foreign_key="interests.interest_id", index=True)
     label: str
-    type: str
+    source_type: str
     url: str
     image_url: str | None = None
     enabled: bool
@@ -129,7 +129,7 @@ class InterestStore:
         return StoredInterestSource(
             source_id=source_id,
             label=source.label,
-            type=source.type,
+            source_type=source.type,
             url=source.url,
             image_url=source.image_url,
             enabled=source.enabled,
@@ -155,7 +155,7 @@ class InterestStore:
         return InterestSource(
             id=stored_source.source_id,
             label=stored_source.label,
-            type=cast(SourceType, stored_source.type),
+            type=cast(SourceType, stored_source.source_type),
             url=stored_source.url,
             image_url=stored_source.image_url,
             enabled=stored_source.enabled,
