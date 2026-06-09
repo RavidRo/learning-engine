@@ -1,0 +1,7 @@
+# Project-level Codex configuration for Learning Engine.
+# Enables network access for workspace-write sessions so agents can research
+# technologies and install/update dependencies when the task requires it.
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
