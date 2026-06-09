@@ -5,7 +5,7 @@ services:
     name: learning-engine-backend
     runtime: docker
     rootDir: backend
-    plan: starter
+    plan: free
     # Frankfurt is the closest Render service/datastore region to Israel.
     region: frankfurt
     healthCheckPath: /api/health
