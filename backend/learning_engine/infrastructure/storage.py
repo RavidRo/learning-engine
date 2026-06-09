@@ -86,26 +86,46 @@ class InterestStore:
             session.commit()
 
     def _write_interests(self, session: Session, payload: InterestsPayload) -> None:
+        stored_interests = self._stored_interests_from_domain(payload.interests)
         for stored_interest in session.exec(select(StoredInterest)).all():
             session.delete(stored_interest)
         session.flush()
-        for interest in payload.interests:
-            session.add(self._stored_interest_from_domain(interest))
+        session.add_all(stored_interests)
 
-    def _stored_interest_from_domain(self, interest: Interest) -> StoredInterest:
+    def _stored_interests_from_domain(self, interests: list[Interest]) -> list[StoredInterest]:
+        interest_ids: set[str] = set()
+        source_ids: set[str] = set()
+        stored_interests: list[StoredInterest] = []
+        for interest in interests:
+            interest_id = self._interest_id_or_raise(interest)
+            self._raise_on_duplicate_id(interest_id, interest_ids, "interest")
+            stored_sources: list[StoredInterestSource] = []
+            for source in interest.sources:
+                source_id = self._source_id_or_raise(source)
+                self._raise_on_duplicate_id(source_id, source_ids, "source")
+                stored_sources.append(self._stored_source_from_domain(source, source_id))
+            stored_interests.append(self._stored_interest_from_domain(interest, interest_id, stored_sources))
+        return stored_interests
+
+    def _stored_interest_from_domain(
+        self,
+        interest: Interest,
+        interest_id: str,
+        stored_sources: list[StoredInterestSource],
+    ) -> StoredInterest:
         return StoredInterest(
-            interest_id=self._interest_id_or_raise(interest),
+            interest_id=interest_id,
             name=interest.name,
             description=interest.description,
             priority=interest.priority,
             enabled=interest.enabled,
             deleted_at=interest.deleted_at,
-            sources=[self._stored_source_from_domain(source) for source in interest.sources],
+            sources=stored_sources,
         )
 
-    def _stored_source_from_domain(self, source: InterestSource) -> StoredInterestSource:
+    def _stored_source_from_domain(self, source: InterestSource, source_id: str) -> StoredInterestSource:
         return StoredInterestSource(
-            source_id=self._source_id_or_raise(source),
+            source_id=source_id,
             label=source.label,
             type=source.type,
             url=source.url,
@@ -150,6 +170,11 @@ class InterestStore:
         if source.id is None:
             raise ValueError("Source id is required for database persistence")
         return source.id
+
+    def _raise_on_duplicate_id(self, id_value: str, seen_ids: set[str], label: str) -> None:
+        if id_value in seen_ids:
+            raise ValueError(f"Duplicate {label} id is not allowed: {id_value}")
+        seen_ids.add(id_value)
 
 
 def create_interest_store(database_url: str) -> InterestStore:

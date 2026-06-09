@@ -138,3 +138,53 @@ def test_interest_store_requires_source_ids_for_database_persistence() -> None:
             store.write_interests(payload)
     finally:
         engine.dispose()
+
+
+def test_interest_store_rejects_duplicate_interest_ids_before_replacing_existing_data() -> None:
+    engine = _sqlite_engine()
+    try:
+        store = InterestStore(engine)
+        store.write_interests(_payload())
+        duplicate_payload = InterestsPayload.model_validate(
+            {
+                "interests": [
+                    {"id": "typescript", "name": "TypeScript"},
+                    {"id": "typescript", "name": "TypeScript Again"},
+                ]
+            }
+        )
+
+        with pytest.raises(ValueError, match="Duplicate interest id"):
+            store.write_interests(duplicate_payload)
+
+        assert store.read_interests().interests[0].name == "TypeScript"
+    finally:
+        engine.dispose()
+
+
+def test_interest_store_rejects_duplicate_source_ids_before_replacing_existing_data() -> None:
+    engine = _sqlite_engine()
+    try:
+        store = InterestStore(engine)
+        store.write_interests(_payload())
+        duplicate_payload = InterestsPayload.model_validate(
+            {
+                "interests": [
+                    {
+                        "id": "typescript",
+                        "name": "TypeScript",
+                        "sources": [
+                            {"id": "typescript-feed", "type": "feed", "url": "https://example.com/one.xml"},
+                            {"id": "typescript-feed", "type": "feed", "url": "https://example.com/two.xml"},
+                        ],
+                    }
+                ]
+            }
+        )
+
+        with pytest.raises(ValueError, match="Duplicate source id"):
+            store.write_interests(duplicate_payload)
+
+        assert store.read_interests().interests[0].sources[0].url == "https://example.com/feed.xml"
+    finally:
+        engine.dispose()
