@@ -36,7 +36,7 @@ SourceImageProviderFactory = Callable[[Fetcher], SourceImageProvider]
 @asynccontextmanager
 async def lifespan(api: FastAPI) -> AsyncIterator[None]:
     repository = cast(InterestRepository, api.state.interest_repository)
-    repository.ensure_data_file()
+    repository.ensure_data_store()
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
         http_fetcher = HttpxFetcher(client)
         source_update_collector_factory = cast(
