@@ -1,0 +1,56 @@
+# Render Blueprint for the hosted Learning Engine stack.
+# See docs/deployment/render.md before applying this Blueprint.
+services:
+  - type: web
+    name: learning-engine-backend
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    # Frankfurt is the closest Render service/datastore region to Israel.
+    region: frankfurt
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      # The backend Dockerfile currently runs uvicorn on port 8765.
+      - key: PORT
+        value: 8765
+      # Reserved for the planned Postgres persistence implementation.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: learning-engine-db
+          property: connectionString
+      # Optional provider credentials. Fill these in the Render Dashboard if needed.
+      - key: X_BEARER_TOKEN
+        sync: false
+      - key: SPOTIFY_ACCESS_TOKEN
+        sync: false
+
+  - type: web
+    name: learning-engine-frontend
+    runtime: static
+    rootDir: webapp
+    buildCommand: corepack enable && corepack prepare pnpm@11.1.2 --activate && pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: dist
+    autoDeployTrigger: commit
+    routes:
+      # Keep browser requests same-origin by proxying API calls from the static site
+      # to the public backend service. If Render assigns a different backend URL,
+      # update these destinations in the Render Dashboard after the first sync.
+      - type: rewrite
+        source: /api/*
+        destination: https://learning-engine-backend.onrender.com/api/*
+      - type: rewrite
+        source: /api
+        destination: https://learning-engine-backend.onrender.com/api
+      # Support client-side routing for the React/Vite app.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+
+databases:
+  - name: learning-engine-db
+    plan: free
+    # Keep the database in the same region as the backend service.
+    region: frankfurt
+    databaseName: learning_engine
+    user: learning_engine
