@@ -109,6 +109,10 @@ task compose:config      # validate both compose files
 
 The backend API is exposed on `http://localhost:8765` in both modes. Compose also starts PostgreSQL and persists it in the `postgres-data` Docker volume. The legacy `./backend/data/interests.json` file is mounted read-only so you can run the migration script when you are ready.
 
+## Cloud deployment
+
+Render is the preferred first hosting target for this app because it can host the static frontend, Dockerized FastAPI backend, and managed Postgres database from one Blueprint. The repository includes `render.yaml` plus deployment notes in `docs/deployment/render.md`. Apply the Blueprint only after the production persistence path has moved from the local JSON file to Postgres.
+
 ## Privacy note
 
 The interests database may reveal personal interests, professional priorities, people you follow, and private learning goals. Keep database backups and exported data private unless you intentionally decide to sync or publish them.
@@ -149,8 +153,10 @@ The first source adapters support RSS/Atom feeds and best-effort web pages. Plat
 ```text
 learning-engine/
 ├── Taskfile.yml           # maintained local development commands
+├── render.yaml            # Render Blueprint for the hosted stack
 ├── compose.dev.yaml       # Docker Compose development stack
 ├── compose.prod.yaml      # Docker Compose production stack
+├── docs/deployment/       # cloud deployment notes
 ├── backend/
 │   ├── pyproject.toml     # uv project config, dependencies, ruff, mypy, pytest
 │   ├── data/              # legacy JSON seed available to the migration script
