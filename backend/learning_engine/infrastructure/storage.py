@@ -1,7 +1,9 @@
 """PostgreSQL-backed interest persistence."""
 
+from datetime import UTC, datetime
 from typing import cast
 
+from sqlalchemy import Column, DateTime
 from sqlalchemy.engine import Engine
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 
@@ -20,7 +22,7 @@ class StoredInterest(SQLModel, table=True):
     description: str
     priority: str
     enabled: bool
-    deleted_at: str | None = None
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
 
     sources: list["StoredInterestSource"] = Relationship(
         back_populates="interest",
@@ -40,7 +42,7 @@ class StoredInterestSource(SQLModel, table=True):
     url: str
     image_url: str | None = None
     enabled: bool
-    deleted_at: str | None = None
+    deleted_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
 
     interest: StoredInterest = Relationship(back_populates="sources")
     ignore_keywords: list["StoredSourceIgnoreKeyword"] = Relationship(
@@ -119,7 +121,7 @@ class InterestStore:
             description=interest.description,
             priority=interest.priority,
             enabled=interest.enabled,
-            deleted_at=interest.deleted_at,
+            deleted_at=self._datetime_from_domain(interest.deleted_at),
             sources=stored_sources,
         )
 
@@ -131,7 +133,7 @@ class InterestStore:
             url=source.url,
             image_url=source.image_url,
             enabled=source.enabled,
-            deleted_at=source.deleted_at,
+            deleted_at=self._datetime_from_domain(source.deleted_at),
             ignore_keywords=[StoredSourceIgnoreKeyword(keyword=keyword) for keyword in source.ignore_keywords],
         )
 
@@ -142,7 +144,7 @@ class InterestStore:
             description=stored_interest.description,
             priority=cast(Priority, stored_interest.priority),
             enabled=stored_interest.enabled,
-            deleted_at=stored_interest.deleted_at,
+            deleted_at=self._datetime_to_domain(stored_interest.deleted_at),
             sources=[
                 self._source_from_stored(stored_source)
                 for stored_source in sorted(stored_interest.sources, key=lambda source: source.label)
@@ -157,7 +159,7 @@ class InterestStore:
             url=stored_source.url,
             image_url=stored_source.image_url,
             enabled=stored_source.enabled,
-            deleted_at=stored_source.deleted_at,
+            deleted_at=self._datetime_to_domain(stored_source.deleted_at),
             ignore_keywords=sorted(stored_keyword.keyword for stored_keyword in stored_source.ignore_keywords),
         )
 
@@ -175,6 +177,21 @@ class InterestStore:
         if id_value in seen_ids:
             raise ValueError(f"Duplicate {label} id is not allowed: {id_value}")
         seen_ids.add(id_value)
+
+    def _datetime_from_domain(self, value: str | None) -> datetime | None:
+        if value is None:
+            return None
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            raise ValueError("Deleted timestamp must include timezone information")
+        return parsed
+
+    def _datetime_to_domain(self, value: datetime | None) -> str | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=UTC)
+        return value.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def create_interest_store(database_url: str) -> InterestStore:

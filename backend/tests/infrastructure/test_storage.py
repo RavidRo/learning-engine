@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -70,6 +71,47 @@ def test_interest_store_writes_normalized_interests_to_relational_tables() -> No
         assert stored_source.interest_id == "typescript"
         assert stored_source.image_url == "https://example.com/image.png"
         assert sorted(keyword.keyword for keyword in stored_keywords) == ["beta", "nightly"]
+    finally:
+        engine.dispose()
+
+
+def test_interest_store_persists_deleted_timestamps_as_datetimes() -> None:
+    engine = _sqlite_engine()
+    try:
+        store = InterestStore(engine)
+        payload = InterestsPayload.model_validate(
+            {
+                "interests": [
+                    {
+                        "id": "typescript",
+                        "name": "TypeScript",
+                        "deletedAt": "2026-05-15T10:00:00.000Z",
+                        "sources": [
+                            {
+                                "id": "typescript-feed",
+                                "type": "feed",
+                                "url": "https://example.com/feed.xml",
+                                "deletedAt": "2026-05-16T11:30:00.000Z",
+                            }
+                        ],
+                    }
+                ]
+            }
+        )
+
+        store.write_interests(payload)
+
+        with Session(engine) as session:
+            stored_interest = session.exec(select(StoredInterest)).one()
+            stored_source = session.exec(select(StoredInterestSource)).one()
+
+        assert isinstance(stored_interest.deleted_at, datetime)
+        assert isinstance(stored_source.deleted_at, datetime)
+        assert stored_interest.deleted_at.replace(tzinfo=UTC) == datetime(2026, 5, 15, 10, 0, tzinfo=UTC)
+        assert stored_source.deleted_at.replace(tzinfo=UTC) == datetime(2026, 5, 16, 11, 30, tzinfo=UTC)
+        saved = store.read_interests().model_dump(mode="json", by_alias=True)
+        assert saved["interests"][0]["deletedAt"] == "2026-05-15T10:00:00.000Z"
+        assert saved["interests"][0]["sources"][0]["deletedAt"] == "2026-05-16T11:30:00.000Z"
     finally:
         engine.dispose()
 
