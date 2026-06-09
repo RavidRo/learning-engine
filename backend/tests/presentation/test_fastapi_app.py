@@ -39,7 +39,7 @@ class StubInterestRepository:
         self.saved_payloads: list[InterestsPayload] = []
         self._payload = payload or _payload()
 
-    def ensure_data_file(self) -> None:
+    def ensure_data_store(self) -> None:
         return None
 
     def read_interests(self) -> InterestsPayload:
