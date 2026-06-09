@@ -657,9 +657,6 @@ textarea {
 
 .updates-layout {
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
 }
 
 .updates-summary,
@@ -680,8 +677,20 @@ textarea {
 
 .updates-header-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-end;
   gap: 10px;
+  min-width: 238px;
+}
+
+.updates-header-summary {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.updates-header-summary .section-label {
+  margin-bottom: 0;
 }
 
 .days-select-control {
@@ -704,17 +713,26 @@ textarea {
 }
 
 .summary-box {
-  min-height: 82px;
+  display: flex;
+  min-height: 40px;
+  align-items: baseline;
+  gap: 8px;
   background: var(--surface-muted);
-  padding: 14px;
+  padding: 10px 12px;
+}
+
+.updates-summary {
+  align-self: end;
+  grid-template-columns: repeat(3, max-content);
+  justify-content: start;
+  width: auto;
 }
 
 .summary-box strong {
-  display: block;
-  margin-bottom: 6px;
-  font-size: 26px;
+  display: inline-block;
+  font-size: 18px;
   line-height: 1;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .summary-box span,
@@ -978,9 +996,12 @@ textarea {
 @media (max-width: 880px) {
   .hero,
   .workspace,
-  .briefing,
-  .updates-layout {
+  .briefing {
     grid-template-columns: 1fr;
+  }
+
+  .updates-summary {
+    grid-template-columns: repeat(auto-fit, minmax(150px, max-content));
   }
 
   .summary-card {
@@ -1024,7 +1045,8 @@ textarea {
   }
 
   .split-fields,
-  .stats-grid {
+  .stats-grid,
+  .updates-summary {
     grid-template-columns: 1fr;
   }
 
@@ -1033,6 +1055,7 @@ textarea {
   .briefing-header,
   .update-group-header,
   .update-item-meta,
+  .panel-header.row,
   .updates-header-actions {
     flex-direction: column;
   }
