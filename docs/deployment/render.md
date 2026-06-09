@@ -17,23 +17,29 @@ The Blueprint creates three Render resources:
 
 1. `learning-engine-frontend` — a free static site built from `webapp/`.
 2. `learning-engine-backend` — a Docker web service built from `backend/`.
-3. `learning-engine-db` — a managed Render Postgres database on the smallest paid plan.
+3. `learning-engine-db` — a managed Render Postgres database on Render's free plan.
 
 The static frontend keeps browser API calls same-origin by rewriting `/api` and
 `/api/*` requests to the backend service's public Render URL. This avoids adding
 cross-origin browser API configuration while preserving the local development
 shape where frontend code calls relative `/api` paths.
 
-## Expected starter cost
+## Region and expected starter cost
+
+The backend service and Postgres database are configured for Render's
+`frankfurt` region because Frankfurt is the closest available Render
+service/datastore region to Israel. Render static sites do not require a region
+choice because they are served through Render's global CDN.
 
 At the time this deployment plan was written, the intended starter setup was:
 
 - Static frontend: free.
 - Backend web service: Render `starter` plan.
-- Postgres: Render `basic-256mb` plan.
+- Postgres: Render `free` plan.
 
-Confirm the final monthly price in the Render Dashboard before applying the
-Blueprint because Render pricing and account-level included usage can change.
+Confirm the final monthly price and free database limitations in the Render
+Dashboard before applying the Blueprint because Render pricing, plan names, and
+account-level included usage can change.
 
 ## Apply the Blueprint
 
@@ -53,6 +59,7 @@ After Render creates the services, verify these settings in the dashboard:
 
 - The backend service has `PORT=8765` because the existing backend Dockerfile
   starts uvicorn on port `8765`.
+- The backend service and Postgres database are both in the `frankfurt` region.
 - The backend service has `DATABASE_URL` populated from `learning-engine-db`.
 - The frontend static site has rewrite rules for `/api/*`, `/api`, and `/*`.
 - The `/api/*` and `/api` rewrite destinations match the actual backend public
