@@ -5,8 +5,8 @@ services:
     name: learning-engine-backend
     runtime: docker
     rootDir: backend
-    dockerfilePath: ./backend/Dockerfile
-    dockerContext: ./backend
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     plan: free
     # Frankfurt is the closest Render service/datastore region to Israel.
     region: frankfurt
@@ -31,8 +31,8 @@ services:
     name: learning-engine-frontend
     runtime: static
     rootDir: webapp
-    buildCommand: corepack enable && corepack prepare pnpm@11.1.2 --activate && pnpm install --frozen-lockfile && pnpm run build
-    staticPublishPath: ./webapp/dist
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: ./dist
     autoDeployTrigger: commit
     routes:
       # Keep browser requests same-origin by proxying API calls from the static site

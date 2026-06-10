@@ -19,8 +19,9 @@ The Blueprint creates three Render resources:
 2. `learning-engine-backend` — a Docker web service built from `backend/`.
 3. `learning-engine-db` — a managed Render Postgres database on Render's free plan.
 
-The backend Docker service builds with `backend/Dockerfile` and `backend/` as
-its Docker context so the monorepo layout matches the Dockerfile `COPY` paths.
+The backend Docker service sets `rootDir: backend`, then uses `./Dockerfile` and
+`.` for the Dockerfile path and context so Render resolves both paths inside
+`backend/`.
 
 The static frontend keeps browser API calls same-origin by rewriting `/api` and
 `/api/*` requests to the backend service's public Render URL. This avoids adding
@@ -60,15 +61,16 @@ account-level included usage can change.
 
 After Render creates the services, verify these settings in the dashboard:
 
-- The backend service uses `dockerfilePath=./backend/Dockerfile` and
-  `dockerContext=./backend`; Render resolves both paths from the repository
-  root, not from `rootDir`.
+- The backend service uses `rootDir=backend`, `dockerfilePath=./Dockerfile`, and
+  `dockerContext=.` so Render does not look for `backend/backend`.
 - The backend service has `PORT=8765` because the existing backend Dockerfile
   starts uvicorn on port `8765`.
 - The backend service and Postgres database are both in the `frankfurt` region.
 - The backend service has `DATABASE_URL` populated from `learning-engine-db`.
-- The frontend static site publishes `./webapp/dist`; Render resolves
-  `staticPublishPath` from the repository root, not from `rootDir`.
+- The frontend static site uses `pnpm install --frozen-lockfile && pnpm run
+  build`; do not run `corepack enable` in the Render static-site build image
+  because `/usr/bin/pnpm` can be read-only.
+- The frontend static site publishes `./dist` from `rootDir=webapp`.
 - The frontend static site has rewrite rules for `/api/*`, `/api`, and `/*`.
 - The `/api/*` and `/api` rewrite destinations match the actual backend public
   URL. If Render assigns a different backend URL than
