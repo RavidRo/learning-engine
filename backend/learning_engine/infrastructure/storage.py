@@ -194,8 +194,16 @@ class InterestStore:
         return value.astimezone(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
+def _database_url_for_sqlalchemy(database_url: str) -> str:
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
 def create_interest_store(database_url: str) -> InterestStore:
-    return InterestStore(create_engine(database_url, pool_pre_ping=True))
+    return InterestStore(create_engine(_database_url_for_sqlalchemy(database_url), pool_pre_ping=True))
 
 
 DEFAULT_STORE = create_interest_store(DATABASE_URL)

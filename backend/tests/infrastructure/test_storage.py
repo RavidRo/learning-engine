@@ -15,6 +15,7 @@ from learning_engine.infrastructure.storage import (
     StoredInterest,
     StoredInterestSource,
     StoredSourceIgnoreKeyword,
+    _database_url_for_sqlalchemy,
 )
 
 
@@ -230,3 +231,24 @@ def test_interest_store_rejects_duplicate_source_ids_before_replacing_existing_d
         assert store.read_interests().interests[0].sources[0].url == "https://example.com/feed.xml"
     finally:
         engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("database_url", "expected"),
+    [
+        (
+            "postgres://user:password@example.com:5432/app",
+            "postgresql+psycopg://user:password@example.com:5432/app",
+        ),
+        (
+            "postgresql://user:password@example.com:5432/app",
+            "postgresql+psycopg://user:password@example.com:5432/app",
+        ),
+        (
+            "postgresql+psycopg://user:password@example.com:5432/app",
+            "postgresql+psycopg://user:password@example.com:5432/app",
+        ),
+    ],
+)
+def test_database_url_for_sqlalchemy_uses_installed_postgres_driver(database_url: str, expected: str) -> None:
+    assert _database_url_for_sqlalchemy(database_url) == expected
