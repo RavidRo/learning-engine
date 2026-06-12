@@ -24,7 +24,7 @@ Run `task --list` to see various tasks.
 
 - After using the OpenSpec archive workflow to complete a change, open a PR for
   the completed change unless the user explicitly opts out.
-- When opening a PR, include screenshots of any changed visual interface in the
+- When opening a PR, **include screenshots of any changed visual interface** in the
   PR description.
 - If screenshots cannot be produced locally, explain why in the PR description
   and include the best available substitute, such as a preview link or test
