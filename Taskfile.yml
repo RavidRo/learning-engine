@@ -40,59 +40,27 @@ tasks:
       - task: backend:format
       - task: web:format
 
-  dev:
+  up:
     desc: Start the development Docker Compose stack
     cmds:
-      - task: compose:dev:up
-
-  prod:
-    desc: Start the production Docker Compose stack
-    cmds:
-      - task: compose:prod:up
-
-  up:
-    desc: Start the development Docker Compose stack (alias for compose:dev:up)
-    cmds:
-      - task: compose:dev:up
+      - task: compose:up
 
   down:
     desc: Stop Docker Compose services for both modes
     cmds:
-      - task: compose:dev:down
-      - task: compose:prod:down
+      - task: compose:down
 
-  compose:dev:up:
+  compose:up:
     desc: Start backend plus the Vite dev server with Docker Compose
     cmds:
-      - docker compose -f compose.dev.yaml up --build
+      - docker compose -f compose.yaml up --build
 
-  compose:dev:down:
+  compose:down:
     desc: Stop the development Docker Compose stack
     cmds:
-      - docker compose -f compose.dev.yaml down
-
-  compose:dev:config:
-    desc: Validate development Docker Compose configuration
-    cmds:
-      - docker compose -f compose.dev.yaml config
-
-  compose:prod:up:
-    desc: Start backend plus the production frontend with Docker Compose
-    cmds:
-      - docker compose -f compose.prod.yaml up --build
-
-  compose:prod:down:
-    desc: Stop the production Docker Compose stack
-    cmds:
-      - docker compose -f compose.prod.yaml down
-
-  compose:prod:config:
-    desc: Validate production Docker Compose configuration
-    cmds:
-      - docker compose -f compose.prod.yaml config
+      - docker compose -f compose.yaml down
 
   compose:config:
-    desc: Validate development and production Docker Compose configurations
+    desc: Validate development Docker Compose configuration
     cmds:
-      - task: compose:dev:config
-      - task: compose:prod:config
+      - docker compose -f compose.yaml config

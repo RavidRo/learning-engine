@@ -26,8 +26,11 @@ HTTP_BAD_GATEWAY = 502
 HTTP_SERVICE_UNAVAILABLE = 503
 HTTP_INTERNAL_SERVER_ERROR = 500
 HTTP_UNPROCESSABLE_ENTITY = 422
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
 EXPECTED_EXPIRED_CALLS = 2
 EXPECTED_RETRY_CALLS = 2
+MCP_HEADERS = {"Authorization": "Bearer mcp-secret", "Accept": "application/json, text/event-stream"}
 
 
 async def no_source_image(*_args: object) -> str | None:
@@ -38,11 +41,13 @@ class StubInterestRepository:
     def __init__(self, payload: InterestsPayload | None = None) -> None:
         self.saved_payloads: list[InterestsPayload] = []
         self._payload = payload or _payload()
+        self.read_calls = 0
 
     def ensure_data_store(self) -> None:
         return None
 
     def read_interests(self) -> InterestsPayload:
+        self.read_calls += 1
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
     def write_interests(self, payload: InterestsPayload) -> None:
@@ -206,6 +211,13 @@ def _payload(source_url: str = "https://example.com/feed.xml") -> InterestsPaylo
     )
 
 
+def _mcp_request(request_id: int, method: str, params: dict[str, object] | None = None) -> dict[str, object]:
+    request: dict[str, object] = {"jsonrpc": "2.0", "id": request_id, "method": method}
+    if params is not None:
+        request["params"] = params
+    return request
+
+
 def _read_default_payload() -> InterestsPayload:
     return _payload()
 
@@ -289,6 +301,132 @@ def test_create_app_uses_cachetools_ttl_cache() -> None:
     app_module = importlib.import_module("learning_engine.presentation.app")
     assert api.state.source_updates_cache.maxsize == app_module.SOURCE_UPDATES_CACHE_MAX_ENTRIES
     assert api.state.source_updates_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
+
+
+def test_mcp_endpoint_lists_tools_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
+
+    assert response.status_code == HTTP_OK
+    tool_names = {tool["name"] for tool in response.json()["result"]["tools"]}
+    assert {
+        "list_interests",
+        "create_interest",
+        "update_interest",
+        "pause_interest",
+        "resume_interest",
+        "delete_interest",
+        "add_source",
+        "update_source",
+        "pause_source",
+        "resume_source",
+        "delete_source",
+    } <= tool_names
+
+
+def test_mcp_tool_uses_app_interest_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post(
+            "/mcp",
+            headers=MCP_HEADERS,
+            json=_mcp_request(1, "tools/call", {"name": "list_interests", "arguments": {}}),
+        )
+
+    assert response.status_code == HTTP_OK
+    assert response.json()["result"]["structuredContent"]["interests"][0]["id"] == "typescript"
+    assert repository.read_calls == 1
+
+
+def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MCP_AUTH_TOKEN", raising=False)
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post(
+            "/mcp",
+            headers=MCP_HEADERS,
+            json=_mcp_request(1, "tools/call", {"name": "list_interests", "arguments": {}}),
+        )
+
+    assert response.status_code == HTTP_SERVICE_UNAVAILABLE
+    assert response.json() == {"detail": "MCP is unavailable because MCP_AUTH_TOKEN is not configured"}
+    assert repository.read_calls == 0
+
+
+@pytest.mark.parametrize(
+    "headers",
+    [{}, {"Authorization": "Bearer wrong", "Accept": "application/json, text/event-stream"}],
+)
+def test_mcp_endpoint_rejects_missing_or_invalid_bearer_token(
+    monkeypatch: pytest.MonkeyPatch,
+    headers: dict[str, str],
+) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post(
+            "/mcp",
+            headers=headers,
+            json=_mcp_request(1, "tools/call", {"name": "list_interests", "arguments": {}}),
+        )
+
+    assert response.status_code == HTTP_UNAUTHORIZED
+    assert response.json() == {"detail": "Missing or invalid MCP bearer token"}
+    assert repository.read_calls == 0
+
+
+def test_mcp_endpoint_allows_configured_browser_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.setenv("MCP_ALLOWED_ORIGINS", "https://app.example.com")
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post(
+            "/mcp",
+            headers={**MCP_HEADERS, "Origin": "https://app.example.com"},
+            json=_mcp_request(1, "tools/list"),
+        )
+
+    assert response.status_code == HTTP_OK
+
+
+@pytest.mark.parametrize("allowed_origins", ["https://app.example.com", ""])
+def test_mcp_endpoint_rejects_disallowed_or_unset_browser_origin(
+    monkeypatch: pytest.MonkeyPatch,
+    allowed_origins: str,
+) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.setenv("MCP_ALLOWED_ORIGINS", allowed_origins)
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post(
+            "/mcp",
+            headers={**MCP_HEADERS, "Origin": "https://evil.example.com"},
+            json=_mcp_request(1, "tools/call", {"name": "list_interests", "arguments": {}}),
+        )
+
+    assert response.status_code == HTTP_FORBIDDEN
+    assert response.json() == {"detail": "MCP browser origin is not allowed"}
+    assert repository.read_calls == 0
+
+
+def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
+    monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
+
+    assert response.status_code == HTTP_OK
 
 
 def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
