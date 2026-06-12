@@ -29,3 +29,18 @@ def twitter_bearer_token() -> str | None:
 def spotify_bearer_token() -> str | None:
     token = os.getenv("SPOTIFY_ACCESS_TOKEN")
     return token.strip() if token else None
+
+
+def mcp_auth_token() -> str | None:
+    token = os.getenv("MCP_AUTH_TOKEN")
+    if token is None:
+        return None
+    stripped = token.strip()
+    return stripped or None
+
+
+def mcp_allowed_origins() -> list[str]:
+    origins = os.getenv("MCP_ALLOWED_ORIGINS")
+    if origins is None:
+        return []
+    return [origin for candidate in origins.split(",") if (origin := candidate.strip())]
