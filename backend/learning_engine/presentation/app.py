@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from typing import cast
 
@@ -26,6 +26,10 @@ from learning_engine.infrastructure.source_collectors.registry import (
 from learning_engine.infrastructure.source_images.resolver import SourceImageResolver
 from learning_engine.infrastructure.storage import DEFAULT_STORE
 from learning_engine.presentation.interests_router import interests_router
+from learning_engine.presentation.mcp_interest_server import (
+    create_authenticated_mcp_app,
+    create_interest_mcp_server,
+)
 
 SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
 SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
@@ -37,7 +41,9 @@ SourceImageProviderFactory = Callable[[Fetcher], SourceImageProvider]
 async def lifespan(api: FastAPI) -> AsyncIterator[None]:
     repository = cast(InterestRepository, api.state.interest_repository)
     repository.ensure_data_store()
-    async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS) as client:
+    async with AsyncExitStack() as stack:
+        await stack.enter_async_context(api.state.mcp_server.session_manager.run())
+        client = await stack.enter_async_context(httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS))
         http_fetcher = HttpxFetcher(client)
         source_update_collector_factory = cast(
             SourceUpdateCollectorFactory,
@@ -63,12 +69,14 @@ def create_app() -> FastAPI:
     api.state.interest_repository = DEFAULT_STORE
     api.state.source_update_collector_factory = SourceUpdateCollectorRegistry
     api.state.source_image_provider_factory = SourceImageResolver
+    api.state.mcp_server = create_interest_mcp_server(api)
 
     @api.get("/api/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
     api.include_router(interests_router(api))
+    api.mount("/mcp", create_authenticated_mcp_app(api.state.mcp_server))
 
     return api
 
