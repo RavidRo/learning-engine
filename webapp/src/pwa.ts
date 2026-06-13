@@ -33,6 +33,7 @@ const setUpdateAvailable = (updateAvailable: boolean): void => {
   emitPwaUpdate();
 };
 
+/** Registers the service worker and initializes update handling. */
 export const registerPwa = (): void => {
   if (isRegistered) {
     return;
@@ -45,6 +46,11 @@ export const registerPwa = (): void => {
   });
 };
 
+/**
+ * Subscribes to PWA update changes.
+ * @param listener PwaUpdateListener called when update state changes.
+ * @returns Unsubscribe function.
+ */
 export const subscribeToPwaUpdates = (listener: PwaUpdateListener): (() => void) => {
   pwaUpdateListeners.add(listener);
 
@@ -53,4 +59,5 @@ export const subscribeToPwaUpdates = (listener: PwaUpdateListener): (() => void)
   };
 };
 
+/** Returns the current PwaUpdateSnapshot. */
 export const getPwaUpdateSnapshot = (): PwaUpdateSnapshot => updateSnapshot;

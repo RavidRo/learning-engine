@@ -1,6 +1,6 @@
 ## Purpose
 
-Define Progressive Web App installability, app-shell caching, update prompting, offline state, and phone layout behavior for the webapp.
+Define Progressive Web App installability, app-shell caching, update prompting, connection-unavailable state, and phone layout behavior for the webapp.
 
 ## Requirements
 
@@ -32,7 +32,7 @@ The webapp SHALL cache frontend app-shell assets for offline loading and MUST NO
 
 #### Scenario: App opens without network after prior install
 - **WHEN** the installed app opens without network after the app shell was cached
-- **THEN** the frontend shell loads and presents a clear offline state instead of a browser network failure page
+- **THEN** the frontend shell loads and presents a clear connection-unavailable state instead of a browser network failure page
 
 ### Requirement: New deployed builds are applied by user prompt
 The webapp SHALL notify the user when a new service worker version is waiting and SHALL apply it only after an explicit refresh action.
@@ -49,27 +49,27 @@ The webapp SHALL notify the user when a new service worker version is waiting an
 - **WHEN** a new build is waiting and the user has not activated the refresh action
 - **THEN** the current app session continues without an automatic reload
 
-### Requirement: Offline state is visible and disables network actions
-The webapp SHALL show global offline state and SHALL prevent network-required actions while offline.
+### Requirement: Connection-unavailable state is visible and disables network actions
+The webapp SHALL show global connection-unavailable state and SHALL prevent network-required actions while the browser or backend connection is unavailable.
 
 #### Scenario: Browser reports offline
 - **WHEN** the browser reports that the app is offline
-- **THEN** the app displays a compact global offline banner below the topbar explaining that live updates and saving need a connection
+- **THEN** the app displays a compact global connection-unavailable banner below the topbar explaining that live updates and saving need the service
 
 #### Scenario: Backend is unavailable
 - **WHEN** the frontend app shell loads but required backend API requests fail
-- **THEN** the app displays the global offline banner and treats network-required actions as unavailable
+- **THEN** the app displays the global connection-unavailable banner and treats network-required actions as unavailable
 
-#### Scenario: Offline state affects update refresh
-- **WHEN** the browser reports that the app is offline
+#### Scenario: Connection-unavailable state affects update refresh
+- **WHEN** the browser or backend connection is unavailable
 - **THEN** the Updates refresh control is disabled and communicates that a connection is required
 
-#### Scenario: Offline state affects interest saves
-- **WHEN** the browser reports that the app is offline
+#### Scenario: Connection-unavailable state affects interest saves
+- **WHEN** the browser or backend connection is unavailable
 - **THEN** create, update, delete, and toggle interest actions are disabled or blocked before sending save requests
 
-#### Scenario: Offline state affects source image lookup
-- **WHEN** the browser reports that the app is offline
+#### Scenario: Connection-unavailable state affects source image lookup
+- **WHEN** the browser or backend connection is unavailable
 - **THEN** automatic source image preview lookup is not requested and the editor communicates that preview requires a connection
 
 ### Requirement: Phone layout remains usable without replacing topbar

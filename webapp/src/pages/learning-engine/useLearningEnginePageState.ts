@@ -133,6 +133,13 @@ const mutationSaveStatus: Record<"idle" | "pending" | "error" | "success", SaveS
 const saveStatus = (status: "idle" | "pending" | "error" | "success"): SaveStatus =>
   mutationSaveStatus[status];
 
+const updatesErrorPayload = (error: unknown): UpdatesPayload => ({
+  errors: [],
+  error: errorMessage(error, "Failed to fetch updates"),
+  sources_checked: 0,
+  updates: [],
+});
+
 const createLearningEngineActions = (
   interests: Interest[],
   isOffline: boolean,
@@ -264,22 +271,19 @@ export const useLearningEnginePageState = ({
     navigateToView,
     showToast,
     saveInterestsMutation.mutate,
-    () => {
-      void updatesQuery.refetch().then((result) => {
-        if (result.error !== null) {
-          const updatesError: UpdatesPayload = {
-            errors: [],
-            error: errorMessage(result.error, "Failed to fetch updates"),
-            sources_checked: 0,
-            updates: [],
-          };
+    async () => {
+      try {
+        const result = await updatesQuery.refetch();
 
-          queryClient.setQueryData(currentUpdatesQueryKey, updatesError);
+        if (result.error !== null) {
+          queryClient.setQueryData(currentUpdatesQueryKey, updatesErrorPayload(result.error));
           return;
         }
 
         showToast("Updates refreshed");
-      });
+      } catch (error) {
+        queryClient.setQueryData(currentUpdatesQueryKey, updatesErrorPayload(error));
+      }
     },
     exportInterestsMutation.mutate,
     importInterestsMutation.mutate,

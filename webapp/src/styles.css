@@ -150,7 +150,7 @@ button:disabled {
   line-height: 1.35;
 }
 
-.app-status-banner.offline {
+.app-status-banner.connection-unavailable {
   border-color: #fecaca;
   background: var(--danger-soft);
   color: var(--danger);

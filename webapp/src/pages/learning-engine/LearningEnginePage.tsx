@@ -32,7 +32,7 @@ export const LearningEnginePage = () => {
       <main className="shell">
         <TopNavigation onChangeView={actions.changeView} view={state.view} />
         <AppStatusBanner
-          isOffline={state.isConnectionUnavailable}
+          isConnectionUnavailable={state.isConnectionUnavailable}
           onRefreshUpdate={pwaUpdate.refreshUpdate}
           updateAvailable={pwaUpdate.updateAvailable}
         />

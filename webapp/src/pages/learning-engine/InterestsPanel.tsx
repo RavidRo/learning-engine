@@ -1,4 +1,4 @@
-import { type ChangeEvent, type RefObject, useRef } from "react";
+import { type ChangeEvent, useRef } from "react";
 
 import { InterestCard } from "./InterestCard";
 import { type Interest, type SaveStatus } from "./types";
@@ -115,12 +115,19 @@ const InterestTransferButton = ({
   </button>
 );
 
-type ImportFileInputProps = {
-  inputRef: RefObject<HTMLInputElement | null>;
+type InterestImportControlProps = {
+  isImporting: boolean;
+  isOffline: boolean;
   onImportInterests: (file: File) => void;
 };
 
-const ImportFileInput = ({ inputRef, onImportInterests }: ImportFileInputProps) => {
+const InterestImportControl = ({
+  isImporting,
+  isOffline,
+  onImportInterests,
+}: InterestImportControlProps) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleImportSelection = (event: ChangeEvent<HTMLInputElement>): void => {
     const file = selectedImportFile(event.currentTarget);
     event.currentTarget.value = "";
@@ -137,13 +144,21 @@ const ImportFileInput = ({ inputRef, onImportInterests }: ImportFileInputProps) 
   };
 
   return (
-    <input
-      ref={inputRef}
-      className="visually-hidden"
-      type="file"
-      accept="application/json,.json"
-      onChange={handleImportSelection}
-    />
+    <>
+      <InterestTransferButton
+        disabled={transferButtonDisabled(isImporting, isOffline)}
+        label={importButtonLabel(isImporting, isOffline)}
+        onClick={() => openImportPicker(fileInputRef.current)}
+        title={importButtonTitle(isOffline)}
+      />
+      <input
+        ref={fileInputRef}
+        className="visually-hidden"
+        type="file"
+        accept="application/json,.json"
+        onChange={handleImportSelection}
+      />
+    </>
   );
 };
 
@@ -154,8 +169,6 @@ const InterestTransferControls = ({
   onExportInterests,
   onImportInterests,
 }: InterestTransferControlsProps) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   return (
     <div className="interest-transfer-actions" aria-label="Interest import and export">
       <InterestTransferButton
@@ -164,13 +177,11 @@ const InterestTransferControls = ({
         onClick={onExportInterests}
         title={exportButtonTitle(isOffline)}
       />
-      <InterestTransferButton
-        disabled={transferButtonDisabled(isImporting, isOffline)}
-        label={importButtonLabel(isImporting, isOffline)}
-        onClick={() => openImportPicker(fileInputRef.current)}
-        title={importButtonTitle(isOffline)}
+      <InterestImportControl
+        isImporting={isImporting}
+        isOffline={isOffline}
+        onImportInterests={onImportInterests}
       />
-      <ImportFileInput inputRef={fileInputRef} onImportInterests={onImportInterests} />
     </div>
   );
 };

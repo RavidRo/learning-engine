@@ -1,18 +1,18 @@
 type AppStatusBannerProps = {
-  isOffline: boolean;
+  isConnectionUnavailable: boolean;
   onRefreshUpdate: () => void;
   updateAvailable: boolean;
 };
 
 export const AppStatusBanner = ({
-  isOffline,
+  isConnectionUnavailable,
   onRefreshUpdate,
   updateAvailable,
 }: AppStatusBannerProps) => {
-  if (isOffline) {
+  if (isConnectionUnavailable) {
     return (
-      <div className="app-status-banner offline" role="status">
-        <span>Offline. Live updates and saving need a connection.</span>
+      <div className="app-status-banner connection-unavailable" role="status">
+        <span>Connection unavailable. Live updates and saving need the service.</span>
       </div>
     );
   }
