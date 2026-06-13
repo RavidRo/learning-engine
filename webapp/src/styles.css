@@ -253,6 +253,84 @@ h3 {
   font-size: 13px;
 }
 
+.icon-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text-soft);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.icon-button:hover {
+  border-color: var(--faint);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.icon-button.saved {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.icon-button.danger {
+  border-color: #fecaca;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.icon-button-icon {
+  width: 19px;
+  height: 19px;
+}
+
+.icon-button-check {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #ecfdf5;
+  border-radius: 999px;
+  background: #047857;
+}
+
+.icon-button::after {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 30;
+  display: none;
+  width: max-content;
+  max-width: 180px;
+  border-radius: 6px;
+  background: #18181b;
+  color: #ffffff;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  transform: translateX(-50%);
+  content: attr(data-tooltip);
+  pointer-events: none;
+}
+
+.icon-button:hover::after,
+.icon-button:focus-visible::after {
+  display: block;
+}
+
 .summary-card,
 .panel,
 .card {
@@ -704,6 +782,8 @@ textarea {
 .summary-box,
 .update-group,
 .update-item-card,
+.collection-panel,
+.collection-update-card,
 .updates-callout {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -798,24 +878,37 @@ textarea {
   margin: 0;
 }
 
-.update-item-card {
+.update-item-card,
+.collection-update-card {
   display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
+  grid-template-columns: 64px minmax(0, 1fr) auto;
   gap: 14px;
   align-items: center;
   background: var(--surface-muted);
   min-height: 92px;
+  min-width: 0;
   padding: 14px;
 }
 
-.update-item-content {
+.update-item-content,
+.collection-update-content {
   display: grid;
   min-width: 0;
   gap: 10px;
 }
 
-.update-item-card a {
+.update-item-card a,
+.collection-update-card a {
   font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.update-collection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 84px;
 }
 
 .source-avatar {
@@ -970,6 +1063,49 @@ textarea {
   color: var(--danger) !important;
 }
 
+.collections-page {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.collections-grid {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.collection-panel {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.collection-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.collection-panel-header h3,
+.collection-panel-header p {
+  margin: 0;
+}
+
+.collection-panel-header p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.collection-update-list {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .briefing {
   display: grid;
   gap: 14px;
@@ -1056,7 +1192,7 @@ textarea {
 
 @media (max-width: 640px) {
   .shell {
-    width: min(1120px, calc(100% - 28px));
+    width: calc(100vw - 28px);
     padding-top: 18px;
   }
 
@@ -1068,11 +1204,23 @@ textarea {
 
   .navlinks {
     width: 100%;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 10px;
+  }
+
+  .navlinks a,
+  .nav-button {
+    font-size: 12px;
   }
 
   .hero {
     padding: 22px 0 16px;
+  }
+
+  .subtitle {
+    max-width: 100%;
+    font-size: 13px;
   }
 
   .summary-card {
@@ -1091,9 +1239,44 @@ textarea {
   .briefing-header,
   .update-group-header,
   .update-item-meta,
+  .update-item-card,
+  .collection-update-card,
+  .collection-panel-header,
   .panel-header.row,
   .updates-header-actions {
     flex-direction: column;
+  }
+
+  .update-item-card,
+  .collection-update-card {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .source-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .update-collection-actions,
+  .collection-update-card .icon-button {
+    grid-column: 1 / -1;
+    max-width: 100%;
+    justify-content: flex-start;
+    justify-self: stretch;
+  }
+
+  .collection-update-content,
+  .collection-update-card a,
+  .collection-update-card span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .update-collection-actions .icon-button,
+  .collection-update-card .icon-button {
+    flex: 0 0 38px;
   }
 
   .row {
@@ -1103,6 +1286,7 @@ textarea {
   .panel,
   .panel-copy {
     max-width: calc(100vw - 28px);
+    overflow: hidden;
   }
 
   .header-actions {

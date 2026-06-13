@@ -1,5 +1,8 @@
 import {
+  collectionsPayloadSchema,
   interestsPayloadSchema,
+  removeCollectionUpdateResponseSchema,
+  saveCollectionUpdateResponseSchema,
   saveInterestsResponseSchema,
   sourceImageResponseSchema,
   updatesDisplayErrorMessage,
@@ -8,7 +11,10 @@ import {
 import {
   type Interest,
   type InterestSource,
+  type Collection,
+  type SavedCollectionUpdate,
   type SourceImagePayload,
+  type Update,
   type UpdatesPayload,
 } from "./types";
 
@@ -93,6 +99,46 @@ export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
   }
 
   return parseUpdatesPayload(responsePayload);
+};
+
+export const fetchCollections = async (): Promise<Collection[]> => {
+  const response = await fetch("/api/collections");
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  const payload = collectionsPayloadSchema.parse(await response.json());
+  return payload.collections;
+};
+
+export const saveUpdateToCollection = async (
+  collectionId: string,
+  update: Update,
+): Promise<SavedCollectionUpdate> => {
+  const response = await fetch(`/api/collections/${collectionId}/updates`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ update }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return saveCollectionUpdateResponseSchema.parse(await response.json()).saved_update;
+};
+
+export const removeSavedUpdate = async (collectionId: string, updateKey: string): Promise<void> => {
+  const response = await fetch(`/api/collections/${collectionId}/updates/${updateKey}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  removeCollectionUpdateResponseSchema.parse(await response.json());
 };
 
 export const resolveSourceImage = async (

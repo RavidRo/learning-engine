@@ -1,5 +1,6 @@
 import { Toast } from "../../components/Toast";
 import { BriefingSection } from "./BriefingSection";
+import { CollectionsPage } from "./CollectionsPage";
 import { HeroSection } from "./HeroSection";
 import { InterestEditor } from "./InterestEditor";
 import { InterestsPanel } from "./InterestsPanel";
@@ -7,6 +8,84 @@ import { TopNavigation } from "./TopNavigation";
 import { UpdatesPage } from "./UpdatesPage";
 import { useLearningEnginePageState } from "./useLearningEnginePageState";
 import { useState } from "react";
+
+type LearningEngineState = ReturnType<typeof useLearningEnginePageState>["state"];
+type LearningEngineActions = ReturnType<typeof useLearningEnginePageState>["actions"];
+
+type PageViewContentProps = {
+  actions: LearningEngineActions;
+  editingInterest: LearningEngineState["interests"][number] | null;
+  editorKey: string;
+  onCancelEdit: () => void;
+  onEditInterest: (id: string) => void;
+  onCreateInterest: LearningEngineActions["addInterest"];
+  state: LearningEngineState;
+};
+
+const PageViewContent = ({
+  actions,
+  editingInterest,
+  editorKey,
+  onCancelEdit,
+  onCreateInterest,
+  onEditInterest,
+  state,
+}: PageViewContentProps) => {
+  if (state.view === "interests") {
+    return (
+      <section className="workspace" aria-label="Interest workspace">
+        <InterestEditor
+          interest={editingInterest}
+          key={editorKey}
+          onCancelEdit={onCancelEdit}
+          onCreateInterest={onCreateInterest}
+          onUpdateInterest={actions.updateInterest}
+        />
+        <InterestsPanel
+          interests={state.interests}
+          isExporting={state.isExporting}
+          isImporting={state.isImporting}
+          loadError={state.loadError}
+          onEditInterest={onEditInterest}
+          onExportInterests={actions.exportInterests}
+          onImportInterests={actions.importInterests}
+          onRemoveInterest={actions.removeInterest}
+          onToggleInterest={actions.toggleInterest}
+          saveError={state.saveError}
+          saveStatus={state.saveStatus}
+        />
+      </section>
+    );
+  }
+
+  if (state.view === "collections") {
+    return (
+      <CollectionsPage
+        collections={state.collections}
+        collectionsError={state.collectionsError}
+        isLoadingCollections={state.isLoadingCollections}
+        isRemovingSavedUpdate={state.isRemovingSavedUpdate}
+        onRemoveSavedUpdate={actions.removeSavedUpdate}
+      />
+    );
+  }
+
+  return (
+    <UpdatesPage
+      collections={state.collections}
+      days={state.updateDays}
+      isChecking={state.isChecking}
+      isRemovingSavedUpdate={state.isRemovingSavedUpdate}
+      isSavingToCollection={state.isSavingToCollection}
+      onDaysChange={state.setUpdateDays}
+      onRefresh={actions.checkUpdates}
+      onRemoveSavedUpdate={actions.removeSavedUpdate}
+      onSaveUpdateToCollection={actions.saveUpdateToCollection}
+      updates={state.updates}
+      updatesError={state.updatesError}
+    />
+  );
+};
 
 export const LearningEnginePage = () => {
   const { state, actions } = useLearningEnginePageState();
@@ -32,39 +111,15 @@ export const LearningEnginePage = () => {
           totalInterests={state.interests.length}
         />
 
-        {state.view === "interests" ? (
-          <section className="workspace" aria-label="Interest workspace">
-            <InterestEditor
-              interest={editingInterest}
-              key={editorKey}
-              onCancelEdit={() => setEditingInterestId(null)}
-              onCreateInterest={handleCreateInterest}
-              onUpdateInterest={actions.updateInterest}
-            />
-            <InterestsPanel
-              interests={state.interests}
-              isExporting={state.isExporting}
-              isImporting={state.isImporting}
-              loadError={state.loadError}
-              onExportInterests={actions.exportInterests}
-              onEditInterest={setEditingInterestId}
-              onImportInterests={actions.importInterests}
-              onRemoveInterest={actions.removeInterest}
-              onToggleInterest={actions.toggleInterest}
-              saveError={state.saveError}
-              saveStatus={state.saveStatus}
-            />
-          </section>
-        ) : (
-          <UpdatesPage
-            days={state.updateDays}
-            isChecking={state.isChecking}
-            onDaysChange={state.setUpdateDays}
-            onRefresh={actions.checkUpdates}
-            updates={state.updates}
-            updatesError={state.updatesError}
-          />
-        )}
+        <PageViewContent
+          actions={actions}
+          editingInterest={editingInterest}
+          editorKey={editorKey}
+          onCancelEdit={() => setEditingInterestId(null)}
+          onCreateInterest={handleCreateInterest}
+          onEditInterest={setEditingInterestId}
+          state={state}
+        />
 
         <BriefingSection />
       </main>

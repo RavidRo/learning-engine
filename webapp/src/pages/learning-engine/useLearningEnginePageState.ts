@@ -3,8 +3,11 @@ import { useEffect, useReducer, useState } from "react";
 
 import {
   downloadInterestExport,
+  fetchCollections,
   fetchInterests,
   fetchUpdates,
+  removeSavedUpdate,
+  saveUpdateToCollection as saveUpdateToCollectionApi,
   saveInterests,
   uploadInterestExport,
 } from "./api";
@@ -15,11 +18,13 @@ import {
   type LearningEnginePageActions,
   type PageView,
   type SaveStatus,
+  type Update,
   type UpdatesPayload,
   type ToastState,
 } from "./types";
 
 const interestsQueryKey = ["learning-engine", "interests"] as const;
+const collectionsQueryKey = ["learning-engine", "collections"] as const;
 const defaultUpdateDays = 2;
 const updatesQueryKey = (days: number) => ["learning-engine", "updates", days] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
@@ -27,6 +32,8 @@ const emptyToast: ToastState = { message: "Saved locally", visible: false };
 type ToastAction = { type: "hideToast" } | { type: "showToast"; message: string };
 type ShowToast = (message: string) => void;
 type SaveInterestsContext = { previousInterests: Interest[] };
+type SaveUpdateToCollectionInput = { collectionId: string; update: Update };
+type RemoveSavedUpdateInput = { collectionId: string; updateKey: string };
 
 const toastReducer = (state: ToastState, action: ToastAction): ToastState => {
   switch (action.type) {
@@ -123,6 +130,32 @@ const useImportInterestsMutation = (queryClient: QueryClient, showToast: ShowToa
     },
   });
 
+const useSaveUpdateToCollectionMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+  useMutation({
+    mutationFn: ({ collectionId, update }: SaveUpdateToCollectionInput) =>
+      saveUpdateToCollectionApi(collectionId, update),
+    onError: (error) => {
+      showToast(errorMessage(error, "Failed to save update"));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
+      showToast("Update saved");
+    },
+  });
+
+const useRemoveSavedUpdateMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+  useMutation({
+    mutationFn: ({ collectionId, updateKey }: RemoveSavedUpdateInput) =>
+      removeSavedUpdate(collectionId, updateKey),
+    onError: (error) => {
+      showToast(errorMessage(error, "Failed to remove update"));
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
+      showToast("Update removed");
+    },
+  });
+
 const mutationSaveStatus: Record<"idle" | "pending" | "error" | "success", SaveStatus> = {
   error: "failed",
   idle: "idle",
@@ -140,6 +173,8 @@ const createLearningEngineActions = (
   checkUpdates: () => void,
   exportInterests: () => void,
   importInterests: (file: File) => void,
+  saveUpdateToCollection: (collectionId: string, update: Update) => void,
+  removeSavedUpdate: (collectionId: string, updateKey: string) => void,
 ): LearningEnginePageActions => ({
   addInterest: (draft) => {
     const newInterest = createInterest(draft);
@@ -168,6 +203,12 @@ const createLearningEngineActions = (
     );
 
     saveNextInterests(nextInterests);
+  },
+  removeSavedUpdate: (collectionId, updateKey) => {
+    removeSavedUpdate(collectionId, updateKey);
+  },
+  saveUpdateToCollection: (collectionId, update) => {
+    saveUpdateToCollection(collectionId, update);
   },
   toggleInterest: (id) => {
     const nextInterests = interests.map((interest) =>
@@ -208,9 +249,17 @@ export const useLearningEnginePageState = () => {
     queryKey: currentUpdatesQueryKey,
   });
 
+  const collectionsQuery = useQuery({
+    enabled: view === "collections" || view === "updates",
+    queryFn: fetchCollections,
+    queryKey: collectionsQueryKey,
+  });
+
   const saveInterestsMutation = useSaveInterestsMutation(queryClient, showToast);
   const exportInterestsMutation = useExportInterestsMutation(showToast);
   const importInterestsMutation = useImportInterestsMutation(queryClient, showToast);
+  const saveUpdateToCollectionMutation = useSaveUpdateToCollectionMutation(queryClient, showToast);
+  const removeSavedUpdateMutation = useRemoveSavedUpdateMutation(queryClient, showToast);
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
   const actions = createLearningEngineActions(
@@ -236,6 +285,8 @@ export const useLearningEnginePageState = () => {
     },
     exportInterestsMutation.mutate,
     importInterestsMutation.mutate,
+    (collectionId, update) => saveUpdateToCollectionMutation.mutate({ collectionId, update }),
+    (collectionId, updateKey) => removeSavedUpdateMutation.mutate({ collectionId, updateKey }),
   );
 
   return {
@@ -248,10 +299,18 @@ export const useLearningEnginePageState = () => {
         0,
       ),
       interests: visibleInterests,
+      collections: collectionsQuery.data ?? [],
+      collectionsError:
+        collectionsQuery.error === null
+          ? null
+          : errorMessage(collectionsQuery.error, "Failed to load collections"),
       isChecking: updatesQuery.isFetching,
       isExporting: exportInterestsMutation.isPending,
       isImporting: importInterestsMutation.isPending,
+      isLoadingCollections: collectionsQuery.isLoading,
       isSaving: saveInterestsMutation.isPending,
+      isRemovingSavedUpdate: removeSavedUpdateMutation.isPending,
+      isSavingToCollection: saveUpdateToCollectionMutation.isPending,
       saveError:
         saveInterestsMutation.error === null
           ? null
