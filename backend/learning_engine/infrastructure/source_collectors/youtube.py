@@ -24,7 +24,7 @@ CHANNEL_ID_META_PATTERN = re.compile(
     re.IGNORECASE,
 )
 YOUTUBE_INITIAL_DATA_MARKER = "ytInitialData"
-AVATAR_KEYS = frozenset({"avatar", "avatarViewModel", "channelAvatar", "decoratedAvatarViewModel"})
+AVATAR_KEYS = ("avatar", "avatarViewModel", "channelAvatar", "decoratedAvatarViewModel")
 
 
 def _channel_id_from_url(url: str) -> str | None:
