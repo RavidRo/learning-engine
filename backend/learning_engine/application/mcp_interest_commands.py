@@ -60,7 +60,7 @@ class InterestCreateInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    description: str = ""
+    description: str | None = None
     priority: Priority = "medium"
     enabled: bool = True
     sources: list[SourceInput] = Field(min_length=1)
@@ -128,7 +128,7 @@ def create_interest(
     interest = Interest(
         id=interest_id,
         name=command.name,
-        description=command.description,
+        description=command.description or "",
         priority=command.priority,
         enabled=command.enabled,
         sources=sources,
@@ -194,9 +194,7 @@ def update_source(
     interest_index, interest = _find_active_interest(interests, interest_id)
     sources = list(interest.sources)
     source_index, source = _find_active_source(sources, source_id, interest_id)
-    updated_source = source.model_copy(
-        update={key: value for key, value in command.model_dump(exclude_unset=True).items() if value is not None}
-    )
+    updated_source = source.model_copy(update=command.model_dump(exclude_unset=True))
     sources[source_index] = updated_source
     interests[interest_index] = interest.model_copy(update={"sources": sources})
     _write_validated(repository, InterestsPayload(interests=interests))

@@ -15,7 +15,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from learning_engine.application import mcp_interest_commands as commands
 from learning_engine.application.ports import InterestRepository
-from learning_engine.config import mcp_allowed_origins, mcp_auth_token
+from learning_engine.config import mcp_allowed_hosts, mcp_allowed_origins, mcp_auth_token
 
 MCP_UNAVAILABLE_DETAIL = "MCP is unavailable because MCP_AUTH_TOKEN is not configured"
 MCP_INVALID_TOKEN_DETAIL = "Missing or invalid MCP bearer token"  # noqa: S105
@@ -57,13 +57,16 @@ def create_interest_mcp_server(api: FastAPI) -> FastMCP:  # noqa: C901
         stateless_http=True,
         json_response=True,
         streamable_http_path="/",
-        transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
+        transport_security=TransportSecuritySettings(
+            allowed_hosts=mcp_allowed_hosts(),
+            allowed_origins=mcp_allowed_origins(),
+        ),
     )
 
     @mcp.tool()
     def list_interests(include_deleted: bool = False) -> commands.CommandResponse:
         """List interests and sources, excluding soft-deleted records unless requested."""
-        return commands.list_interests(_interest_repository(api), include_deleted=include_deleted)
+        return _tool_result(lambda: commands.list_interests(_interest_repository(api), include_deleted=include_deleted))
 
     @mcp.tool()
     def create_interest(command: commands.InterestCreateInput) -> commands.CommandResponse:

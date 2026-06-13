@@ -196,7 +196,12 @@ def test_add_update_pause_resume_and_delete_source_by_id() -> None:
     added = add_source(
         repository,
         "typescript",
-        SourceInput(label="Handbook", type="page", url="https://example.com/handbook"),
+        SourceInput(
+            label="Handbook",
+            type="page",
+            url="https://example.com/handbook",
+            image_url="https://example.com/handbook.png",
+        ),
         id_factory=lambda: "handbook",
     )
     updated = update_source(
@@ -205,12 +210,21 @@ def test_add_update_pause_resume_and_delete_source_by_id() -> None:
         "source-handbook",
         SourceUpdateInput(label="TS Handbook", ignore_keywords=["draft", " jobs "], enabled=False),
     )
+    cleared_image = update_source(
+        repository,
+        "typescript",
+        "source-handbook",
+        SourceUpdateInput(image_url=None),
+    )
     paused = pause_source(repository, "typescript", "source-handbook")
     resumed = resume_source(repository, "typescript", "source-handbook")
     deleted = delete_source(repository, "typescript", "source-handbook")
 
     assert added["source"]["id"] == "source-handbook"
+    assert added["source"]["imageUrl"] == "https://example.com/handbook.png"
     assert updated["source"]["label"] == "TS Handbook"
+    assert cleared_image["source"]["imageUrl"] is None
+    assert repository.saved_payloads[2].interests[0].sources[-1].image_url is None
     assert repository.saved_payloads[-1].interests[0].sources[0].id == "ts-feed"
     assert paused["source"]["enabled"] is False
     assert resumed["source"]["enabled"] is True

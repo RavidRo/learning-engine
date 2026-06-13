@@ -308,7 +308,7 @@ def test_mcp_endpoint_lists_tools_when_configured(monkeypatch: pytest.MonkeyPatc
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with TestClient(_create_test_app(repository=repository), base_url="http://localhost") as client:
         response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
 
     assert response.status_code == HTTP_OK
@@ -333,7 +333,7 @@ def test_mcp_tool_uses_app_interest_repository(monkeypatch: pytest.MonkeyPatch) 
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with TestClient(_create_test_app(repository=repository), base_url="http://localhost") as client:
         response = client.post(
             "/mcp",
             headers=MCP_HEADERS,
@@ -388,7 +388,7 @@ def test_mcp_endpoint_allows_configured_browser_origin(monkeypatch: pytest.Monke
     monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.setenv("MCP_ALLOWED_ORIGINS", "https://app.example.com")
 
-    with TestClient(_create_test_app()) as client:
+    with TestClient(_create_test_app(), base_url="http://localhost") as client:
         response = client.post(
             "/mcp",
             headers={**MCP_HEADERS, "Origin": "https://app.example.com"},
@@ -423,7 +423,7 @@ def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(monkey
     monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
 
-    with TestClient(_create_test_app()) as client:
+    with TestClient(_create_test_app(), base_url="http://localhost") as client:
         response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
 
     assert response.status_code == HTTP_OK

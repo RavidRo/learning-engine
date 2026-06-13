@@ -9,10 +9,10 @@ def test_mcp_auth_token_returns_none_when_missing(monkeypatch: pytest.MonkeyPatc
     assert config.mcp_auth_token() is None
 
 
-def test_mcp_auth_token_returns_none_when_blank(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mcp_auth_token_returns_configured_empty_string_when_blank(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MCP_AUTH_TOKEN", " \t ")
 
-    assert config.mcp_auth_token() is None
+    assert config.mcp_auth_token() == ""
 
 
 def test_mcp_auth_token_trims_configured_token(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -40,3 +40,22 @@ def test_mcp_allowed_origins_parses_multiple_origins(monkeypatch: pytest.MonkeyP
     )
 
     assert config.mcp_allowed_origins() == ["https://app.example.com", "https://agent.example.com"]
+
+
+def test_mcp_allowed_hosts_returns_localhost_defaults_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MCP_ALLOWED_HOSTS", raising=False)
+
+    assert config.mcp_allowed_hosts() == ["127.0.0.1", "127.0.0.1:*", "localhost", "localhost:*"]
+
+
+def test_mcp_allowed_hosts_extends_localhost_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MCP_ALLOWED_HOSTS", " learning-engine.example.com, api.example.com:443 , ")
+
+    assert config.mcp_allowed_hosts() == [
+        "127.0.0.1",
+        "127.0.0.1:*",
+        "localhost",
+        "localhost:*",
+        "learning-engine.example.com",
+        "api.example.com:443",
+    ]
