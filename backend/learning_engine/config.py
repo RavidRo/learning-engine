@@ -3,11 +3,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 
-BACKEND_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = BACKEND_ROOT / "data"
-INTERESTS_FILE = DATA_DIR / "interests.json"
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg://learning_engine:learning_engine@localhost:5432/learning_engine",
