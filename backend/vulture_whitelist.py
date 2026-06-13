@@ -4,6 +4,7 @@ from learning_engine.application.responses import CollectionError, UpdatesRespon
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 from learning_engine.infrastructure.storage import StoredSourceIgnoreKeyword
+from learning_engine.presentation.schemas import InterestExportEnvelope
 
 SourceUpdate.matched_keywords
 SourceInterest.interest_id
@@ -19,6 +20,8 @@ CollectionError.error
 UpdatesResponse.sources_checked
 UpdatesResponse.since
 UpdatesResponse.errors
+InterestExportEnvelope.schema_version
+InterestExportEnvelope.exported_at
 
 # I want to keep for my own satisfaction
 Timeframe.from_point

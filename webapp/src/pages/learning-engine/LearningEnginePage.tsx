@@ -43,8 +43,12 @@ export const LearningEnginePage = () => {
             />
             <InterestsPanel
               interests={state.interests}
+              isExporting={state.isExporting}
+              isImporting={state.isImporting}
               loadError={state.loadError}
+              onExportInterests={actions.exportInterests}
               onEditInterest={setEditingInterestId}
+              onImportInterests={actions.importInterests}
               onRemoveInterest={actions.removeInterest}
               onToggleInterest={actions.toggleInterest}
               saveError={state.saveError}

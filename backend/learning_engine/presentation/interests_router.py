@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, status
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, status
+from pydantic import ValidationError
 
 from learning_engine.application.collect_updates import (
     CollectUpdatesDependencies,
@@ -22,7 +23,7 @@ from learning_engine.application.resolve_source_image import (
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.interests import InterestsPayload
-from learning_engine.presentation.schemas import SourceImageRequest, SourceImageResponse
+from learning_engine.presentation.schemas import InterestExportEnvelope, SourceImageRequest, SourceImageResponse
 from learning_engine.presentation.state import get_app_state
 
 
@@ -63,6 +64,31 @@ def interests_router(api: FastAPI) -> APIRouter:
     def save_interests(interests: InterestsPayload) -> dict[str, object]:
         repository = get_app_state(api).interest_repository
         repository.write_interests(interests)
+        return {
+            "ok": True,
+            "saved": repository.read_interests().model_dump(mode="json", by_alias=True),
+        }
+
+    @router.get("/interests/export", response_model=InterestExportEnvelope)
+    def export_interests() -> InterestExportEnvelope:
+        return InterestExportEnvelope(
+            schema_version=1,
+            exported_at=datetime.now(UTC),
+            interests=get_app_state(api).interest_repository.read_interests().interests,
+        )
+
+    @router.post("/interests/import")
+    async def import_interests(request: Request) -> dict[str, object]:
+        try:
+            payload = await request.json()
+            imported = InterestExportEnvelope.model_validate(payload)
+        except ValidationError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interest export file") from exc
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interest export JSON") from exc
+
+        repository = get_app_state(api).interest_repository
+        repository.write_interests(InterestsPayload(interests=imported.interests))
         return {
             "ok": True,
             "saved": repository.read_interests().model_dump(mode="json", by_alias=True),

@@ -351,6 +351,27 @@ h3 {
   gap: 8px;
 }
 
+.panel-header-actions,
+.interest-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .form-grid {
   display: grid;
   gap: 12px;
@@ -1088,7 +1109,13 @@ textarea {
     width: 100%;
   }
 
-  .header-actions .button {
+  .header-actions .button,
+  .interest-transfer-actions .button {
+    width: 100%;
+  }
+
+  .panel-header-actions,
+  .interest-transfer-actions {
     width: 100%;
   }
 

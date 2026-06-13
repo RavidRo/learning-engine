@@ -2,10 +2,28 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+from typing import Literal
+
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
-from learning_engine.domain.interests import InterestSource
+from learning_engine.domain.interests import InterestSource, InterestsPayload
 from learning_engine.domain.source_types import SourceType
+
+
+class InterestExportEnvelope(InterestsPayload):
+    """Versioned interest backup file payload."""
+
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    schema_version: Literal[1] = Field(
+        validation_alias=AliasChoices("schemaVersion", "schema_version"),
+        serialization_alias="schemaVersion",
+    )
+    exported_at: datetime = Field(
+        validation_alias=AliasChoices("exportedAt", "exported_at"),
+        serialization_alias="exportedAt",
+    )
 
 
 class SourceImageRequest(BaseModel):
