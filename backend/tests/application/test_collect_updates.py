@@ -204,6 +204,42 @@ async def test_collect_updates_carries_source_interest_to_updates() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_updates_preserves_update_specific_image_before_source_image() -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/"><channel><item>
+        <title>Update image</title><link>https://example.com/update</link>
+        <media:thumbnail url="https://example.com/update.png" />
+        <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+
+    payload = InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Images",
+                    "sources": [
+                        {
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                            "imageUrl": "https://example.com/source.png",
+                        }
+                    ],
+                }
+            ]
+        }
+    )
+
+    result = await _collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
+
+    assert result.updates[0].image_url == "https://example.com/update.png"
+    assert result.updates[0].source_interest.source_image_url == "https://example.com/source.png"
+
+
+@pytest.mark.anyio
 async def test_collect_updates_uses_manual_source_image_before_resolver() -> None:
     async def fetch(_url: str) -> bytes:
         return b"""<rss><channel><item><title>Manual image</title><link>https://example.com/update</link>

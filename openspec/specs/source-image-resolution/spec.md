@@ -49,6 +49,18 @@ The system SHALL preserve user-provided source image URLs as explicit overrides 
 - **WHEN** an enabled source has no manual `imageUrl` and automatic image lookup raises a resolver error
 - **THEN** update collection logs the failure and collected updates for that source include a null `source_interest.source_image_url`
 
+#### Scenario: Update thumbnail uses update image before source image
+- **WHEN** a collected update includes a non-empty update-specific image URL and its source also has a manual or automatically resolved image URL
+- **THEN** the Updates page renders the update-specific image as the update thumbnail
+
+#### Scenario: Update thumbnail falls back to source image
+- **WHEN** a collected update has no non-empty update-specific image URL and its source has a manual or automatically resolved image URL
+- **THEN** the Updates page renders the source image as the update thumbnail
+
+#### Scenario: Update thumbnail falls back to source initial
+- **WHEN** a collected update has no non-empty update-specific image URL and no source image URL
+- **THEN** the Updates page renders the existing source-label fallback initial
+
 ### Requirement: Source-type resolvers use provider-appropriate metadata
 The system SHALL resolve source images using metadata strategies appropriate to each supported source type.
 
