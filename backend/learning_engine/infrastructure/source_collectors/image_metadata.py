@@ -9,13 +9,16 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from learning_engine.application.resolve_source_image import SourceImageProviderUnavailableError
+from learning_engine.application.resolve_source_image import (
+    SourceImageProviderUnavailableError,
+)
 from learning_engine.common.text import strip_markup
 
 FetchFn = Callable[[str], Awaitable[bytes]]
 JsonFetchFn = Callable[[str, Mapping[str, str]], Awaitable[dict[str, object]]]
 
 TAG_PATTERN = re.compile(r"<(?:meta|link)\b[^>]*>", re.IGNORECASE)
+IMG_TAG_PATTERN = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 ATTRIBUTE_PATTERN = re.compile(r"([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*['\"]([^'\"]*)['\"]")
 
 SERVER_ERROR_STATUS_MIN = 500
@@ -93,4 +96,15 @@ def html_image_url(html: bytes, base_url: str) -> str | None:
             resolved = normalized_image_url(strip_markup(image_url), base_url)
             if resolved is not None:
                 return resolved
+    return None
+
+
+def first_html_img_src(value: object, base_url: str) -> str | None:
+    if value is None:
+        return None
+    for tag_match in IMG_TAG_PATTERN.finditer(str(value)):
+        attributes = {key.lower(): attr_value for key, attr_value in ATTRIBUTE_PATTERN.findall(tag_match.group(0))}
+        resolved = normalized_image_url(strip_markup(attributes.get("src")), base_url)
+        if resolved is not None:
+            return resolved
     return None

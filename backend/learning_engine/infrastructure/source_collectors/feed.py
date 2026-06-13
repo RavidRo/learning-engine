@@ -13,7 +13,9 @@ from learning_engine.infrastructure.source_collectors.image_metadata import (
     FetchFn,
     fetch_provider_bytes,
     first_feed_image,
+    first_html_img_src,
     html_image_url,
+    normalized_image_url,
 )
 
 
@@ -43,6 +45,46 @@ def _entry_published(entry: Any) -> str | None:
     return _entry_value(entry, "published") or _entry_value(entry, "updated") or _entry_value(entry, "created")
 
 
+def _image_url_from_mapping(value: Any, base_url: str) -> str | None:
+    if not isinstance(value, dict):
+        return None
+    return normalized_image_url(cast(str | None, value.get("url") or value.get("href")), base_url)
+
+
+def _is_image_media(value: Any) -> bool:
+    if not isinstance(value, dict):
+        return False
+    medium = str(value.get("medium") or "").lower()
+    media_type = str(value.get("type") or "").lower()
+    return medium == "image" or media_type.startswith("image/")
+
+
+def _first_image_url(values: Any, base_url: str) -> str | None:
+    if not isinstance(values, list):
+        return None
+    for value in values:
+        resolved = _image_url_from_mapping(value, base_url)
+        if resolved is not None:
+            return resolved
+    return None
+
+
+def _first_typed_image_url(values: Any, base_url: str) -> str | None:
+    if not isinstance(values, list):
+        return None
+    return _first_image_url([value for value in values if _is_image_media(value)], base_url)
+
+
+def _entry_image_url(entry: Any, base_url: str) -> str | None:
+    return (
+        _first_image_url(entry.get("media_thumbnail", []), base_url)
+        or _first_typed_image_url(entry.get("media_content", []), base_url)
+        or _first_typed_image_url(entry.get("links", []), base_url)
+        or first_html_img_src(entry.get("summary"), base_url)
+        or first_html_img_src(entry.get("description"), base_url)
+    )
+
+
 def parse_feed_items(
     feed_bytes: bytes,
     watch_keywords: list[str],
@@ -58,6 +100,7 @@ def parse_feed_items(
         title = strip_markup(_entry_value(entry, "title"))
         url = _entry_value(entry, "link")
         summary = _entry_summary(entry)
+        image_url = _entry_image_url(entry, url or "")
         published = _entry_published(entry)
         matched = keyword_matches(searchable_text(title, summary, url), watch_keywords)
         ignored = keyword_matches(searchable_text(title, summary, url), ignore_keywords)
@@ -69,6 +112,7 @@ def parse_feed_items(
                 title=title,
                 url=url,
                 summary=summary,
+                image_url=image_url,
                 published=parse_datetime(published),
                 published_at=parse_datetime(published),
                 matched_keywords=matched,

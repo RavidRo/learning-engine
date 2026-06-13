@@ -14,6 +14,7 @@ class SourceUpdate(BaseModel):
     title: str | None = None
     url: str | None = None
     summary: str | None = None
+    image_url: str | None = None
     published: datetime | None = None
     published_at: datetime | None = None
     matched_keywords: list[str] = Field(default_factory=list)

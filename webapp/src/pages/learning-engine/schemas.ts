@@ -53,6 +53,7 @@ export const updatesDisplayErrorMessage = "There was a problem showing the updat
 const publishedSchema = z.iso.datetime().transform((published) => new Date(published));
 
 const updateSchema = z.object({
+  image_url: z.string().nullable().optional().catch(null),
   published: publishedSchema.optional(),
   source_interest: sourceInterestSchema,
   title: z.string().optional(),

@@ -55,10 +55,20 @@ const publishedLabel = (published: Date | undefined): string | null => {
   return publishedLabelFormatter.format(published);
 };
 
+const presentImageUrl = (imageUrl: string | null | undefined): string | undefined => {
+  const trimmedImageUrl = imageUrl?.trim();
+  return trimmedImageUrl === "" ? undefined : trimmedImageUrl;
+};
+
+const updateThumbnailUrl = (update: Update): string | undefined =>
+  [update.image_url, update.source_interest.source_image_url]
+    .map(presentImageUrl)
+    .find((imageUrl) => imageUrl !== undefined);
+
 const SourceAvatar = ({ update }: { update: Update }) => {
   const [imageFailed, setImageFailed] = useState(false);
-  const imageUrl = update.source_interest.source_image_url?.trim();
-  const showImage = imageUrl !== undefined && imageUrl !== "" && !imageFailed;
+  const imageUrl = updateThumbnailUrl(update);
+  const showImage = imageUrl !== undefined && !imageFailed;
 
   if (!showImage) {
     return (

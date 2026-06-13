@@ -102,7 +102,7 @@ async def _source_image_url(source: InterestSource, context: _SourceCollectionCo
         return None
 
     if image_url is None:
-        logger.info(
+        logger.debug(
             "Source image provider metadata did not include an image",
             extra={"source_type": source.type, "source_url": source.url},
         )
