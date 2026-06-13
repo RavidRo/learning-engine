@@ -29,6 +29,17 @@ openssl rand -hex 32
 For Render, set `MCP_AUTH_TOKEN` as a secret environment variable in the Render
 Dashboard for `learning-engine-backend`.
 
+For Render, also set `MCP_ALLOWED_HOSTS` to the public backend host:
+
+```text
+learning-engine-backend.onrender.com
+```
+
+If Codex reports `Unexpected content type` with an `Invalid Host header` body
+while connecting to production, the backend is rejecting the HTTP `Host` header
+before the MCP handshake. Confirm `MCP_ALLOWED_HOSTS` includes the hostname from
+the MCP URL, then redeploy or restart the backend service.
+
 For local Docker Compose, pass the token to the backend container. One convenient
 local-only approach is to create an untracked override file:
 
@@ -109,6 +120,8 @@ The `learning-engine` server should appear as enabled. If it does not, check:
 - `LEARNING_ENGINE_MCP_TOKEN` is set in the environment that starts Codex;
 - both token values match exactly;
 - the MCP URL matches the backend you are using.
+- for deployed backends, `MCP_ALLOWED_HOSTS` includes the hostname from the MCP
+  URL.
 
 ## Available MCP scope
 

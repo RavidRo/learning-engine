@@ -123,8 +123,8 @@ The system SHALL document and configure deployment settings needed to operate th
 
 #### Scenario: Render configuration declares MCP variables
 - **WHEN** the Render blueprint is inspected
-- **THEN** it declares `MCP_AUTH_TOKEN` and `MCP_ALLOWED_ORIGINS` as environment variables without committing secret values
+- **THEN** it declares `MCP_AUTH_TOKEN`, `MCP_ALLOWED_ORIGINS`, and `MCP_ALLOWED_HOSTS` as environment variables without committing secret values
 
 #### Scenario: Deployment docs explain agent connection
 - **WHEN** a user reads the deployment documentation
-- **THEN** the docs describe the `/mcp` endpoint URL, bearer token requirement, missing-token behavior, and browser-origin allowlist behavior
+- **THEN** the docs describe the `/mcp` endpoint URL, bearer token requirement, missing-token behavior, host allowlist behavior, and browser-origin allowlist behavior

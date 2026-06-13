@@ -49,6 +49,17 @@ send it on every request:
 Authorization: Bearer <MCP_AUTH_TOKEN>
 ```
 
+MCP host validation is also enabled. Set `MCP_ALLOWED_HOSTS` to the public
+backend host used by MCP clients, such as:
+
+```text
+learning-engine-backend.onrender.com
+```
+
+If this value is missing in production, MCP clients can fail during startup with
+an `Invalid Host header` response before MCP tool handling begins. Localhost
+hostnames are allowed by default for local development.
+
 Browser-origin MCP clients must also be allowlisted with `MCP_ALLOWED_ORIGINS`.
 Set it to a comma-separated list of exact origins, such as:
 
@@ -60,10 +71,6 @@ Origin validation only applies when a request includes an `Origin` header. If a
 browser request includes `Origin` and `MCP_ALLOWED_ORIGINS` is unset or does not
 contain that exact origin, the request is rejected before MCP tool handling.
 Non-browser clients that omit `Origin` rely on the bearer token.
-
-Set `MCP_ALLOWED_HOSTS` to include the public backend host used by MCP clients,
-such as `learning-engine-backend.onrender.com`. Localhost hostnames are allowed
-by default for local development.
 
 The v1 MCP surface is intentionally limited to interest management. It supports
 listing interests, creating/updating/pausing/resuming/soft-deleting interests,
