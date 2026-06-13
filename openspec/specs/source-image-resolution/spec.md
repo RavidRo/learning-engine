@@ -88,16 +88,20 @@ The source editor SHALL preview dynamic source images automatically after a sour
 - **THEN** the image is not cropped into a circular avatar
 
 ### Requirement: Interests page displays source images
+
 The interests page SHALL display source images near each visible source link when either a manual source image or a dynamically resolved source image is available.
 
 #### Scenario: Manual image appears beside a source
+
 - **WHEN** an interest source has a non-empty manual `imageUrl`
 - **THEN** the interests page displays that image beside the source label
 
 #### Scenario: Automatic image appears beside a source
+
 - **WHEN** an interest source has no manual `imageUrl` and dynamic source image resolution returns an image URL
 - **THEN** the interests page displays the resolved image beside the source label without persisting it into the source definition
 
 #### Scenario: No image is available beside a source
+
 - **WHEN** an interest source has no manual `imageUrl` and dynamic source image resolution does not return an image URL
 - **THEN** the interests page keeps the source link visible without an image

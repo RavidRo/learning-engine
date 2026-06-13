@@ -9,20 +9,48 @@ type SourceLinksProps = {
 
 const trimmed = (value: string | null | undefined): string => value?.trim() ?? "";
 
+/**
+ * Indicates whether a source should use automatic image resolution.
+ *
+ * @param source - Interest source to inspect.
+ * @returns True when the source has no manual image URL and has a non-empty URL.
+ */
 const canResolveSourceImage = (source: InterestSource): boolean =>
   trimmed(source.imageUrl) === "" && source.url.trim() !== "";
 
+/**
+ * Builds the stable React Query key for resolving a source image.
+ *
+ * @param source - Interest source whose type and trimmed URL identify the lookup.
+ * @returns A query key scoped to Learning Engine source-image resolution.
+ */
 const sourceImageQueryKey = (source: InterestSource) =>
   ["learning-engine", "source-image", source.type, source.url.trim()] as const;
 
 const visibleSources = (interest: Interest): InterestSource[] =>
   interest.sources.filter((source) => source.deletedAt == null);
 
+/**
+ * Selects the image URL to display for a source.
+ *
+ * @param source - Interest source that may include a manual image URL.
+ * @param resolvedImageUrl - Optional image URL returned by automatic resolution.
+ * @returns The trimmed manual image URL when present, otherwise the trimmed resolved URL.
+ */
 const sourceImageUrl = (
   source: InterestSource,
   resolvedImageUrl: string | null | undefined,
 ): string => trimmed(source.imageUrl) || trimmed(resolvedImageUrl);
 
+/**
+ * Resolves display image URLs for visible sources.
+ *
+ * @param sources - Interest sources to map by source ID.
+ * @returns A record from source.id to the manual or resolved image URL.
+ *
+ * Uses React Query's useQueries to call resolveSourceImage only for sources that
+ * need automatic lookup; manual image URLs are returned without resolution.
+ */
 const useSourceImages = (sources: InterestSource[]): Record<string, string> => {
   const imageQueries = useQueries({
     queries: sources.map((source) => ({
