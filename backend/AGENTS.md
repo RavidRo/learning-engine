@@ -3,7 +3,7 @@
 - Use `None` for missing scalar values. Empty strings are content, not absence.
 - Prefer canonical backend spellings over accepting many aliases for backward compatibility.
 - Use rich data structures like `datetime`, `Timeframe` and `Path` over primitive values like strings and floats.
-- Avoid using variables names that shadows builtin keywords like `id` or `type`.
+- Avoid using variable names that shadow built-in keywords like `id` or `type`.
 
 ## Backend Architecture
 

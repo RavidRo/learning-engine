@@ -85,9 +85,9 @@ Common workflows live in `Taskfile.yml` so the README does not duplicate command
 
 Interests are stored relationally instead of as a JSON document:
 
-- `interests` stores interest rows keyed by `interest_id`.
-- `interest_sources` stores source rows keyed by `source_id` and linked to interests.
-- `source_ignore_keywords` stores ignore-keyword rows linked to sources.
+- `interests` contains rows of interests keyed by `interest_id`.
+- `interest_sources` holds source rows keyed by `source_id` and linked to interests.
+- `source_ignore_keywords` records ignore-keyword rows associated with sources.
 
 The backend keeps the existing Pydantic domain models as the API boundary and uses infrastructure-only SQLModel rows to map those models into the relational schema. Legacy `backend/data/interests.json` data is not migrated automatically on app startup; run `uv run python scripts/migrate_interests_json_to_postgres.py` from `backend/` when you are ready to migrate it into the configured database. Add `--replace` only when you intentionally want to overwrite existing database interests.
 
@@ -111,7 +111,7 @@ The backend API is exposed on `http://localhost:8765` in both modes. Compose als
 
 ## Cloud deployment
 
-Render is the preferred first hosting target for this app because it can host the static frontend, Dockerized FastAPI backend, and managed Postgres database from one Blueprint. The repository includes `render.yaml` plus deployment notes in `docs/deployment/render.md`. Apply the Blueprint only after the production persistence path has moved from the local JSON file to Postgres.
+Render is the preferred first hosting target for this app because it can host the static frontend, Dockerized FastAPI backend, and managed Postgres database from one Blueprint. The repository includes `render.yaml` plus deployment notes in `docs/deployment/render.md`. The Blueprint requires `DATABASE_URL`, and `ensure_data_store()` must run at least once before or immediately after deployment so the relational tables exist. You can satisfy that by pre-populating Postgres before deployment or by running the app initialization path from Render after deployment.
 
 ## Privacy note
 

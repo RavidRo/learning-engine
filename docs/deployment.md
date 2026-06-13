@@ -22,7 +22,7 @@ service/datastore region to Israel.
 
 ## Deployment
 
-Render is synced to the main branch, commit/merger to `main` in order to deploy changes.
+Render syncs to the main branch and deploys on every commit to `main`.
 
 ## MCP interest management
 
@@ -38,9 +38,9 @@ For the default Render service name, that is:
 https://learning-engine-backend.onrender.com/mcp
 ```
 
-MCP is disabled until `MCP_AUTH_TOKEN` is configured. When the token is missing
-or blank, `/mcp` returns a service-unavailable response explaining that MCP is
-not configured.
+MCP is disabled until `MCP_AUTH_TOKEN` is configured. When the token is missing,
+`/mcp` returns a service-unavailable response explaining that MCP is not
+configured.
 
 Set `MCP_AUTH_TOKEN` in the Render Dashboard as a secret value. MCP clients must
 send it on every request:
@@ -60,6 +60,10 @@ Origin validation only applies when a request includes an `Origin` header. If a
 browser request includes `Origin` and `MCP_ALLOWED_ORIGINS` is unset or does not
 contain that exact origin, the request is rejected before MCP tool handling.
 Non-browser clients that omit `Origin` rely on the bearer token.
+
+Set `MCP_ALLOWED_HOSTS` to include the public backend host used by MCP clients,
+such as `learning-engine-backend.onrender.com`. Localhost hostnames are allowed
+by default for local development.
 
 The v1 MCP surface is intentionally limited to interest management. It supports
 listing interests, creating/updating/pausing/resuming/soft-deleting interests,

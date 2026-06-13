@@ -33,6 +33,6 @@ Run `task --list` to see various tasks.
 
 ## More details
 
-- For project related terms, see `.contextive/definitions.yml` .
-- For coding guidelines, see `./docs/coding_guidelines.md` .
-- For deployment details, see `./docs/deployment.md` .
+- See `.contextive/definitions.yml` for project-related terms.
+- Refer to `./docs/coding_guidelines.md` for coding guidelines.
+- Consult `./docs/deployment.md` for deployment details.

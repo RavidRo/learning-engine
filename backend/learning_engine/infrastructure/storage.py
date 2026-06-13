@@ -1,10 +1,11 @@
 """PostgreSQL-backed interest persistence."""
 
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 
 from sqlalchemy import Column, DateTime
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import selectinload
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 
 from learning_engine.config import DATABASE_URL
@@ -66,14 +67,24 @@ class StoredSourceIgnoreKeyword(SQLModel, table=True):
 class InterestStore:
     def __init__(self, engine: Engine) -> None:
         self.engine = engine
+        self._schema_initialized = False
 
     def ensure_data_store(self) -> None:
+        if self._schema_initialized:
+            return
         SQLModel.metadata.create_all(self.engine)
+        self._schema_initialized = True
 
     def read_interests(self) -> InterestsPayload:
         self.ensure_data_store()
         with Session(self.engine) as session:
-            stored_interests = session.exec(select(StoredInterest)).all()
+            stored_interests = session.exec(
+                select(StoredInterest).options(
+                    selectinload(cast(Any, StoredInterest.sources)).selectinload(
+                        cast(Any, StoredInterestSource.ignore_keywords)
+                    )
+                )
+            ).all()
             return InterestsPayload(
                 interests=[
                     self._interest_from_stored(stored_interest)
