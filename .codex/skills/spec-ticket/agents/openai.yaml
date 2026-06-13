@@ -1,0 +1,4 @@
+interface:
+  display_name: "Spec Ticket"
+  short_description: "Turn a Linear ticket into an OpenSpec plan"
+  default_prompt: "Use $spec-ticket to read a Linear ticket, grill the requirements, and propose an OpenSpec change."

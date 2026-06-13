@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ship Ticket"
+  short_description: "Archive, PR, check, merge, and close tickets"
+  default_prompt: "Use $ship-ticket to sync and archive an implemented OpenSpec change, open a PR, resolve feedback, merge it, and close the ticket."
