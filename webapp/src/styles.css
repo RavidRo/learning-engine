@@ -66,7 +66,8 @@ button:disabled {
 .shell {
   width: min(1120px, calc(100% - 40px));
   margin: 0 auto;
-  padding: 28px 0 56px;
+  padding: calc(28px + env(safe-area-inset-top, 0px)) 0
+    calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .topbar {
@@ -131,6 +132,34 @@ button:disabled {
 
 .nav-button.active {
   font-weight: 700;
+}
+
+.app-status-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  color: var(--text-soft);
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.app-status-banner.connection-unavailable {
+  border-color: #fecaca;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.app-status-banner.update {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0369a1;
 }
 
 .hero {
@@ -1056,7 +1085,10 @@ textarea {
 
 @media (max-width: 640px) {
   .shell {
-    width: min(1120px, calc(100% - 28px));
+    width: min(
+      1120px,
+      calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
+    );
     padding-top: 18px;
   }
 
@@ -1069,10 +1101,24 @@ textarea {
   .navlinks {
     width: 100%;
     justify-content: space-between;
+    gap: 12px;
   }
 
   .hero {
-    padding: 22px 0 16px;
+    padding: 18px 0 14px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .app-status-banner {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .app-status-banner .button {
+    width: 100%;
   }
 
   .summary-card {
@@ -1130,5 +1176,58 @@ textarea {
 
   .hero-actions .button {
     width: 100%;
+  }
+
+  .card,
+  .update-item-card {
+    gap: 12px;
+  }
+
+  .update-item-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+    min-height: 76px;
+    padding: 12px;
+  }
+
+  .source-avatar {
+    width: 48px;
+    height: 48px;
+  }
+
+  .actions,
+  .actions .button {
+    width: 100%;
+  }
+
+  .actions .button {
+    min-height: 42px;
+  }
+
+  .source-editor-card {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand span {
+    font-size: 14px;
+  }
+
+  .navlinks {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  .update-item-card {
+    grid-template-columns: 1fr;
+  }
+
+  .source-avatar {
+    width: 42px;
+    height: 42px;
   }
 }

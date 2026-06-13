@@ -1,4 +1,7 @@
 import { Toast } from "../../components/Toast";
+import { useIsOffline } from "../../useOnlineStatus";
+import { usePwaUpdate } from "../../usePwaUpdate";
+import { AppStatusBanner } from "./AppStatusBanner";
 import { BriefingSection } from "./BriefingSection";
 import { HeroSection } from "./HeroSection";
 import { InterestEditor } from "./InterestEditor";
@@ -9,7 +12,9 @@ import { useLearningEnginePageState } from "./useLearningEnginePageState";
 import { useState } from "react";
 
 export const LearningEnginePage = () => {
-  const { state, actions } = useLearningEnginePageState();
+  const isBrowserOffline = useIsOffline();
+  const pwaUpdate = usePwaUpdate();
+  const { state, actions } = useLearningEnginePageState({ isBrowserOffline });
   const [editingInterestId, setEditingInterestId] = useState<string | null>(null);
   const [newEditorVersion, setNewEditorVersion] = useState(0);
   const editingInterest =
@@ -26,6 +31,11 @@ export const LearningEnginePage = () => {
     <>
       <main className="shell">
         <TopNavigation onChangeView={actions.changeView} view={state.view} />
+        <AppStatusBanner
+          isConnectionUnavailable={state.isConnectionUnavailable}
+          onRefreshUpdate={pwaUpdate.refreshUpdate}
+          updateAvailable={pwaUpdate.updateAvailable}
+        />
         <HeroSection
           enabledInterests={state.enabledInterests}
           sourcesTracked={state.sourcesTracked}
@@ -39,12 +49,14 @@ export const LearningEnginePage = () => {
               key={editorKey}
               onCancelEdit={() => setEditingInterestId(null)}
               onCreateInterest={handleCreateInterest}
+              isOffline={state.isConnectionUnavailable}
               onUpdateInterest={actions.updateInterest}
             />
             <InterestsPanel
               interests={state.interests}
               isExporting={state.isExporting}
               isImporting={state.isImporting}
+              isOffline={state.isConnectionUnavailable}
               loadError={state.loadError}
               onExportInterests={actions.exportInterests}
               onEditInterest={setEditingInterestId}
@@ -59,6 +71,7 @@ export const LearningEnginePage = () => {
           <UpdatesPage
             days={state.updateDays}
             isChecking={state.isChecking}
+            isOffline={state.isConnectionUnavailable}
             onDaysChange={state.setUpdateDays}
             onRefresh={actions.checkUpdates}
             updates={state.updates}
