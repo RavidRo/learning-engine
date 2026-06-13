@@ -90,3 +90,31 @@ def test_parse_rss_uses_image_enclosure_when_media_thumbnail_is_missing() -> Non
 
     assert len(updates) == 1
     assert updates[0].image_url == "https://cdn.example.com/release.jpg"
+
+
+def test_parse_rss_extracts_update_image_from_description_img() -> None:
+    rss = (
+        b"""<?xml version="1.0"?>
+        <rss version="2.0"><channel>
+          <item>
+            <title>WebMCP Standard Proposal for Agentic Web Actuation Now Available in Chrome</title>
+            <link>https://www.infoq.com/news/2026/06/webmcp-web-agent-standard-chrome/</link>
+            <description><img src="https://res.infoq.com/news/2026/06/webmcp-web-agent-standard-chrome/en/headerimage/"""
+        b"""generatedHeaderImage-1781307482428.jpg"/><p>Google recently announced that WebMCP is entering origin """
+        b"""trials in Chrome 149.</p> <i>By Bruno Couriol</i></description>
+            <pubDate>Sat, 13 Jun 2026 03:32:00 GMT</pubDate>
+          </item>
+        </channel></rss>"""
+    )
+
+    updates = parse_feed_items(rss, watch_keywords=[], ignore_keywords=[])
+
+    assert len(updates) == 1
+    assert (
+        updates[0].image_url
+        == "https://res.infoq.com/news/2026/06/webmcp-web-agent-standard-chrome/en/headerimage/generatedHeaderImage-1781307482428.jpg"
+    )
+    assert (
+        updates[0].summary
+        == "Google recently announced that WebMCP is entering origin trials in Chrome 149. By Bruno Couriol"
+    )

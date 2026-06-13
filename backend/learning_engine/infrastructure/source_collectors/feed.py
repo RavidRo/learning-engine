@@ -13,6 +13,7 @@ from learning_engine.infrastructure.source_collectors.image_metadata import (
     FetchFn,
     fetch_provider_bytes,
     first_feed_image,
+    first_html_img_src,
     html_image_url,
     normalized_image_url,
 )
@@ -79,6 +80,8 @@ def _entry_image_url(entry: Any, base_url: str) -> str | None:
         _first_image_url(entry.get("media_thumbnail", []), base_url)
         or _first_typed_image_url(entry.get("media_content", []), base_url)
         or _first_typed_image_url(entry.get("links", []), base_url)
+        or first_html_img_src(entry.get("summary"), base_url)
+        or first_html_img_src(entry.get("description"), base_url)
     )
 
 
