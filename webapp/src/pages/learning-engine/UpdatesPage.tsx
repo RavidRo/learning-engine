@@ -6,6 +6,7 @@ import { type UpdatesPayload } from "./types";
 type UpdatesPageProps = {
   days: number;
   isChecking: boolean;
+  isOffline: boolean;
   onDaysChange: (days: number) => void;
   onRefresh: () => void;
   updates: UpdatesPayload | null;
@@ -224,6 +225,7 @@ const UpdateDaysSelect = ({
 export const UpdatesPage = ({
   days,
   isChecking,
+  isOffline,
   onDaysChange,
   onRefresh,
   updates,
@@ -244,9 +246,10 @@ export const UpdatesPage = ({
             className="button primary"
             type="button"
             onClick={onRefresh}
-            disabled={isChecking}
+            disabled={isChecking || isOffline}
+            title={isOffline ? "Connect to refresh updates" : undefined}
           >
-            {isChecking ? "Refreshing..." : "Refresh"}
+            {isOffline ? "Connect to refresh" : isChecking ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>
