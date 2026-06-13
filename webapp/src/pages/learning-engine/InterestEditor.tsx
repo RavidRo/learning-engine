@@ -164,9 +164,15 @@ const canResolveSourceImage = (manualImageUrl: string, sourceUrl: string): boole
 const sourceImageUrl = (payload: SourceImagePayload | undefined): string =>
   trimmed(payload?.imageUrl);
 
-const SourceImage = ({ imageUrl }: { imageUrl: string }) => (
-  <img src={imageUrl} alt="" loading="lazy" />
-);
+const SourceImage = ({ imageUrl }: { imageUrl: string }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+
+  if (imageUrl === failedImageUrl) {
+    return null;
+  }
+
+  return <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImageUrl(imageUrl)} />;
+};
 
 type PreviewMessage = {
   text: string;
