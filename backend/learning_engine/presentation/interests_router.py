@@ -22,8 +22,12 @@ from learning_engine.application.resolve_source_image import (
 )
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.interests import InterestsPayload
-from learning_engine.presentation.schemas import InterestExportEnvelope, SourceImageRequest, SourceImageResponse
+from learning_engine.domain.interests import Interests
+from learning_engine.presentation.schemas import (
+    InterestExportEnvelope,
+    SourceImageRequest,
+    SourceImageResponse,
+)
 from learning_engine.presentation.state import get_app_state
 
 
@@ -56,12 +60,12 @@ async def _source_image_response(
 def interests_router(api: FastAPI) -> APIRouter:
     router = APIRouter(prefix="/api")
 
-    @router.get("/interests", response_model=InterestsPayload)
-    def get_interests() -> InterestsPayload:
+    @router.get("/interests", response_model=Interests)
+    def get_interests() -> Interests:
         return get_app_state(api).interest_repository.read_interests()
 
     @router.post("/interests")
-    def save_interests(interests: InterestsPayload) -> dict[str, object]:
+    def save_interests(interests: Interests) -> dict[str, object]:
         repository = get_app_state(api).interest_repository
         repository.write_interests(interests)
         return {
@@ -83,12 +87,18 @@ def interests_router(api: FastAPI) -> APIRouter:
             payload = await request.json()
             imported = InterestExportEnvelope.model_validate(payload)
         except ValidationError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interest export file") from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid interest export file",
+            ) from exc
         except ValueError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid interest export JSON") from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid interest export JSON",
+            ) from exc
 
         repository = get_app_state(api).interest_repository
-        repository.write_interests(InterestsPayload(interests=imported.interests))
+        repository.write_interests(Interests(interests=imported.interests))
         return {
             "ok": True,
             "saved": repository.read_interests().model_dump(mode="json", by_alias=True),

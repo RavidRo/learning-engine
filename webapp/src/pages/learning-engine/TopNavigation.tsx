@@ -27,6 +27,13 @@ export const TopNavigation = ({ onChangeView, view }: TopNavigationProps) => (
         Updates
       </button>
       <button
+        className={view === "collections" ? "nav-button active" : "nav-button"}
+        type="button"
+        onClick={() => onChangeView("collections")}
+      >
+        Collections
+      </button>
+      <button
         className={view === "interests" ? "nav-button active" : "nav-button"}
         type="button"
         onClick={() => onChangeView("interests")}

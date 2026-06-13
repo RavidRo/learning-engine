@@ -7,11 +7,15 @@ from typing import Literal
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
-from learning_engine.domain.interests import InterestSource, InterestsPayload
+from learning_engine.domain.collections import (
+    SavedCollectionUpdate,
+    SaveUpdateToCollection,
+)
+from learning_engine.domain.interests import Interests, InterestSource
 from learning_engine.domain.source_types import SourceType
 
 
-class InterestExportEnvelope(InterestsPayload):
+class InterestExportEnvelope(Interests):
     """Versioned interest backup file payload."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -52,3 +56,19 @@ class SourceImageResponse(BaseModel):
     """Dynamically resolved source image metadata."""
 
     image_url: str | None = Field(default=None, serialization_alias="imageUrl")
+
+
+class SaveCollectionUpdateRequest(SaveUpdateToCollection):
+    """Update snapshot to save into a collection."""
+
+
+class SaveCollectionUpdateResponse(BaseModel):
+    """Saved collection update response."""
+
+    saved_update: SavedCollectionUpdate
+
+
+class RemoveCollectionUpdateResponse(BaseModel):
+    """Saved collection update removal response."""
+
+    ok: bool

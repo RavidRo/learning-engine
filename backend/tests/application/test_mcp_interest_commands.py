@@ -22,21 +22,21 @@ from learning_engine.application.mcp_interest_commands import (
     update_interest,
     update_source,
 )
-from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.interests import Interests
 
 
 class StubInterestRepository:
-    def __init__(self, payload: InterestsPayload) -> None:
+    def __init__(self, payload: Interests) -> None:
         self._payload = payload
-        self.saved_payloads: list[InterestsPayload] = []
+        self.saved_payloads: list[Interests] = []
 
     def ensure_data_store(self) -> None:
         return None
 
-    def read_interests(self) -> InterestsPayload:
+    def read_interests(self) -> Interests:
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
-    def write_interests(self, payload: InterestsPayload) -> None:
+    def write_interests(self, payload: Interests) -> None:
         self.saved_payloads.append(payload)
 
 
@@ -74,7 +74,10 @@ def test_list_interests_can_include_deleted_records() -> None:
 
     interests = response["interests"]
     assert isinstance(interests, list)
-    assert [interest["id"] for interest in interests] == ["typescript", "deleted-interest"]
+    assert [interest["id"] for interest in interests] == [
+        "typescript",
+        "deleted-interest",
+    ]
     assert interests[0]["sources"][1]["deletedAt"] == "2026-01-01T00:00:00.000Z"
     assert interests[1]["deletedAt"] == "2026-01-02T00:00:00.000Z"
 
@@ -95,7 +98,11 @@ def test_create_interest_generates_ids_and_preserves_existing_records() -> None:
     )
 
     saved = repository.saved_payloads[-1]
-    assert [interest.id for interest in saved.interests] == ["typescript", "deleted-interest", "interest-new-interest"]
+    assert [interest.id for interest in saved.interests] == [
+        "typescript",
+        "deleted-interest",
+        "interest-new-interest",
+    ]
     created = saved.interests[-1]
     assert created.name == "Python"
     assert created.description == "Core Python"
@@ -107,13 +114,19 @@ def test_create_interest_generates_ids_and_preserves_existing_records() -> None:
 
 def test_create_interest_retries_duplicate_generated_ids() -> None:
     repository = StubInterestRepository(
-        InterestsPayload.model_validate(
+        Interests.model_validate(
             {
                 "interests": [
                     {
                         "id": "interest-typescript",
                         "name": "TypeScript",
-                        "sources": [{"id": "source-ts-feed", "type": "feed", "url": "https://example.com/feed.xml"}],
+                        "sources": [
+                            {
+                                "id": "source-ts-feed",
+                                "type": "feed",
+                                "url": "https://example.com/feed.xml",
+                            }
+                        ],
                     }
                 ]
             }
@@ -242,8 +255,8 @@ def test_source_write_missing_id_does_not_write() -> None:
     assert repository.saved_payloads == []
 
 
-def _payload() -> InterestsPayload:
-    return InterestsPayload.model_validate(
+def _payload() -> Interests:
+    return Interests.model_validate(
         {
             "interests": [
                 {
@@ -285,14 +298,20 @@ def _payload() -> InterestsPayload:
     )
 
 
-def _payload_with_id(interest_id: str) -> InterestsPayload:
-    return InterestsPayload.model_validate(
+def _payload_with_id(interest_id: str) -> Interests:
+    return Interests.model_validate(
         {
             "interests": [
                 {
                     "id": interest_id,
                     "name": "Duplicate",
-                    "sources": [{"id": "source-duplicate", "type": "feed", "url": "https://example.com/feed.xml"}],
+                    "sources": [
+                        {
+                            "id": "source-duplicate",
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                        }
+                    ],
                 }
             ]
         }

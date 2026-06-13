@@ -13,7 +13,15 @@ from learning_engine.application.resolve_source_image import (
     SourceImageProviderUnavailableError,
 )
 from learning_engine.application.responses import CollectionError, UpdatesResponse
-from learning_engine.domain.interests import InterestSource, InterestsPayload
+from learning_engine.domain.collections import (
+    CollectionId,
+    CollectionNotFoundError,
+    Collections,
+    SavedCollectionUpdate,
+    SavedUpdateSnapshot,
+    UpdateCollection,
+)
+from learning_engine.domain.interests import Interests, InterestSource
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 from learning_engine.presentation.app import app, create_app
@@ -25,12 +33,17 @@ HTTP_BAD_REQUEST = 400
 HTTP_BAD_GATEWAY = 502
 HTTP_SERVICE_UNAVAILABLE = 503
 HTTP_INTERNAL_SERVER_ERROR = 500
+HTTP_NOT_FOUND = 404
 HTTP_UNPROCESSABLE_ENTITY = 422
 HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 EXPECTED_EXPIRED_CALLS = 2
 EXPECTED_RETRY_CALLS = 2
-MCP_HEADERS = {"Authorization": "Bearer mcp-secret", "Accept": "application/json, text/event-stream"}
+UPDATE_KEY_LENGTH = 64
+MCP_HEADERS = {
+    "Authorization": "Bearer mcp-secret",
+    "Accept": "application/json, text/event-stream",
+}
 
 
 async def no_source_image(*_args: object) -> str | None:
@@ -38,20 +51,93 @@ async def no_source_image(*_args: object) -> str | None:
 
 
 class StubInterestRepository:
-    def __init__(self, payload: InterestsPayload | None = None) -> None:
-        self.saved_payloads: list[InterestsPayload] = []
+    def __init__(self, payload: Interests | None = None) -> None:
+        self.saved_payloads: list[Interests] = []
         self._payload = payload or _payload()
         self.read_calls = 0
 
     def ensure_data_store(self) -> None:
         return None
 
-    def read_interests(self) -> InterestsPayload:
+    def read_interests(self) -> Interests:
         self.read_calls += 1
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
-    def write_interests(self, payload: InterestsPayload) -> None:
+    def write_interests(self, payload: Interests) -> None:
         self.saved_payloads.append(payload)
+
+
+class StubCollectionRepository:
+    def __init__(self) -> None:
+        self.saved_updates: dict[tuple[CollectionId, str], SavedCollectionUpdate] = {}
+        self.removed: list[tuple[CollectionId, str]] = []
+
+    def ensure_data_store(self) -> None:
+        return None
+
+    def list_collections(self) -> Collections:
+        saved_updates_by_collection = {
+            "see-later": [
+                saved_update
+                for (
+                    collection_id,
+                    _update_key,
+                ), saved_update in self.saved_updates.items()
+                if collection_id == "see-later"
+            ],
+            "liked": [
+                saved_update
+                for (
+                    collection_id,
+                    _update_key,
+                ), saved_update in self.saved_updates.items()
+                if collection_id == "liked"
+            ],
+        }
+        return Collections(
+            collections=[
+                UpdateCollection(
+                    id="see-later",
+                    name="See Later",
+                    saved_updates=sorted(
+                        saved_updates_by_collection["see-later"],
+                        key=lambda saved_update: saved_update.saved_at,
+                        reverse=True,
+                    ),
+                ),
+                UpdateCollection(
+                    id="liked",
+                    name="Liked",
+                    saved_updates=sorted(
+                        saved_updates_by_collection["liked"],
+                        key=lambda saved_update: saved_update.saved_at,
+                        reverse=True,
+                    ),
+                ),
+            ]
+        )
+
+    def save_update_to_collection(
+        self,
+        collection_id: CollectionId,
+        update_key: str,
+        update: SavedUpdateSnapshot,
+        saved_at: datetime,
+    ) -> SavedCollectionUpdate:
+        if collection_id not in {"see-later", "liked"}:
+            raise CollectionNotFoundError(f"Collection not found: {collection_id}")
+        saved_update = self.saved_updates.get((collection_id, update_key))
+        if saved_update is not None:
+            return saved_update
+        saved_update = SavedCollectionUpdate(update_key=update_key, saved_at=saved_at, update=update)
+        self.saved_updates[(collection_id, update_key)] = saved_update
+        return saved_update
+
+    def remove_update_from_collection(self, collection_id: CollectionId, update_key: str) -> None:
+        if collection_id not in {"see-later", "liked"}:
+            raise CollectionNotFoundError(f"Collection not found: {collection_id}")
+        self.removed.append((collection_id, update_key))
+        self.saved_updates.pop((collection_id, update_key), None)
 
 
 class StubSourceImageProvider:
@@ -64,7 +150,10 @@ class StubSourceImageProvider:
 
 
 class StubSourceUpdateCollector:
-    def __init__(self, collect_source_updates: Callable[[InterestSource], Awaitable[list[SourceUpdate]]]) -> None:
+    def __init__(
+        self,
+        collect_source_updates: Callable[[InterestSource], Awaitable[list[SourceUpdate]]],
+    ) -> None:
         self._collect_source_updates = collect_source_updates
 
     async def collect_source_updates(self, source: InterestSource) -> list[SourceUpdate]:
@@ -74,10 +163,12 @@ class StubSourceUpdateCollector:
 def _create_test_app(
     *,
     repository: StubInterestRepository | None = None,
+    collection_repository: StubCollectionRepository | None = None,
     source_update_collector: StubSourceUpdateCollector | None = None,
 ) -> FastAPI:
     api = create_app()
     api.state.interest_repository = repository or StubInterestRepository()
+    api.state.collection_repository = collection_repository or StubCollectionRepository()
     api.state.source_image_provider_factory = lambda _fetcher: StubSourceImageProvider()
     if source_update_collector is not None:
         api.state.source_update_collector_factory = lambda _fetcher: source_update_collector
@@ -93,7 +184,9 @@ def test_health_endpoint() -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_source_image_endpoint_returns_resolved_image(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_source_image_endpoint_returns_resolved_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def resolve_source_image(
         source_type: str,
         source_url: str,
@@ -112,14 +205,19 @@ def test_source_image_endpoint_returns_resolved_image(monkeypatch: pytest.Monkey
     assert response.json() == {"imageUrl": "https://yt.example/avatar.jpg"}
 
 
-def test_source_image_endpoint_returns_null_on_resolver_miss(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_source_image_endpoint_returns_null_on_resolver_miss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     async def resolve_source_image(*_args: object) -> str | None:
         return None
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app()) as client:
-        response = client.post("/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"})
+        response = client.post(
+            "/api/source-image",
+            json={"type": "feed", "url": "https://example.com/feed.xml"},
+        )
 
     assert response.status_code == HTTP_OK
     assert response.json() == {"imageUrl": None}
@@ -162,13 +260,18 @@ def test_source_image_endpoint_returns_matching_error_for_resolver_failures(
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
     with TestClient(_create_test_app()) as client:
-        response = client.post("/api/source-image", json={"type": "spotify_podcast", "url": "spotify:show:show-one"})
+        response = client.post(
+            "/api/source-image",
+            json={"type": "spotify_podcast", "url": "spotify:show:show-one"},
+        )
 
     assert response.status_code == expected_status
     assert response.json() == {"detail": expected_detail}
 
 
-def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_source_image_endpoint_does_not_persist_resolved_image(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     payload = _payload()
     repository = StubInterestRepository(payload)
 
@@ -179,7 +282,8 @@ def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pyte
 
     with TestClient(_create_test_app(repository=repository)) as client:
         assert client.post(
-            "/api/source-image", json={"type": "feed", "url": "https://example.com/feed.xml"}
+            "/api/source-image",
+            json={"type": "feed", "url": "https://example.com/feed.xml"},
         ).json() == {"imageUrl": "https://example.com/dynamic.png"}
         saved = payload.model_dump(mode="json", by_alias=True)
         client.post("/api/interests", json=saved)
@@ -197,7 +301,10 @@ def test_export_interests_returns_versioned_envelope_with_all_stored_interests()
     payload = response.json()
     assert payload["schemaVersion"] == 1
     assert isinstance(payload["exportedAt"], str)
-    assert [interest["id"] for interest in payload["interests"]] == ["typescript", "archived"]
+    assert [interest["id"] for interest in payload["interests"]] == [
+        "typescript",
+        "archived",
+    ]
     assert payload["interests"][1]["deletedAt"] == "2026-06-12T10:00:00Z"
     assert payload["interests"][1]["enabled"] is False
     assert payload["interests"][1]["sources"][0]["deletedAt"] == "2026-06-12T10:00:00Z"
@@ -213,7 +320,13 @@ def test_import_interests_replaces_all_stored_interests() -> None:
                 "id": "python",
                 "name": "Python",
                 "priority": "high",
-                "sources": [{"id": "python-feed", "type": "feed", "url": "https://python.example/feed.xml"}],
+                "sources": [
+                    {
+                        "id": "python-feed",
+                        "type": "feed",
+                        "url": "https://python.example/feed.xml",
+                    }
+                ],
             }
         ],
     }
@@ -233,10 +346,16 @@ def test_import_interests_replaces_all_stored_interests() -> None:
     [
         {"interests": []},
         {"schemaVersion": 2, "exportedAt": "2026-06-13T13:00:00Z", "interests": []},
-        {"schemaVersion": 1, "exportedAt": "2026-06-13T13:00:00Z", "interests": [{"sources": [{"type": "feed"}]}]},
+        {
+            "schemaVersion": 1,
+            "exportedAt": "2026-06-13T13:00:00Z",
+            "interests": [{"sources": [{"type": "feed"}]}],
+        },
     ],
 )
-def test_import_interests_rejects_invalid_envelope_without_writing(payload: dict[str, object]) -> None:
+def test_import_interests_rejects_invalid_envelope_without_writing(
+    payload: dict[str, object],
+) -> None:
     repository = StubInterestRepository(_payload())
 
     with TestClient(_create_test_app(repository=repository)) as client:
@@ -262,6 +381,109 @@ def test_import_interests_rejects_malformed_json_without_writing() -> None:
     assert repository.saved_payloads == []
 
 
+def test_collections_endpoint_lists_fixed_collections() -> None:
+    with TestClient(_create_test_app()) as client:
+        response = client.get("/api/collections")
+
+    assert response.status_code == HTTP_OK
+    assert [(collection["id"], collection["name"]) for collection in response.json()["collections"]] == [
+        ("see-later", "See Later"),
+        ("liked", "Liked"),
+    ]
+    assert response.json()["collections"][0]["saved_updates"] == []
+
+
+def test_save_collection_update_stores_snapshot_and_returns_key() -> None:
+    collection_repository = StubCollectionRepository()
+
+    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+        response = client.post(
+            "/api/collections/see-later/updates",
+            json={"update": _saved_update_payload()},
+        )
+
+    assert response.status_code == HTTP_OK
+    payload = response.json()["saved_update"]
+    assert isinstance(payload["saved_at"], str)
+    assert len(payload["update_key"]) == UPDATE_KEY_LENGTH
+    assert payload["update"]["title"] == "Saved update"
+    assert payload["update"]["source_interest"]["source_id"] == "feed"
+    assert len(collection_repository.saved_updates) == 1
+
+
+def test_repeated_collection_save_preserves_original_saved_update() -> None:
+    collection_repository = StubCollectionRepository()
+
+    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+        first = client.post(
+            "/api/collections/liked/updates",
+            json={"update": _saved_update_payload(title="Original")},
+        )
+        second = client.post(
+            "/api/collections/liked/updates",
+            json={"update": _saved_update_payload(title="Changed")},
+        )
+
+    assert first.status_code == HTTP_OK
+    assert second.status_code == HTTP_OK
+    assert second.json() == first.json()
+    assert len(collection_repository.saved_updates) == 1
+
+
+def test_collections_endpoint_returns_saved_updates_ordered_by_save_time() -> None:
+    collection_repository = StubCollectionRepository()
+
+    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+        client.post(
+            "/api/collections/see-later/updates",
+            json={"update": _saved_update_payload(url="https://e.test/old")},
+        )
+        client.post(
+            "/api/collections/see-later/updates",
+            json={"update": _saved_update_payload(url="https://e.test/new")},
+        )
+        response = client.get("/api/collections")
+
+    assert response.status_code == HTTP_OK
+    saved_updates = response.json()["collections"][0]["saved_updates"]
+    assert [saved_update["update"]["url"] for saved_update in saved_updates] == [
+        "https://e.test/new",
+        "https://e.test/old",
+    ]
+
+
+def test_remove_collection_update_removes_one_saved_update() -> None:
+    collection_repository = StubCollectionRepository()
+
+    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+        save_response = client.post("/api/collections/liked/updates", json={"update": _saved_update_payload()})
+        update_key = save_response.json()["saved_update"]["update_key"]
+        remove_response = client.delete(f"/api/collections/liked/updates/{update_key}")
+
+    assert remove_response.status_code == HTTP_OK
+    assert remove_response.json() == {"ok": True}
+    assert collection_repository.removed == [("liked", update_key)]
+    assert collection_repository.saved_updates == {}
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/api/collections/unknown/updates"),
+        ("delete", "/api/collections/unknown/updates/update-key"),
+    ],
+)
+def test_collection_endpoints_reject_unknown_collections(method: str, path: str) -> None:
+    with TestClient(_create_test_app()) as client:
+        if method == "post":
+            response = client.post(path, json={"update": _saved_update_payload()})
+        else:
+            response = client.delete(path)
+
+    assert response.status_code == HTTP_NOT_FOUND
+    assert response.json() == {"detail": "Collection not found: unknown"}
+
+
 def test_updates_rejects_non_positive_days() -> None:
     client = TestClient(app)
 
@@ -270,8 +492,8 @@ def test_updates_rejects_non_positive_days() -> None:
     assert response.status_code == HTTP_UNPROCESSABLE_ENTITY
 
 
-def _payload(source_url: str = "https://example.com/feed.xml") -> InterestsPayload:
-    return InterestsPayload.model_validate(
+def _payload(source_url: str = "https://example.com/feed.xml") -> Interests:
+    return Interests.model_validate(
         {
             "interests": [
                 {
@@ -286,14 +508,20 @@ def _payload(source_url: str = "https://example.com/feed.xml") -> InterestsPaylo
     )
 
 
-def _payload_with_archived_interest() -> InterestsPayload:
-    return InterestsPayload.model_validate(
+def _payload_with_archived_interest() -> Interests:
+    return Interests.model_validate(
         {
             "interests": [
                 {
                     "id": "typescript",
                     "name": "TypeScript",
-                    "sources": [{"id": "feed", "type": "feed", "url": "https://example.com/feed.xml"}],
+                    "sources": [
+                        {
+                            "id": "feed",
+                            "type": "feed",
+                            "url": "https://example.com/feed.xml",
+                        }
+                    ],
                 },
                 {
                     "deletedAt": "2026-06-12T10:00:00Z",
@@ -314,6 +542,29 @@ def _payload_with_archived_interest() -> InterestsPayload:
     )
 
 
+def _saved_update_payload(
+    *,
+    title: str = "Saved update",
+    url: str = "https://e.test/update",
+) -> dict[str, object]:
+    return {
+        "title": title,
+        "url": url,
+        "summary": "Snapshot",
+        "image_url": "https://e.test/image.png",
+        "published": "2026-06-12T10:00:00Z",
+        "source_interest": {
+            "interest_id": "typescript",
+            "interest_name": "TypeScript",
+            "source_id": "feed",
+            "source_label": "TypeScript Feed",
+            "source_image_url": "https://e.test/source.png",
+            "source_url": "https://e.test/feed.xml",
+            "source_type": "feed",
+        },
+    }
+
+
 def _mcp_request(request_id: int, method: str, params: dict[str, object] | None = None) -> dict[str, object]:
     request: dict[str, object] = {"jsonrpc": "2.0", "id": request_id, "method": method}
     if params is not None:
@@ -321,7 +572,7 @@ def _mcp_request(request_id: int, method: str, params: dict[str, object] | None 
     return request
 
 
-def _read_default_payload() -> InterestsPayload:
+def _read_default_payload() -> Interests:
     return _payload()
 
 
@@ -344,19 +595,21 @@ def _response(title: str, *, error: str | None = None) -> UpdatesResponse:
                 published_at=datetime(2026, 5, 15, 12, 0, tzinfo=UTC),
             )
         ],
-        errors=[]
-        if error is None
-        else [
-            CollectionError(
-                interest_id="typescript",
-                interest_name="TypeScript",
-                source_id="feed",
-                source_label="Source",
-                source_url="https://example.com/feed.xml",
-                source_type="feed",
-                error=error,
-            )
-        ],
+        errors=(
+            []
+            if error is None
+            else [
+                CollectionError(
+                    interest_id="typescript",
+                    interest_name="TypeScript",
+                    source_id="feed",
+                    source_label="Source",
+                    source_url="https://example.com/feed.xml",
+                    source_type="feed",
+                    error=error,
+                )
+            ]
+        ),
     )
 
 
@@ -406,7 +659,9 @@ def test_create_app_uses_cachetools_ttl_cache() -> None:
     assert api.state.source_updates_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
 
 
-def test_mcp_endpoint_lists_tools_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mcp_endpoint_lists_tools_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
     repository = StubInterestRepository(_payload())
@@ -448,7 +703,9 @@ def test_mcp_tool_uses_app_interest_repository(monkeypatch: pytest.MonkeyPatch) 
     assert repository.read_calls == 1
 
 
-def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("MCP_AUTH_TOKEN", raising=False)
     repository = StubInterestRepository(_payload())
 
@@ -466,7 +723,13 @@ def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(monkeypat
 
 @pytest.mark.parametrize(
     "headers",
-    [{}, {"Authorization": "Bearer wrong", "Accept": "application/json, text/event-stream"}],
+    [
+        {},
+        {
+            "Authorization": "Bearer wrong",
+            "Accept": "application/json, text/event-stream",
+        },
+    ],
 )
 def test_mcp_endpoint_rejects_missing_or_invalid_bearer_token(
     monkeypatch: pytest.MonkeyPatch,
@@ -487,7 +750,9 @@ def test_mcp_endpoint_rejects_missing_or_invalid_bearer_token(
     assert repository.read_calls == 0
 
 
-def test_mcp_endpoint_allows_configured_browser_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mcp_endpoint_allows_configured_browser_origin(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.setenv("MCP_ALLOWED_ORIGINS", "https://app.example.com")
 
@@ -522,7 +787,9 @@ def test_mcp_endpoint_rejects_disallowed_or_unset_browser_origin(
     assert repository.read_calls == 0
 
 
-def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
 
@@ -532,7 +799,9 @@ def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(monkey
     assert response.status_code == HTTP_OK
 
 
-def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_updates_endpoint_expires_cached_response_after_five_minutes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     current_time = 1000.0
     calls = 0
 
@@ -557,7 +826,9 @@ def test_updates_endpoint_expires_cached_response_after_five_minutes(monkeypatch
     assert calls == EXPECTED_EXPIRED_CALLS
 
 
-def test_updates_endpoint_cache_key_includes_selected_days(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_updates_endpoint_cache_key_includes_selected_days(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls: list[str] = []
 
     async def collect_source_updates(source: InterestSource, *_args: object) -> list[SourceUpdate]:
@@ -601,7 +872,9 @@ def test_saving_interests_keeps_source_cache(
     assert calls == ["https://example.com/feed.xml"]
 
 
-def test_updates_endpoint_retries_source_errors_instead_of_caching_them(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_updates_endpoint_retries_source_errors_instead_of_caching_them(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     calls = 0
 
     async def collect_source_updates(_source: object, *_args: object) -> list[SourceUpdate]:

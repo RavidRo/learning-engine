@@ -130,5 +130,5 @@ class Interest(BaseModel):
         return str(value or "").strip()
 
 
-class InterestsPayload(BaseModel):
+class Interests(BaseModel):
     interests: list[Interest] = Field(default_factory=list)

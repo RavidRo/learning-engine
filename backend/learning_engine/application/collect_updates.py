@@ -19,7 +19,7 @@ from learning_engine.application.responses import CollectionError, UpdatesRespon
 from learning_engine.common.dates import format_datetime
 from learning_engine.common.text import keyword_matches, searchable_text
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.interests import Interest, InterestSource, InterestsPayload
+from learning_engine.domain.interests import Interest, Interests, InterestSource
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 
 SourceUpdatesCacheKey = tuple[str, str, tuple[str, ...], str | None]
@@ -205,7 +205,7 @@ async def _collect_from_source(
 
 
 def _enabled_sources(
-    interests: InterestsPayload,
+    interests: Interests,
 ) -> Iterable[tuple[Interest, InterestSource]]:
     for interest in interests.interests:
         if interest.deleted_at is not None or not interest.enabled:
@@ -256,7 +256,7 @@ def _collection_error(
 
 
 async def collect_updates(
-    interests: InterestsPayload,
+    interests: Interests,
     timeframe: Timeframe,
     dependencies: CollectUpdatesDependencies,
     source_updates_cache: SourceUpdatesCacheOptions,
