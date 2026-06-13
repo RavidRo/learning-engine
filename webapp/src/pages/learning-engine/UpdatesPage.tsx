@@ -96,15 +96,15 @@ const UpdateItem = ({ update }: { update: Update }) => {
     <article className="update-item-card">
       <SourceAvatar update={update} />
       <div className="update-item-content">
+        <a href={update.url} target="_blank" rel="noreferrer">
+          {update.title ?? "Untitled update"}
+        </a>
         <div className="update-item-meta">
           <span>
             {update.source_interest.source_label} · {update.source_interest.source_type}
           </span>
           {label ? <span>{label}</span> : null}
         </div>
-        <a href={update.url} target="_blank" rel="noreferrer">
-          {update.title ?? "Untitled update"}
-        </a>
       </div>
     </article>
   );
