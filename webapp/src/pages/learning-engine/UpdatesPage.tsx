@@ -7,6 +7,7 @@ import { UpdateSourceAvatar } from "./UpdateSourceAvatar";
 type UpdatesPageProps = {
   days: number;
   isChecking: boolean;
+  isOffline: boolean;
   isRemovingSavedUpdate: boolean;
   isSavingToCollection: boolean;
   collections: Collection[];
@@ -362,6 +363,7 @@ const UpdateDaysSelect = ({
 export const UpdatesPage = ({
   days,
   isChecking,
+  isOffline,
   isRemovingSavedUpdate,
   isSavingToCollection,
   collections,
@@ -387,9 +389,10 @@ export const UpdatesPage = ({
             className="button primary"
             type="button"
             onClick={onRefresh}
-            disabled={isChecking}
+            disabled={isChecking || isOffline}
+            title={isOffline ? "Connect to refresh updates" : undefined}
           >
-            {isChecking ? "Refreshing..." : "Refresh"}
+            {isOffline ? "Connect to refresh" : isChecking ? "Refreshing..." : "Refresh"}
           </button>
         </div>
       </div>

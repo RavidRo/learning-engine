@@ -3,6 +3,7 @@ import { type Interest } from "./types";
 
 type InterestCardProps = {
   interest: Interest;
+  isOffline: boolean;
   onEdit: (id: string) => void;
   onRemove: (id: string) => void;
   onToggle: (id: string) => void;
@@ -21,21 +22,45 @@ const InterestBadges = ({ interest }: { interest: Interest }) => (
   </div>
 );
 
-const InterestActions = ({ interest, onEdit, onRemove, onToggle }: InterestCardProps) => (
+const InterestActions = ({
+  interest,
+  isOffline,
+  onEdit,
+  onRemove,
+  onToggle,
+}: InterestCardProps) => (
   <div className="actions">
     <button className="button ghost" type="button" onClick={() => onEdit(interest.id)}>
       Edit
     </button>
-    <button className="button ghost" type="button" onClick={() => onToggle(interest.id)}>
+    <button
+      className="button ghost"
+      disabled={isOffline}
+      title={isOffline ? "Connect to save interests" : undefined}
+      type="button"
+      onClick={() => onToggle(interest.id)}
+    >
       {interest.enabled ? "Disable" : "Enable"}
     </button>
-    <button className="button danger" type="button" onClick={() => onRemove(interest.id)}>
+    <button
+      className="button danger"
+      disabled={isOffline}
+      title={isOffline ? "Connect to save interests" : undefined}
+      type="button"
+      onClick={() => onRemove(interest.id)}
+    >
       Delete
     </button>
   </div>
 );
 
-export const InterestCard = ({ interest, onEdit, onRemove, onToggle }: InterestCardProps) => {
+export const InterestCard = ({
+  interest,
+  isOffline,
+  onEdit,
+  onRemove,
+  onToggle,
+}: InterestCardProps) => {
   const showSources = hasSources(interest);
 
   return (
@@ -50,6 +75,7 @@ export const InterestCard = ({ interest, onEdit, onRemove, onToggle }: InterestC
       </div>
       <InterestActions
         interest={interest}
+        isOffline={isOffline}
         onEdit={onEdit}
         onRemove={onRemove}
         onToggle={onToggle}

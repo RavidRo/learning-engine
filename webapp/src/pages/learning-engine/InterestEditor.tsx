@@ -20,6 +20,7 @@ import {
 
 type InterestEditorProps = {
   interest: Interest | null;
+  isOffline: boolean;
   onCancelEdit: () => void;
   onCreateInterest: (draft: InterestDraft) => void;
   onUpdateInterest: (draft: InterestDraft) => void;
@@ -187,6 +188,20 @@ const OptionalSourceImage = ({ imageUrl }: { imageUrl: string }) =>
 const previewableImageUrl = (imageUrl: string, message: string | null): string =>
   message === null ? imageUrl : "";
 
+const SourceImageManualPreview = ({ imageUrl }: { imageUrl: string }) => (
+  <div className="source-image-preview">
+    <span>Preview Image</span>
+    <SourceImage imageUrl={imageUrl} />
+  </div>
+);
+
+const SourceImageOfflinePreview = () => (
+  <div className="source-image-preview">
+    <span>Preview Image</span>
+    <span className="source-image-preview-note">Connect to preview image</span>
+  </div>
+);
+
 const SourceImagePreviewResult = ({
   imageUrl,
   isDebouncing,
@@ -216,12 +231,24 @@ const SourceImagePreviewResult = ({
   );
 };
 
-const SourceImagePreview = ({ source }: { source: InterestSource }) => {
+const canQuerySourceImage = (
+  isOffline: boolean,
+  manualImageUrl: string,
+  sourceUrl: string,
+): boolean => !isOffline && canResolveSourceImage(manualImageUrl, sourceUrl);
+
+const SourceImagePreview = ({
+  isOffline,
+  source,
+}: {
+  isOffline: boolean;
+  source: InterestSource;
+}) => {
   const manualImageUrl = trimmed(source.imageUrl);
   const sourceUrl = source.url.trim();
   const debouncedSourceUrl = useDebouncedValue(sourceUrl, sourceImagePreviewDelayMs);
   const imageQuery = useQuery({
-    enabled: canResolveSourceImage(manualImageUrl, debouncedSourceUrl),
+    enabled: canQuerySourceImage(isOffline, manualImageUrl, debouncedSourceUrl),
     queryFn: () => resolveSourceImage({ type: source.type, url: debouncedSourceUrl }),
     queryKey: ["learning-engine", "source-image", source.type, debouncedSourceUrl] as const,
   });
@@ -229,16 +256,15 @@ const SourceImagePreview = ({ source }: { source: InterestSource }) => {
   const isDebouncing = sourceUrl !== debouncedSourceUrl;
 
   if (manualImageUrl !== "") {
-    return (
-      <div className="source-image-preview">
-        <span>Preview Image</span>
-        <SourceImage imageUrl={manualImageUrl} />
-      </div>
-    );
+    return <SourceImageManualPreview imageUrl={manualImageUrl} />;
   }
 
   if (sourceUrl === "") {
     return null;
+  }
+
+  if (isOffline) {
+    return <SourceImageOfflinePreview />;
   }
 
   return (
@@ -322,11 +348,13 @@ const BasicInterestFields = ({
 const SourceEditorCard = ({
   dispatch,
   index,
+  isOffline,
   source,
   sourcesCount,
 }: {
   dispatch: DraftDispatch;
   index: number;
+  isOffline: boolean;
   source: InterestSource;
   sourcesCount: number;
 }) => (
@@ -429,7 +457,7 @@ const SourceEditorCard = ({
         value={source.imageUrl ?? ""}
       />
     </label>
-    <SourceImagePreview source={source} />
+    <SourceImagePreview isOffline={isOffline} source={source} />
     <label>
       Ignore keywords
       <input
@@ -450,9 +478,11 @@ const SourceEditorCard = ({
 
 const SourcesEditor = ({
   dispatch,
+  isOffline,
   sources,
 }: {
   dispatch: DraftDispatch;
+  isOffline: boolean;
   sources: InterestSource[];
 }) => (
   <div className="sources-editor">
@@ -474,6 +504,7 @@ const SourcesEditor = ({
       <SourceEditorCard
         dispatch={dispatch}
         index={index}
+        isOffline={isOffline}
         key={source.id}
         source={source}
         sourcesCount={sources.length}
@@ -485,6 +516,7 @@ const SourcesEditor = ({
 // fallow-ignore-next-line complexity
 export const InterestEditor = ({
   interest,
+  isOffline,
   onCancelEdit,
   onCreateInterest,
   onUpdateInterest,
@@ -526,10 +558,15 @@ export const InterestEditor = ({
 
       <form className="form-grid" onSubmit={handleSubmit}>
         <BasicInterestFields dispatch={dispatch} draft={draft} />
-        <SourcesEditor dispatch={dispatch} sources={sources} />
+        <SourcesEditor dispatch={dispatch} isOffline={isOffline} sources={sources} />
 
-        <button className="button primary" disabled={!isValidDraft(draft)} type="submit">
-          {isEditing ? "Save changes" : "Create interest"}
+        <button
+          className="button primary"
+          disabled={!isValidDraft(draft) || isOffline}
+          title={isOffline ? "Connect to save interests" : undefined}
+          type="submit"
+        >
+          {isOffline ? "Connect to save" : isEditing ? "Save changes" : "Create interest"}
         </button>
       </form>
     </aside>

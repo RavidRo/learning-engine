@@ -53,7 +53,12 @@ tasks:
   compose:up:
     desc: Start backend plus the Vite dev server with Docker Compose
     cmds:
-      - docker compose -f compose.yaml up --build
+      - docker compose -f compose.yaml --profile dev up --build
+
+  compose:preview:
+    desc: Start backend plus the production frontend preview with Docker Compose
+    cmds:
+      - docker compose -f compose.yaml --profile preview up --build
 
   compose:down:
     desc: Stop the development Docker Compose stack
@@ -63,4 +68,9 @@ tasks:
   compose:config:
     desc: Validate development Docker Compose configuration
     cmds:
-      - docker compose -f compose.yaml config
+      - docker compose -f compose.yaml --profile dev config
+
+  compose:preview:config:
+    desc: Validate production frontend preview Docker Compose configuration
+    cmds:
+      - docker compose -f compose.yaml --profile preview config

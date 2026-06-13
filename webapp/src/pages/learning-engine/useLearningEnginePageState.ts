@@ -166,9 +166,18 @@ const mutationSaveStatus: Record<"idle" | "pending" | "error" | "success", SaveS
 const saveStatus = (status: "idle" | "pending" | "error" | "success"): SaveStatus =>
   mutationSaveStatus[status];
 
+const updatesErrorPayload = (error: unknown): UpdatesPayload => ({
+  errors: [],
+  error: errorMessage(error, "Failed to fetch updates"),
+  sources_checked: 0,
+  updates: [],
+});
+
 const createLearningEngineActions = (
   interests: Interest[],
+  isOffline: boolean,
   setView: (view: PageView) => void,
+  showToast: ShowToast,
   saveNextInterests: (nextInterests: Interest[]) => void,
   checkUpdates: () => void,
   exportInterests: () => void,
@@ -177,6 +186,11 @@ const createLearningEngineActions = (
   removeSavedUpdate: (collectionId: string, updateKey: string) => void,
 ): LearningEnginePageActions => ({
   addInterest: (draft) => {
+    if (isOffline) {
+      showToast("Connect to save interests");
+      return;
+    }
+
     const newInterest = createInterest(draft);
 
     if (newInterest === null) {
@@ -189,15 +203,35 @@ const createLearningEngineActions = (
     setView(view);
   },
   checkUpdates: () => {
+    if (isOffline) {
+      showToast("Connect to refresh updates");
+      return;
+    }
+
     checkUpdates();
   },
   exportInterests: () => {
+    if (isOffline) {
+      showToast("Connect to export interests");
+      return;
+    }
+
     exportInterests();
   },
   importInterests: (file) => {
+    if (isOffline) {
+      showToast("Connect to import interests");
+      return;
+    }
+
     importInterests(file);
   },
   removeInterest: (id) => {
+    if (isOffline) {
+      showToast("Connect to save interests");
+      return;
+    }
+
     const nextInterests = interests.map((interest) =>
       interest.id === id ? { ...interest, deletedAt: new Date().toISOString() } : interest,
     );
@@ -205,12 +239,27 @@ const createLearningEngineActions = (
     saveNextInterests(nextInterests);
   },
   removeSavedUpdate: (collectionId, updateKey) => {
+    if (isOffline) {
+      showToast("Connect to update collections");
+      return;
+    }
+
     removeSavedUpdate(collectionId, updateKey);
   },
   saveUpdateToCollection: (collectionId, update) => {
+    if (isOffline) {
+      showToast("Connect to update collections");
+      return;
+    }
+
     saveUpdateToCollection(collectionId, update);
   },
   toggleInterest: (id) => {
+    if (isOffline) {
+      showToast("Connect to save interests");
+      return;
+    }
+
     const nextInterests = interests.map((interest) =>
       interest.id === id ? { ...interest, enabled: !interest.enabled } : interest,
     );
@@ -218,6 +267,11 @@ const createLearningEngineActions = (
     saveNextInterests(nextInterests);
   },
   updateInterest: (draft) => {
+    if (isOffline) {
+      showToast("Connect to save interests");
+      return;
+    }
+
     const nextInterests = interests.map((interest) => {
       if (interest.id !== draft.id) {
         return interest;
@@ -230,8 +284,14 @@ const createLearningEngineActions = (
   },
 });
 
+type UseLearningEnginePageStateOptions = {
+  isBrowserOffline: boolean;
+};
+
 // fallow-ignore-next-line complexity
-export const useLearningEnginePageState = () => {
+export const useLearningEnginePageState = ({
+  isBrowserOffline,
+}: UseLearningEnginePageStateOptions) => {
   const queryClient = useQueryClient();
   const [toast, showToast] = useAutoDismissToast();
   const view = usePageRoute();
@@ -260,28 +320,29 @@ export const useLearningEnginePageState = () => {
   const importInterestsMutation = useImportInterestsMutation(queryClient, showToast);
   const saveUpdateToCollectionMutation = useSaveUpdateToCollectionMutation(queryClient, showToast);
   const removeSavedUpdateMutation = useRemoveSavedUpdateMutation(queryClient, showToast);
+  const isConnectionUnavailable =
+    isBrowserOffline || interestsQuery.isError || updatesQuery.isError;
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
   const actions = createLearningEngineActions(
     interests,
+    isConnectionUnavailable,
     navigateToView,
+    showToast,
     saveInterestsMutation.mutate,
-    () => {
-      void updatesQuery.refetch().then((result) => {
-        if (result.error !== null) {
-          const updatesError: UpdatesPayload = {
-            errors: [],
-            error: errorMessage(result.error, "Failed to fetch updates"),
-            sources_checked: 0,
-            updates: [],
-          };
+    async () => {
+      try {
+        const result = await updatesQuery.refetch();
 
-          queryClient.setQueryData(currentUpdatesQueryKey, updatesError);
+        if (result.error !== null) {
+          queryClient.setQueryData(currentUpdatesQueryKey, updatesErrorPayload(result.error));
           return;
         }
 
         showToast("Updates refreshed");
-      });
+      } catch (error) {
+        queryClient.setQueryData(currentUpdatesQueryKey, updatesErrorPayload(error));
+      }
     },
     exportInterestsMutation.mutate,
     importInterestsMutation.mutate,
@@ -305,6 +366,7 @@ export const useLearningEnginePageState = () => {
           ? null
           : errorMessage(collectionsQuery.error, "Failed to load collections"),
       isChecking: updatesQuery.isFetching,
+      isConnectionUnavailable,
       isExporting: exportInterestsMutation.isPending,
       isImporting: importInterestsMutation.isPending,
       isLoadingCollections: collectionsQuery.isLoading,
