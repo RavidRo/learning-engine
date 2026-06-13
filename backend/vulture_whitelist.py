@@ -2,9 +2,16 @@
 
 from learning_engine.application.responses import CollectionError, UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
+from learning_engine.domain.collections import Collections
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
-from learning_engine.infrastructure.storage import StoredSourceIgnoreKeyword
-from learning_engine.presentation.schemas import InterestExportEnvelope
+from learning_engine.infrastructure.storage import (
+    StoredSavedCollectionUpdate,
+    StoredSourceIgnoreKeyword,
+)
+from learning_engine.presentation.schemas import (
+    InterestExportEnvelope,
+    RemoveCollectionUpdateResponse,
+)
 
 SourceUpdate.matched_keywords
 SourceInterest.interest_id
@@ -22,6 +29,8 @@ UpdatesResponse.since
 UpdatesResponse.errors
 InterestExportEnvelope.schema_version
 InterestExportEnvelope.exported_at
+Collections.collections
+RemoveCollectionUpdateResponse.ok
 
 # I want to keep for my own satisfaction
 Timeframe.from_point
@@ -31,3 +40,4 @@ Timeframe.overlaps
 Timeframe.shift
 
 StoredSourceIgnoreKeyword.keyword_id
+StoredSavedCollectionUpdate.saved_update_id

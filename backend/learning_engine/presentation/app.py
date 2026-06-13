@@ -13,6 +13,7 @@ from cachetools import TTLCache
 from fastapi import FastAPI
 
 from learning_engine.application.ports import (
+    CollectionRepository,
     InterestRepository,
     SourceImageProvider,
     SourceUpdateCollector,
@@ -25,6 +26,7 @@ from learning_engine.infrastructure.source_collectors.registry import (
 )
 from learning_engine.infrastructure.source_images.resolver import SourceImageResolver
 from learning_engine.infrastructure.storage import DEFAULT_STORE
+from learning_engine.presentation.collections_router import collections_router
 from learning_engine.presentation.interests_router import interests_router
 from learning_engine.presentation.mcp_interest_server import (
     create_authenticated_mcp_app,
@@ -41,6 +43,8 @@ SourceImageProviderFactory = Callable[[Fetcher], SourceImageProvider]
 async def lifespan(api: FastAPI) -> AsyncIterator[None]:
     repository = cast(InterestRepository, api.state.interest_repository)
     repository.ensure_data_store()
+    collection_repository = cast(CollectionRepository, api.state.collection_repository)
+    collection_repository.ensure_data_store()
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(api.state.mcp_server.session_manager.run())
         client = await stack.enter_async_context(httpx.AsyncClient(timeout=REQUEST_TIMEOUT_SECONDS))
@@ -67,6 +71,7 @@ def create_app() -> FastAPI:
         ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
     api.state.interest_repository = DEFAULT_STORE
+    api.state.collection_repository = DEFAULT_STORE
     api.state.source_update_collector_factory = SourceUpdateCollectorRegistry
     api.state.source_image_provider_factory = SourceImageResolver
     api.state.mcp_server = create_interest_mcp_server(api)
@@ -76,6 +81,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     api.include_router(interests_router(api))
+    api.include_router(collections_router(api))
     api.mount("/mcp", create_authenticated_mcp_app(api.state.mcp_server))
 
     return api

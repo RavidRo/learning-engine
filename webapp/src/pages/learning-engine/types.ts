@@ -1,6 +1,20 @@
-import { type Interest, type SourceImagePayload, type UpdatesPayload } from "./schemas";
+import {
+  type Collection,
+  type Interest,
+  type SavedCollectionUpdate,
+  type SourceImagePayload,
+  type Update,
+  type UpdatesPayload,
+} from "./schemas";
 
-export type { Interest, SourceImagePayload, UpdatesPayload };
+export type {
+  Collection,
+  Interest,
+  SavedCollectionUpdate,
+  SourceImagePayload,
+  Update,
+  UpdatesPayload,
+};
 export type InterestSource = Interest["sources"][number];
 
 export type Priority = "high" | "medium" | "low";
@@ -16,7 +30,7 @@ export type ToastState = {
   visible: boolean;
 };
 
-export type PageView = "interests" | "updates";
+export type PageView = "collections" | "interests" | "updates";
 
 export type SaveStatus = "idle" | "saving" | "saved" | "failed";
 
@@ -43,6 +57,8 @@ export type LearningEnginePageActions = {
   exportInterests: () => void;
   importInterests: (file: File) => void;
   removeInterest: (id: string) => void;
+  removeSavedUpdate: (collectionId: string, updateKey: string) => void;
+  saveUpdateToCollection: (collectionId: string, update: Update) => void;
   toggleInterest: (id: string) => void;
   updateInterest: (draft: InterestDraft) => void;
 };

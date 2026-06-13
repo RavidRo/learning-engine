@@ -7,10 +7,22 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, ValidationError, field_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+)
 
 from learning_engine.application.ports import InterestRepository
-from learning_engine.domain.interests import Interest, InterestSource, InterestsPayload, Priority
+from learning_engine.domain.interests import (
+    Interest,
+    Interests,
+    InterestSource,
+    Priority,
+)
 from learning_engine.domain.source_types import SourceType, normalize_source_type
 
 IdFactory = Callable[[], str]
@@ -133,7 +145,7 @@ def create_interest(
         enabled=command.enabled,
         sources=sources,
     )
-    updated = InterestsPayload(interests=[*payload.interests, interest])
+    updated = Interests(interests=[*payload.interests, interest])
     _write_validated(repository, updated)
     return {"interest": _interest_response(interest, include_deleted=True)}
 
@@ -150,7 +162,7 @@ def update_interest(
         update={key: value for key, value in command.model_dump(exclude_unset=True).items() if value is not None}
     )
     interests[index] = updated_interest
-    _write_validated(repository, InterestsPayload(interests=interests))
+    _write_validated(repository, Interests(interests=interests))
     return {"interest": _interest_response(updated_interest, include_deleted=True)}
 
 
@@ -179,7 +191,7 @@ def add_source(
     source = _source_from_input(command, _generate_id("source", _all_ids(payload), id_factory))
     updated_interest = interest.model_copy(update={"sources": [*interest.sources, source]})
     interests[index] = updated_interest
-    _write_validated(repository, InterestsPayload(interests=interests))
+    _write_validated(repository, Interests(interests=interests))
     return {"source": _source_response(source, include_deleted=True)}
 
 
@@ -197,7 +209,7 @@ def update_source(
     updated_source = source.model_copy(update=command.model_dump(exclude_unset=True))
     sources[source_index] = updated_source
     interests[interest_index] = interest.model_copy(update={"sources": sources})
-    _write_validated(repository, InterestsPayload(interests=interests))
+    _write_validated(repository, Interests(interests=interests))
     return {"source": _source_response(updated_source, include_deleted=True)}
 
 
@@ -220,7 +232,7 @@ def _set_interest_state(repository: InterestRepository, interest_id: str, action
     update = _state_update(action)
     updated_interest = interest.model_copy(update=update)
     interests[index] = updated_interest
-    _write_validated(repository, InterestsPayload(interests=interests))
+    _write_validated(repository, Interests(interests=interests))
     return {"interest": _interest_response(updated_interest, include_deleted=True)}
 
 
@@ -238,7 +250,7 @@ def _set_source_state(
     updated_source = source.model_copy(update=_state_update(action))
     sources[source_index] = updated_source
     interests[interest_index] = interest.model_copy(update={"sources": sources})
-    _write_validated(repository, InterestsPayload(interests=interests))
+    _write_validated(repository, Interests(interests=interests))
     return {"source": _source_response(updated_source, include_deleted=True)}
 
 
@@ -250,9 +262,9 @@ def _state_update(action: WriteAction) -> CommandResponse:
     return {"deleted_at": _deleted_timestamp()}
 
 
-def _write_validated(repository: InterestRepository, payload: InterestsPayload) -> None:
+def _write_validated(repository: InterestRepository, payload: Interests) -> None:
     try:
-        validated = InterestsPayload.model_validate(payload.model_dump(mode="json", by_alias=True))
+        validated = Interests.model_validate(payload.model_dump(mode="json", by_alias=True))
     except ValidationError as exc:
         raise McpInterestValidationError(str(exc)) from exc
     repository.write_interests(validated)
@@ -297,7 +309,7 @@ def _generate_id(prefix: str, used_ids: set[str], id_factory: IdFactory) -> str:
     raise McpInterestValidationError(f"Could not generate a unique {prefix} id")
 
 
-def _all_ids(payload: InterestsPayload) -> set[str]:
+def _all_ids(payload: Interests) -> set[str]:
     ids = {interest.id for interest in payload.interests if interest.id is not None}
     ids.update(source.id for interest in payload.interests for source in interest.sources if source.id is not None)
     return ids

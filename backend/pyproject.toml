@@ -161,6 +161,7 @@ paths = ["learning_engine", "scripts", "vulture_whitelist.py"]
 ignore_decorators = [
     "@api.get",
     "@api.post",
+    "@router.delete",
     "@router.get",
     "@router.post",
     "@field_validator",

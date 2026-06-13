@@ -1,14 +1,20 @@
-import { type ChangeEvent, useState } from "react";
+import { type ChangeEvent } from "react";
 
-import { type Update } from "./schemas";
-import { type UpdatesPayload } from "./types";
+import { BookmarkIcon, HeartIcon } from "./CollectionActionIcons";
+import { type Collection, type Update, type UpdatesPayload } from "./types";
+import { UpdateSourceAvatar } from "./UpdateSourceAvatar";
 
 type UpdatesPageProps = {
   days: number;
   isChecking: boolean;
   isOffline: boolean;
+  isRemovingSavedUpdate: boolean;
+  isSavingToCollection: boolean;
+  collections: Collection[];
   onDaysChange: (days: number) => void;
   onRefresh: () => void;
+  onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
+  onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
   updates: UpdatesPayload | null;
   updatesError: string | null;
 };
@@ -16,6 +22,25 @@ type UpdatesPageProps = {
 type UpdateGroup = {
   interestName: string;
   updates: Update[];
+};
+
+type UpdateCollectionActionProps = {
+  collections: Collection[];
+  isRemovingSavedUpdate: boolean;
+  isSavingToCollection: boolean;
+  onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
+  onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  update: Update;
+};
+
+type CollectionSaveButtonProps = Omit<UpdateCollectionActionProps, "collections"> & {
+  collection: Collection;
+};
+
+type CollectionToggleAction = {
+  isSaved: boolean;
+  label: string;
+  run: () => void;
 };
 
 const updateDayOptions = [2, 7, 14, 30] as const;
@@ -41,8 +66,6 @@ const updateKey = (update: Update): string =>
 const updateWindowLabel = (days: number): string =>
   days === 1 ? "the last day" : `the last ${days} days`;
 
-const sourceInitial = (label: string): string => label.trim().charAt(0).toUpperCase() || "•";
-
 const publishedLabelFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -56,46 +79,131 @@ const publishedLabel = (published: Date | undefined): string | null => {
   return publishedLabelFormatter.format(published);
 };
 
-const presentImageUrl = (imageUrl: string | null | undefined): string | undefined => {
-  const trimmedImageUrl = imageUrl?.trim();
-  return trimmedImageUrl === "" ? undefined : trimmedImageUrl;
-};
+const sourceIdentity = (update: Update): string =>
+  update.source_interest.source_id === null || update.source_interest.source_id === undefined
+    ? `url:${update.source_interest.source_url}`
+    : `id:${update.source_interest.source_id}`;
 
-const updateThumbnailUrl = (update: Update): string | undefined =>
-  [update.image_url, update.source_interest.source_image_url]
-    .map(presentImageUrl)
-    .find((imageUrl) => imageUrl !== undefined);
+const savedUpdateMatches = (
+  savedUpdate: Collection["saved_updates"][number],
+  update: Update,
+): boolean =>
+  savedUpdate.update.url === update.url &&
+  savedUpdate.update.source_interest.source_type === update.source_interest.source_type &&
+  sourceIdentity(savedUpdate.update) === sourceIdentity(update);
 
-const SourceAvatar = ({ update }: { update: Update }) => {
-  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
-  const imageUrl = updateThumbnailUrl(update);
-  const showImage = imageUrl !== undefined && imageUrl !== failedImageUrl;
+const savedUpdateInCollection = (
+  collection: Collection,
+  update: Update,
+): Collection["saved_updates"][number] | undefined =>
+  collection.saved_updates.find((savedUpdate) => savedUpdateMatches(savedUpdate, update));
 
-  if (!showImage) {
-    return (
-      <span className="source-avatar fallback" aria-hidden="true">
-        {sourceInitial(update.source_interest.source_label)}
-      </span>
-    );
+const CollectionIcon = ({ collection }: { collection: Collection }) =>
+  collection.id === "liked" ? (
+    <HeartIcon className="icon-button-icon" />
+  ) : (
+    <BookmarkIcon className="icon-button-icon" />
+  );
+
+const savedButtonClassName = (isSaved: boolean): string =>
+  isSaved ? "icon-button saved" : "icon-button";
+
+const SavedCollectionMarker = ({ isSaved }: { isSaved: boolean }) =>
+  isSaved ? <span className="icon-button-check" aria-hidden="true" /> : null;
+
+const collectionToggleAction = ({
+  collection,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
+  update,
+}: CollectionSaveButtonProps): CollectionToggleAction => {
+  const savedUpdate = savedUpdateInCollection(collection, update);
+
+  if (savedUpdate !== undefined) {
+    return {
+      isSaved: true,
+      label: `Remove from ${collection.name}`,
+      run: () => onRemoveSavedUpdate(collection.id, savedUpdate.update_key),
+    };
   }
 
+  return {
+    isSaved: false,
+    label: `Save to ${collection.name}`,
+    run: () => onSaveUpdateToCollection(collection.id, update),
+  };
+};
+
+const CollectionSaveButton = ({
+  collection,
+  isRemovingSavedUpdate,
+  isSavingToCollection,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
+  update,
+}: CollectionSaveButtonProps) => {
+  const action = collectionToggleAction({
+    collection,
+    isRemovingSavedUpdate,
+    isSavingToCollection,
+    onRemoveSavedUpdate,
+    onSaveUpdateToCollection,
+    update,
+  });
+
   return (
-    <img
-      className="source-avatar"
-      src={imageUrl}
-      alt=""
-      loading="lazy"
-      onError={() => setFailedImageUrl(imageUrl)}
-    />
+    <button
+      aria-label={action.label}
+      aria-pressed={action.isSaved}
+      className={savedButtonClassName(action.isSaved)}
+      data-tooltip={action.label}
+      disabled={isSavingToCollection || isRemovingSavedUpdate}
+      onClick={action.run}
+      title={action.label}
+      type="button"
+    >
+      <CollectionIcon collection={collection} />
+      <SavedCollectionMarker isSaved={action.isSaved} />
+    </button>
   );
 };
 
-const UpdateItem = ({ update }: { update: Update }) => {
+const CollectionSaveActions = ({
+  collections,
+  isRemovingSavedUpdate,
+  isSavingToCollection,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
+  update,
+}: UpdateCollectionActionProps) => (
+  <div className="update-collection-actions" aria-label="Save update to collection">
+    {collections.map((collection) => (
+      <CollectionSaveButton
+        collection={collection}
+        isRemovingSavedUpdate={isRemovingSavedUpdate}
+        isSavingToCollection={isSavingToCollection}
+        key={collection.id}
+        onRemoveSavedUpdate={onRemoveSavedUpdate}
+        onSaveUpdateToCollection={onSaveUpdateToCollection}
+        update={update}
+      />
+    ))}
+  </div>
+);
+
+const UpdateItem = ({
+  collections,
+  isRemovingSavedUpdate,
+  isSavingToCollection,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
+  update,
+}: UpdateCollectionActionProps) => {
   const label = publishedLabel(update.published);
 
   return (
     <article className="update-item-card">
-      <SourceAvatar update={update} />
+      <UpdateSourceAvatar update={update} />
       <div className="update-item-content">
         <a href={update.url} target="_blank" rel="noreferrer">
           {update.title ?? "Untitled update"}
@@ -107,11 +215,33 @@ const UpdateItem = ({ update }: { update: Update }) => {
           {label ? <span>{label}</span> : null}
         </div>
       </div>
+      <CollectionSaveActions
+        collections={collections}
+        isRemovingSavedUpdate={isRemovingSavedUpdate}
+        isSavingToCollection={isSavingToCollection}
+        onRemoveSavedUpdate={onRemoveSavedUpdate}
+        onSaveUpdateToCollection={onSaveUpdateToCollection}
+        update={update}
+      />
     </article>
   );
 };
 
-const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
+const UpdateGroupCard = ({
+  collections,
+  group,
+  isRemovingSavedUpdate,
+  isSavingToCollection,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
+}: {
+  collections: Collection[];
+  group: UpdateGroup;
+  isRemovingSavedUpdate: boolean;
+  isSavingToCollection: boolean;
+  onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
+  onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+}) => (
   <section className="update-group">
     <div className="update-group-header">
       <div>
@@ -123,7 +253,15 @@ const UpdateGroupCard = ({ group }: { group: UpdateGroup }) => (
     </div>
     <div className="update-items">
       {group.updates.map((update) => (
-        <UpdateItem key={updateKey(update)} update={update} />
+        <UpdateItem
+          collections={collections}
+          isRemovingSavedUpdate={isRemovingSavedUpdate}
+          isSavingToCollection={isSavingToCollection}
+          key={updateKey(update)}
+          onRemoveSavedUpdate={onRemoveSavedUpdate}
+          onSaveUpdateToCollection={onSaveUpdateToCollection}
+          update={update}
+        />
       ))}
     </div>
   </section>
@@ -226,8 +364,13 @@ export const UpdatesPage = ({
   days,
   isChecking,
   isOffline,
+  isRemovingSavedUpdate,
+  isSavingToCollection,
+  collections,
   onDaysChange,
   onRefresh,
+  onRemoveSavedUpdate,
+  onSaveUpdateToCollection,
   updates,
   updatesError,
 }: UpdatesPageProps) => {
@@ -270,7 +413,17 @@ export const UpdatesPage = ({
             {groups.length === 0 ? (
               <EmptyUpdates days={days} />
             ) : (
-              groups.map((group) => <UpdateGroupCard group={group} key={group.interestName} />)
+              groups.map((group) => (
+                <UpdateGroupCard
+                  collections={collections}
+                  group={group}
+                  isRemovingSavedUpdate={isRemovingSavedUpdate}
+                  isSavingToCollection={isSavingToCollection}
+                  key={group.interestName}
+                  onRemoveSavedUpdate={onRemoveSavedUpdate}
+                  onSaveUpdateToCollection={onSaveUpdateToCollection}
+                />
+              ))
             )}
           </section>
         </div>

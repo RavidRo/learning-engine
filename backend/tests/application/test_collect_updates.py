@@ -19,7 +19,7 @@ from learning_engine.application.resolve_source_image import (
 )
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.interests import Interests
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceInterest, Update
 from learning_engine.infrastructure.fetching import Fetcher
@@ -76,7 +76,7 @@ class StubHttpFetcher:
 
 
 async def _collect_updates(
-    payload: InterestsPayload,
+    payload: Interests,
     *,
     timeframe: Timeframe,
     http_fetcher: Fetcher,
@@ -137,7 +137,7 @@ async def test_collect_updates_uses_youtube_channel_feed_for_channel_id() -> Non
           </entry>
         </feed>"""
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -173,7 +173,7 @@ async def test_collect_updates_carries_source_interest_to_updates() -> None:
         return b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
         <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -211,7 +211,7 @@ async def test_collect_updates_preserves_update_specific_image_before_source_ima
         <media:thumbnail url="https://example.com/update.png" />
         <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -248,7 +248,7 @@ async def test_collect_updates_uses_manual_source_image_before_resolver() -> Non
     async def resolve_source_image(*_args: object) -> str | None:
         raise AssertionError("Manual source image should skip automatic resolution")
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -285,7 +285,7 @@ async def test_collect_updates_uses_automatic_source_image_when_manual_is_missin
     async def resolve_source_image(*_args: object) -> str | None:
         return "https://example.com/auto.png"
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -317,7 +317,7 @@ async def test_collect_updates_keeps_null_source_image_when_resolver_misses() ->
     async def resolve_source_image(*_args: object) -> str | None:
         return None
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -350,7 +350,7 @@ async def test_collect_updates_logs_and_continues_when_source_image_provider_fai
     async def resolve_source_image(*_args: object) -> str | None:
         raise SourceImageProviderUnavailableError("Feed metadata provider is unavailable")
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -385,7 +385,7 @@ async def test_collect_updates_logs_and_continues_when_source_image_configuratio
     async def resolve_source_image(*_args: object) -> str | None:
         raise SourceImageConfigurationError("Spotify bearer token is not configured")
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -420,7 +420,7 @@ async def test_collect_updates_logs_and_continues_when_source_image_resolver_cra
     async def resolve_source_image(*_args: object) -> str | None:
         raise RuntimeError("unexpected resolver failure")
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -448,7 +448,7 @@ async def test_collect_updates_logs_and_continues_when_source_image_resolver_cra
 async def test_collect_updates_collects_sources_concurrently() -> None:
     rss = b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -495,7 +495,7 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 async def test_collect_updates_returns_successes_and_source_errors() -> None:
     rss = b"""<rss><channel><item><title>Successful update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -548,7 +548,7 @@ async def test_collect_updates_returns_successes_and_source_errors() -> None:
 async def test_collect_updates_allows_equivalent_sources_to_fetch_concurrently() -> None:
     rss = b"""<rss><channel><item><title>Cached update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -606,7 +606,7 @@ async def test_collect_updates_resolves_youtube_handle_before_fetching_feed() ->
           </entry>
         </feed>"""
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -652,7 +652,7 @@ async def test_collect_updates_uses_x_api_for_twitter_accounts(
             ]
         }
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -683,7 +683,7 @@ async def test_collect_updates_propagates_missing_twitter_credentials(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {
@@ -726,7 +726,7 @@ async def test_collect_updates_uses_spotify_show_episodes_api(
             ]
         }
 
-    payload = InterestsPayload.model_validate(
+    payload = Interests.model_validate(
         {
             "interests": [
                 {

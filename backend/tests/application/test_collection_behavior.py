@@ -11,10 +11,12 @@ from learning_engine.application.collect_updates import (
 )
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
-from learning_engine.domain.interests import InterestsPayload
+from learning_engine.domain.interests import Interests
 from learning_engine.domain.source_types import SourceType
 from learning_engine.infrastructure.fetching import Fetcher
-from learning_engine.infrastructure.source_collectors.registry import SourceUpdateCollectorRegistry
+from learning_engine.infrastructure.source_collectors.registry import (
+    SourceUpdateCollectorRegistry,
+)
 
 RECENT_DAYS = 14
 NOW = datetime(2026, 5, 15, 12, 0, tzinfo=UTC)
@@ -57,7 +59,7 @@ class StubHttpFetcher:
 
 
 async def _collect_updates(
-    payload: InterestsPayload,
+    payload: Interests,
     *,
     timeframe: Timeframe,
     http_fetcher: Fetcher,
@@ -141,7 +143,7 @@ async def test_collect_updates_fetches_enabled_sources_only() -> None:
         return rss
 
     result = await _collect_updates(
-        InterestsPayload.model_validate(payload),
+        Interests.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
         http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
         source_updates_cache=SourceUpdatesCacheOptions(cache={}),
@@ -187,7 +189,7 @@ async def test_collect_updates_uses_source_ignore_keywords() -> None:
         return rss
 
     result = await _collect_updates(
-        InterestsPayload.model_validate(payload),
+        Interests.model_validate(payload),
         timeframe=ALL_TIMEFRAME,
         http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
         source_updates_cache=SourceUpdatesCacheOptions(cache={}),
@@ -227,7 +229,7 @@ async def test_collect_updates_can_filter_to_recent_days() -> None:
         return rss
 
     result = await _collect_updates(
-        InterestsPayload.model_validate(payload),
+        Interests.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
         http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
         source_updates_cache=SourceUpdatesCacheOptions(cache={}),
@@ -269,7 +271,7 @@ async def test_collect_updates_uses_page_sources() -> None:
         return html
 
     result = await _collect_updates(
-        InterestsPayload.model_validate(payload),
+        Interests.model_validate(payload),
         timeframe=RECENT_TIMEFRAME,
         http_fetcher=StubHttpFetcher(fetch_url, unused_fetch_json),
         source_updates_cache=SourceUpdatesCacheOptions(cache={}),
@@ -311,7 +313,7 @@ async def test_collect_updates_reports_source_errors_without_caching_them() -> N
         <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
 
     source_updates_cache: SourceUpdatesCache = {}
-    interests = InterestsPayload.model_validate(payload)
+    interests = Interests.model_validate(payload)
     http_fetcher = StubHttpFetcher(fetch_url, unused_fetch_json)
 
     failed_result = await _collect_updates(

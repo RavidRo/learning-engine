@@ -4,6 +4,7 @@ import { type PageView } from "./types";
 
 const routeChangeEvent = "learning-engine-routechange";
 const pathByView: Record<PageView, string> = {
+  collections: "/collections",
   interests: "/interests",
   updates: "/updates",
 };
@@ -27,6 +28,10 @@ const viewFromPathname = (pathname: string): PageView => {
 
   if (normalizedPathname === pathByView.interests) {
     return "interests";
+  }
+
+  if (normalizedPathname === pathByView.collections) {
+    return "collections";
   }
 
   return "updates";
