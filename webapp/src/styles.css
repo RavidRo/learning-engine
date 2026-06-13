@@ -608,7 +608,7 @@ textarea {
 }
 
 .source-image-preview img {
-  width: 56px;
+  width: 42px;
   height: 42px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1008,6 +1008,7 @@ textarea {
 }
 
 @media (max-width: 880px) {
+
   .hero,
   .workspace,
   .briefing {
