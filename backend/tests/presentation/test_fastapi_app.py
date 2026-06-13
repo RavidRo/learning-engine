@@ -187,6 +187,81 @@ def test_source_image_endpoint_does_not_persist_resolved_image(monkeypatch: pyte
         assert client.get("/api/interests").json()["interests"][0]["sources"][0]["imageUrl"] is None
 
 
+def test_export_interests_returns_versioned_envelope_with_all_stored_interests() -> None:
+    repository = StubInterestRepository(_payload_with_archived_interest())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.get("/api/interests/export")
+
+    assert response.status_code == HTTP_OK
+    payload = response.json()
+    assert payload["schemaVersion"] == 1
+    assert isinstance(payload["exportedAt"], str)
+    assert [interest["id"] for interest in payload["interests"]] == ["typescript", "archived"]
+    assert payload["interests"][1]["deletedAt"] == "2026-06-12T10:00:00Z"
+    assert payload["interests"][1]["enabled"] is False
+    assert payload["interests"][1]["sources"][0]["deletedAt"] == "2026-06-12T10:00:00Z"
+
+
+def test_import_interests_replaces_all_stored_interests() -> None:
+    repository = StubInterestRepository(_payload())
+    imported = {
+        "schemaVersion": 1,
+        "exportedAt": "2026-06-13T13:00:00Z",
+        "interests": [
+            {
+                "id": "python",
+                "name": "Python",
+                "priority": "high",
+                "sources": [{"id": "python-feed", "type": "feed", "url": "https://python.example/feed.xml"}],
+            }
+        ],
+    }
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post("/api/interests/import", json=imported)
+        saved = client.get("/api/interests")
+
+    assert response.status_code == HTTP_OK
+    assert response.json()["saved"]["interests"][0]["id"] == "python"
+    assert saved.json()["interests"][0]["id"] == "python"
+    assert len(repository.saved_payloads) == 1
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"interests": []},
+        {"schemaVersion": 2, "exportedAt": "2026-06-13T13:00:00Z", "interests": []},
+        {"schemaVersion": 1, "exportedAt": "2026-06-13T13:00:00Z", "interests": [{"sources": [{"type": "feed"}]}]},
+    ],
+)
+def test_import_interests_rejects_invalid_envelope_without_writing(payload: dict[str, object]) -> None:
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post("/api/interests/import", json=payload)
+
+    assert response.status_code == HTTP_BAD_REQUEST
+    assert response.json() == {"detail": "Invalid interest export file"}
+    assert repository.saved_payloads == []
+
+
+def test_import_interests_rejects_malformed_json_without_writing() -> None:
+    repository = StubInterestRepository(_payload())
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        response = client.post(
+            "/api/interests/import",
+            content="{",
+            headers={"Content-Type": "application/json"},
+        )
+
+    assert response.status_code == HTTP_BAD_REQUEST
+    assert response.json() == {"detail": "Invalid interest export JSON"}
+    assert repository.saved_payloads == []
+
+
 def test_updates_rejects_non_positive_days() -> None:
     client = TestClient(app)
 
@@ -206,6 +281,34 @@ def _payload(source_url: str = "https://example.com/feed.xml") -> InterestsPaylo
                         {"id": "feed", "type": "feed", "url": source_url},
                     ],
                 }
+            ]
+        }
+    )
+
+
+def _payload_with_archived_interest() -> InterestsPayload:
+    return InterestsPayload.model_validate(
+        {
+            "interests": [
+                {
+                    "id": "typescript",
+                    "name": "TypeScript",
+                    "sources": [{"id": "feed", "type": "feed", "url": "https://example.com/feed.xml"}],
+                },
+                {
+                    "deletedAt": "2026-06-12T10:00:00Z",
+                    "enabled": False,
+                    "id": "archived",
+                    "name": "Archived",
+                    "sources": [
+                        {
+                            "deletedAt": "2026-06-12T10:00:00Z",
+                            "id": "archived-feed",
+                            "type": "feed",
+                            "url": "https://example.com/archived.xml",
+                        }
+                    ],
+                },
             ]
         }
     )

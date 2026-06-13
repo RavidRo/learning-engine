@@ -1,7 +1,13 @@
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useReducer, useState } from "react";
 
-import { fetchInterests, fetchUpdates, saveInterests } from "./api";
+import {
+  downloadInterestExport,
+  fetchInterests,
+  fetchUpdates,
+  saveInterests,
+  uploadInterestExport,
+} from "./api";
 import { createInterest, updateInterestFromDraft } from "./interestForm";
 import { navigateToView, usePageRoute } from "./usePageRoute";
 import {
@@ -79,6 +85,44 @@ const useSaveInterestsMutation = (queryClient: QueryClient, showToast: ShowToast
     },
   });
 
+const downloadBlob = (blob: Blob, filename: string): void => {
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+};
+
+const interestExportFilename = (): string =>
+  `learning-engine-interests-${new Date().toISOString().slice(0, 10)}.json`;
+
+const useExportInterestsMutation = (showToast: ShowToast) =>
+  useMutation<Blob, Error>({
+    mutationFn: downloadInterestExport,
+    onError: (error) => {
+      showToast(errorMessage(error, "Failed to export interests"));
+    },
+    onSuccess: (blob) => {
+      downloadBlob(blob, interestExportFilename());
+      showToast("Export downloaded");
+    },
+  });
+
+const useImportInterestsMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+  useMutation<Interest[], Error, File>({
+    mutationFn: uploadInterestExport,
+    onError: (error) => {
+      showToast(errorMessage(error, "Failed to import interests"));
+    },
+    onSuccess: (savedInterests) => {
+      queryClient.setQueryData(interestsQueryKey, savedInterests);
+      showToast("Interests imported");
+    },
+  });
+
 const mutationSaveStatus: Record<"idle" | "pending" | "error" | "success", SaveStatus> = {
   error: "failed",
   idle: "idle",
@@ -94,6 +138,8 @@ const createLearningEngineActions = (
   setView: (view: PageView) => void,
   saveNextInterests: (nextInterests: Interest[]) => void,
   checkUpdates: () => void,
+  exportInterests: () => void,
+  importInterests: (file: File) => void,
 ): LearningEnginePageActions => ({
   addInterest: (draft) => {
     const newInterest = createInterest(draft);
@@ -109,6 +155,12 @@ const createLearningEngineActions = (
   },
   checkUpdates: () => {
     checkUpdates();
+  },
+  exportInterests: () => {
+    exportInterests();
+  },
+  importInterests: (file) => {
+    importInterests(file);
   },
   removeInterest: (id) => {
     const nextInterests = interests.map((interest) =>
@@ -157,6 +209,8 @@ export const useLearningEnginePageState = () => {
   });
 
   const saveInterestsMutation = useSaveInterestsMutation(queryClient, showToast);
+  const exportInterestsMutation = useExportInterestsMutation(showToast);
+  const importInterestsMutation = useImportInterestsMutation(queryClient, showToast);
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
   const actions = createLearningEngineActions(
@@ -180,6 +234,8 @@ export const useLearningEnginePageState = () => {
         showToast("Updates refreshed");
       });
     },
+    exportInterestsMutation.mutate,
+    importInterestsMutation.mutate,
   );
 
   return {
@@ -193,6 +249,8 @@ export const useLearningEnginePageState = () => {
       ),
       interests: visibleInterests,
       isChecking: updatesQuery.isFetching,
+      isExporting: exportInterestsMutation.isPending,
+      isImporting: importInterestsMutation.isPending,
       isSaving: saveInterestsMutation.isPending,
       saveError:
         saveInterestsMutation.error === null

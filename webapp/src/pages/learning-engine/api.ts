@@ -44,6 +44,31 @@ export const saveInterests = async (interests: Interest[]): Promise<Interest[]> 
   return payload.saved.interests;
 };
 
+export const downloadInterestExport = async (): Promise<Blob> => {
+  const response = await fetch("/api/interests/export");
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return await response.blob();
+};
+
+export const uploadInterestExport = async (file: File): Promise<Interest[]> => {
+  const response = await fetch("/api/interests/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: await file.text(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  const payload = saveInterestsResponseSchema.parse(await response.json());
+  return payload.saved.interests;
+};
+
 const parseUpdatesPayload = (responsePayload: unknown): UpdatesPayload => {
   const payload = updatesPayloadSchema.safeParse(responsePayload);
 
