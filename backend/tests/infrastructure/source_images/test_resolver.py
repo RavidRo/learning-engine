@@ -14,6 +14,7 @@ from learning_engine.infrastructure.source_images.resolver import (
 )
 
 HTTP_BAD_REQUEST = 400
+HTTP_NOT_FOUND = 404
 HTTP_SERVER_ERROR = 503
 
 
@@ -42,17 +43,55 @@ class StubHttpFetcher:
 
 
 @pytest.mark.anyio
-async def test_resolve_youtube_image_uses_channel_page_metadata() -> None:
+async def test_resolve_youtube_image_uses_channel_avatar_metadata() -> None:
     called_urls: list[str] = []
 
     async def fetch(url: str) -> bytes:
         called_urls.append(url)
-        return b"""<html><meta property="og:image" content="https://yt.example/avatar.jpg"></html>"""
+        return b"""<html><script>
+        var ytInitialData = {
+          "metadata": {
+            "channelMetadataRenderer": {
+              "avatar": {
+                "thumbnails": [
+                  {"url": "https://yt3.googleusercontent.com/small=s88-c-k-c0x00ffffff-no-rj"},
+                  {"url": "https://yt3.googleusercontent.com/channel-avatar=s176-c-k-c0x00ffffff-no-rj"}
+                ]
+              }
+            }
+          }
+        };
+        </script></html>"""
 
     result = await resolve_source_image("youtube_channel", "@example", StubHttpFetcher(fetch, unused_fetch_json))
 
     assert called_urls == ["https://www.youtube.com/@example"]
-    assert result == "https://yt.example/avatar.jpg"
+    assert result == "https://yt3.googleusercontent.com/channel-avatar=s176-c-k-c0x00ffffff-no-rj"
+
+
+@pytest.mark.anyio
+async def test_resolve_youtube_image_ignores_generic_youtube_branding() -> None:
+    async def fetch(_url: str) -> bytes:
+        return b"""<html>
+          <meta property="og:image" content="https://www.youtube.com/img/desktop/yt_1200.png">
+          <link rel="icon" href="https://www.youtube.com/s/desktop/favicon.ico">
+        </html>"""
+
+    result = await resolve_source_image("youtube_channel", "@example", StubHttpFetcher(fetch, unused_fetch_json))
+
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_resolve_youtube_image_returns_null_when_channel_page_is_not_found() -> None:
+    async def fetch(_url: str) -> bytes:
+        raise _http_status_error(HTTP_NOT_FOUND)
+
+    result = await resolve_source_image(
+        "youtube_channel", "@missing-channel", StubHttpFetcher(fetch, unused_fetch_json)
+    )
+
+    assert result is None
 
 
 @pytest.mark.anyio
@@ -145,12 +184,25 @@ async def test_resolve_source_image_raises_provider_unavailable_for_5xx() -> Non
 
 
 @pytest.mark.anyio
-async def test_resolve_source_image_raises_http_error_for_4xx() -> None:
+async def test_resolve_page_image_returns_null_for_provider_4xx() -> None:
     async def fetch(_url: str) -> bytes:
         raise _http_status_error(HTTP_BAD_REQUEST)
 
-    with pytest.raises(httpx.HTTPStatusError, match="provider response failed"):
-        await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
+    result = await resolve_source_image("page", "https://example.com/news", StubHttpFetcher(fetch, unused_fetch_json))
+
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_resolve_feed_image_returns_null_for_provider_4xx() -> None:
+    async def fetch(_url: str) -> bytes:
+        raise _http_status_error(HTTP_BAD_REQUEST)
+
+    result = await resolve_source_image(
+        "feed", "https://example.com/feed.xml", StubHttpFetcher(fetch, unused_fetch_json)
+    )
+
+    assert result is None
 
 
 @pytest.mark.anyio

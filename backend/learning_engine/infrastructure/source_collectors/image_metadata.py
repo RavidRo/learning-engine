@@ -23,10 +23,16 @@ ATTRIBUTE_PATTERN = re.compile(r"([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*['\"]([^'\"]
 
 SERVER_ERROR_STATUS_MIN = 500
 SERVER_ERROR_STATUS_MAX = 599
+CLIENT_ERROR_STATUS_MIN = 400
+CLIENT_ERROR_STATUS_MAX = 499
 
 
 def _is_provider_server_error(exc: httpx.HTTPStatusError) -> bool:
     return SERVER_ERROR_STATUS_MIN <= exc.response.status_code <= SERVER_ERROR_STATUS_MAX
+
+
+def _is_provider_client_error(exc: httpx.HTTPStatusError) -> bool:
+    return CLIENT_ERROR_STATUS_MIN <= exc.response.status_code <= CLIENT_ERROR_STATUS_MAX
 
 
 async def fetch_provider_bytes(url: str, fetch: FetchFn, provider: str) -> bytes:
@@ -35,6 +41,15 @@ async def fetch_provider_bytes(url: str, fetch: FetchFn, provider: str) -> bytes
     except httpx.HTTPStatusError as exc:
         if _is_provider_server_error(exc):
             raise SourceImageProviderUnavailableError(f"{provider} metadata provider is unavailable") from exc
+        raise
+
+
+async def fetch_optional_provider_bytes(url: str, fetch: FetchFn, provider: str) -> bytes | None:
+    try:
+        return await fetch_provider_bytes(url, fetch, provider)
+    except httpx.HTTPStatusError as exc:
+        if _is_provider_client_error(exc):
+            return None
         raise
 
 

@@ -10,7 +10,7 @@ from learning_engine.common.text import keyword_matches, searchable_text, strip_
 from learning_engine.domain.updates import SourceUpdate
 from learning_engine.infrastructure.source_collectors.image_metadata import (
     FetchFn,
-    fetch_provider_bytes,
+    fetch_optional_provider_bytes,
     html_image_url,
 )
 
@@ -99,4 +99,7 @@ def parse_page_items(
 
 
 async def resolve_page_image(source_url: str, fetch: FetchFn) -> str | None:
-    return html_image_url(await fetch_provider_bytes(source_url, fetch, "Page"), source_url)
+    page_bytes = await fetch_optional_provider_bytes(source_url, fetch, "Page")
+    if page_bytes is None:
+        return None
+    return html_image_url(page_bytes, source_url)

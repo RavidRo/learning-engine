@@ -15,9 +15,9 @@ const updateThumbnailUrl = (update: Update): string | undefined =>
     .find((imageUrl) => imageUrl !== undefined);
 
 export const UpdateSourceAvatar = ({ update }: { update: Update }) => {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const imageUrl = updateThumbnailUrl(update);
-  const showImage = imageUrl !== undefined && !imageFailed;
+  const showImage = imageUrl !== undefined && imageUrl !== failedImageUrl;
 
   if (!showImage) {
     return (
@@ -32,7 +32,7 @@ export const UpdateSourceAvatar = ({ update }: { update: Update }) => {
       alt=""
       className="source-avatar"
       loading="lazy"
-      onError={() => setImageFailed(true)}
+      onError={() => setFailedImageUrl(imageUrl)}
       src={imageUrl}
     />
   );

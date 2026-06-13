@@ -1,4 +1,5 @@
 import { useQueries } from "@tanstack/react-query";
+import { useState } from "react";
 
 import { resolveSourceImage } from "./api";
 import { type Interest, type InterestSource } from "./types";
@@ -68,8 +69,15 @@ const useSourceImages = (sources: InterestSource[]): Record<string, string> => {
   );
 };
 
-const SourceLinkImage = ({ imageUrl }: { imageUrl: string }) =>
-  imageUrl === "" ? null : <img src={imageUrl} alt="" loading="lazy" />;
+const SourceLinkImage = ({ imageUrl }: { imageUrl: string }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+
+  if (imageUrl === "" || imageUrl === failedImageUrl) {
+    return null;
+  }
+
+  return <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImageUrl(imageUrl)} />;
+};
 
 export const SourceLinks = ({ interest }: SourceLinksProps) => {
   const sources = visibleSources(interest);

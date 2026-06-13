@@ -11,7 +11,7 @@ from learning_engine.common.text import keyword_matches, searchable_text, strip_
 from learning_engine.domain.updates import SourceUpdate
 from learning_engine.infrastructure.source_collectors.image_metadata import (
     FetchFn,
-    fetch_provider_bytes,
+    fetch_optional_provider_bytes,
     first_feed_image,
     first_html_img_src,
     html_image_url,
@@ -123,7 +123,9 @@ def parse_feed_items(
 
 
 async def resolve_feed_image(source_url: str, fetch: FetchFn) -> str | None:
-    feed_bytes = await fetch_provider_bytes(source_url, fetch, "Feed")
+    feed_bytes = await fetch_optional_provider_bytes(source_url, fetch, "Feed")
+    if feed_bytes is None:
+        return None
     parsed = feedparser.parse(feed_bytes)
     feed = parsed.get("feed", {})
     if isinstance(feed, dict):
