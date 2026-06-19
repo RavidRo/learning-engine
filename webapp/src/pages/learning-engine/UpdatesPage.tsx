@@ -92,6 +92,12 @@ const publishedLabel = (published: Date | undefined): string | null => {
   return publishedLabelFormatter.format(published);
 };
 
+const updateDescription = (summary: string | null | undefined): string | null => {
+  const description = summary?.trim();
+
+  return description === undefined || description.length === 0 ? null : description;
+};
+
 const presentSourceImageUrl = (imageUrl: string | null | undefined): string | undefined => {
   const trimmedImageUrl = imageUrl?.trim();
   return trimmedImageUrl === "" ? undefined : trimmedImageUrl;
@@ -239,6 +245,7 @@ const UpdateItem = ({
   update,
 }: UpdateCollectionActionProps) => {
   const label = publishedLabel(update.published);
+  const description = updateDescription(update.summary);
 
   return (
     <article className="update-item-card">
@@ -252,6 +259,7 @@ const UpdateItem = ({
         >
           {update.title ?? "Untitled update"}
         </a>
+        {description === null ? null : <p className="update-item-description">{description}</p>}
         <div className="update-item-meta">
           <span className="update-source-meta">
             <UpdateSourceMetadataImage update={update} />
