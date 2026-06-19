@@ -270,6 +270,7 @@ def test_interest_store_seeds_fixed_collections_idempotently() -> None:
         assert [(collection.collection_id, collection.name) for collection in stored_collections] == [
             ("see-later", "See Later"),
             ("liked", "Liked"),
+            ("history", "History"),
         ]
     finally:
         engine.dispose()
@@ -296,6 +297,7 @@ def test_interest_store_saves_update_snapshots_to_collections() -> None:
         assert see_later.saved_updates[0].update.title == "Update"
         assert see_later.saved_updates[0].saved_at == saved_at
         assert collections[1].saved_updates == []
+        assert collections[2].saved_updates == []
     finally:
         engine.dispose()
 
@@ -364,10 +366,12 @@ def test_interest_store_saves_same_update_key_to_different_collections() -> None
 
         store.save_update_to_collection("see-later", update_key, update, datetime(2026, 6, 13, 12, 0, tzinfo=UTC))
         store.save_update_to_collection("liked", update_key, update, datetime(2026, 6, 14, 12, 0, tzinfo=UTC))
+        store.save_update_to_collection("history", update_key, update, datetime(2026, 6, 15, 12, 0, tzinfo=UTC))
 
         with Session(engine) as session:
             stored_updates = session.exec(select(StoredSavedCollectionUpdate)).all()
         assert sorted(saved.collection_id for saved in stored_updates) == [
+            "history",
             "liked",
             "see-later",
         ]

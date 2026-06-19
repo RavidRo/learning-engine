@@ -5,11 +5,11 @@ Define saved update collections, saved update snapshot behavior, and collection 
 ## Requirements
 
 ### Requirement: Fixed collections are available
-The system SHALL provide the fixed collections `See Later` and `Liked` without requiring the user to create them.
+The system SHALL provide the fixed collections `See Later`, `Liked`, and `History` without requiring the user to create them.
 
 #### Scenario: Collections are listed before any updates are saved
 - **WHEN** the user opens the Collections page or the client requests collections
-- **THEN** the system returns `See Later` and `Liked` collections with stable ids and empty saved update lists
+- **THEN** the system returns `See Later`, `Liked`, and `History` collections with stable ids and empty saved update lists
 
 #### Scenario: Data store is initialized more than once
 - **WHEN** the backend ensures the collection data store repeatedly
@@ -25,6 +25,10 @@ The system SHALL allow a visible update snapshot to be saved into any fixed coll
 #### Scenario: User saves an update to Liked
 - **WHEN** the user saves a visible update to the `Liked` collection
 - **THEN** the system stores that update in `Liked` with a deterministic update key, the update snapshot, and the current save timestamp
+
+#### Scenario: User checks out an update
+- **WHEN** the user clicks a visible update link
+- **THEN** the system stores that update in `History` with a deterministic update key, the update snapshot, and the current save timestamp
 
 ### Requirement: Saved updates preserve snapshots
 The system SHALL display saved collection updates from the stored snapshot rather than requiring the update to be collected again from its source.
@@ -51,8 +55,12 @@ The system SHALL prevent duplicate entries for the same deterministic update key
 - **WHEN** the user saves an update that already exists in the target collection
 - **THEN** the system returns the existing saved update without adding a duplicate and without changing its original save timestamp
 
+#### Scenario: User checks out the same update twice
+- **WHEN** the user clicks an update link that already exists in `History`
+- **THEN** the system returns the existing saved update without adding a duplicate and without changing its original history timestamp
+
 #### Scenario: User saves the same update to a different collection
-- **WHEN** the user saves an update that already exists in one fixed collection to the other fixed collection
+- **WHEN** the same update exists in one fixed collection and is saved to another fixed collection
 - **THEN** the system stores a distinct saved entry in the second collection with its own save timestamp
 
 ### Requirement: Saved updates can be removed from a collection
