@@ -79,6 +79,12 @@ const publishedLabel = (published: Date | undefined): string | null => {
   return publishedLabelFormatter.format(published);
 };
 
+const updateDescription = (summary: string | null | undefined): string | null => {
+  const description = summary?.trim();
+
+  return description === undefined || description.length === 0 ? null : description;
+};
+
 const sourceIdentity = (update: Update): string =>
   update.source_interest.source_id === null || update.source_interest.source_id === undefined
     ? `url:${update.source_interest.source_url}`
@@ -200,6 +206,7 @@ const UpdateItem = ({
   update,
 }: UpdateCollectionActionProps) => {
   const label = publishedLabel(update.published);
+  const description = updateDescription(update.summary);
 
   return (
     <article className="update-item-card">
@@ -208,6 +215,7 @@ const UpdateItem = ({
         <a href={update.url} target="_blank" rel="noreferrer">
           {update.title ?? "Untitled update"}
         </a>
+        {description === null ? null : <p className="update-item-description">{description}</p>}
         <div className="update-item-meta">
           <span>
             {update.source_interest.source_label} · {update.source_interest.source_type}
