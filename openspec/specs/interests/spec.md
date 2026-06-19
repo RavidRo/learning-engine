@@ -1,6 +1,6 @@
 ## Purpose
 
-Users can back up and restore Learning Engine interests through a versioned JSON file format.
+Define interest data management, including user-facing backup and restore behavior.
 
 ## Requirements
 

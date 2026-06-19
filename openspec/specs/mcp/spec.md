@@ -100,7 +100,7 @@ The system SHALL provide MCP tools for adding, updating, pausing, resuming, and 
 - **THEN** that source is persisted with a `deletedAt` timestamp and is excluded from default interest listings
 
 #### Scenario: Missing source ID
-- **WHEN** an agent requests a write for a source ID that does not identify an existing non-deleted source on the target interest
+- **WHEN** an agent requests a write for an interest ID and source ID that do not identify an existing non-deleted source on the target interest
 - **THEN** the tool returns a clear not-found error and does not write a modified payload
 
 ### Requirement: MCP validation and persistence boundaries

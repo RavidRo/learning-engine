@@ -1,6 +1,6 @@
 ## Purpose
 
-Define Progressive Web App installability, app-shell caching, update prompting, connection-unavailable state, and phone layout behavior for the webapp.
+Define installability, app-shell caching, update prompting, connection-unavailable state, and phone layout behavior for the webapp shell.
 
 ## Requirements
 

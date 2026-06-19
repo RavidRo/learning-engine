@@ -1,6 +1,6 @@
 ## Purpose
 
-Define fixed update collections, saved update snapshot behavior, and collection membership operations.
+Define saved update collections, saved update snapshot behavior, and collection membership operations.
 
 ## Requirements
 
@@ -63,7 +63,7 @@ The system SHALL allow a saved update to be removed from a collection by collect
 - **THEN** the saved update no longer appears in that collection
 
 #### Scenario: User removes an update from one collection only
-- **WHEN** the same update key is saved in both fixed collections and the user removes it from one collection
+- **WHEN** the same update key is saved in both fixed collections and the user removes it from one
 - **THEN** the saved update remains visible in the other collection
 
 ### Requirement: Unknown collections are rejected
