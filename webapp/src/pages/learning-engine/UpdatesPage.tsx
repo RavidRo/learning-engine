@@ -1,4 +1,4 @@
-import { type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 
 import { BookmarkIcon, HeartIcon } from "./CollectionActionIcons";
 import { type Collection, type Update, type UpdatesPayload } from "./types";
@@ -84,6 +84,31 @@ const publishedLabel = (published: Date | undefined): string | null => {
   }
 
   return publishedLabelFormatter.format(published);
+};
+
+const presentSourceImageUrl = (imageUrl: string | null | undefined): string | undefined => {
+  const trimmedImageUrl = imageUrl?.trim();
+  return trimmedImageUrl === "" ? undefined : trimmedImageUrl;
+};
+
+const UpdateSourceMetadataImage = ({ update }: { update: Update }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const imageUrl = presentSourceImageUrl(update.source_interest.source_image_url);
+  const showImage = imageUrl !== undefined && imageUrl !== failedImageUrl;
+
+  if (!showImage) {
+    return null;
+  }
+
+  return (
+    <img
+      alt=""
+      className="update-source-image"
+      loading="lazy"
+      onError={() => setFailedImageUrl(imageUrl)}
+      src={imageUrl}
+    />
+  );
 };
 
 const sourceIdentity = (update: Update): string =>
@@ -222,8 +247,11 @@ const UpdateItem = ({
           {update.title ?? "Untitled update"}
         </a>
         <div className="update-item-meta">
-          <span>
-            {update.source_interest.source_label} · {update.source_interest.source_type}
+          <span className="update-source-meta">
+            <UpdateSourceMetadataImage update={update} />
+            <span>
+              {update.source_interest.source_label} · {update.source_interest.source_type}
+            </span>
           </span>
           {label ? <span>{label}</span> : null}
         </div>
