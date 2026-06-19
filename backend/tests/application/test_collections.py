@@ -23,7 +23,7 @@ from learning_engine.domain.collections import (
 from learning_engine.domain.updates import SourceInterest
 
 SAVED_AT = datetime(2026, 6, 13, 12, 0, tzinfo=UTC)
-EXPECTED_SAVED_UPDATE_COUNT = 2
+EXPECTED_SAVED_UPDATE_COUNT = 3
 
 
 class StubCollectionRepository:
@@ -39,6 +39,7 @@ class StubCollectionRepository:
             collections=[
                 UpdateCollection(id="see-later", name="See Later"),
                 UpdateCollection(id="liked", name="Liked"),
+                UpdateCollection(id="history", name="History"),
             ]
         )
 
@@ -67,6 +68,7 @@ def test_list_collections_returns_fixed_collections() -> None:
     assert [(collection.id, collection.name) for collection in payload.collections] == [
         ("see-later", "See Later"),
         ("liked", "Liked"),
+        ("history", "History"),
     ]
 
 
@@ -123,11 +125,19 @@ def test_save_update_to_collection_is_idempotent_per_collection() -> None:
         now=datetime(2026, 6, 14, 12, 0, tzinfo=UTC),
     )
     liked = save_update_to_collection(repository, "liked", command, now=datetime(2026, 6, 15, 12, 0, tzinfo=UTC))
+    history = save_update_to_collection(
+        repository,
+        "history",
+        command,
+        now=datetime(2026, 6, 16, 12, 0, tzinfo=UTC),
+    )
 
     assert first == second
     assert first.saved_at == SAVED_AT
     assert liked.update_key == first.update_key
     assert liked.saved_at != first.saved_at
+    assert history.update_key == first.update_key
+    assert history.saved_at != first.saved_at
     assert len(repository.saved_updates) == EXPECTED_SAVED_UPDATE_COUNT
 
 

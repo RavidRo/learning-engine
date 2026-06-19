@@ -59,6 +59,7 @@ export type LearningEnginePageActions = {
   removeInterest: (id: string) => void;
   removeSavedUpdate: (collectionId: string, updateKey: string) => void;
   saveUpdateToCollection: (collectionId: string, update: Update) => void;
+  trackUpdateCheckout: (update: Update) => void;
   toggleInterest: (id: string) => void;
   updateInterest: (draft: InterestDraft) => void;
 };

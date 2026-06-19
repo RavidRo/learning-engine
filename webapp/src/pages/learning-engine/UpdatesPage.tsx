@@ -15,6 +15,7 @@ type UpdatesPageProps = {
   onRefresh: () => void;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
   updates: UpdatesPayload | null;
   updatesError: string | null;
 };
@@ -30,10 +31,13 @@ type UpdateCollectionActionProps = {
   isSavingToCollection: boolean;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
   update: Update;
 };
 
-type CollectionSaveButtonProps = Omit<UpdateCollectionActionProps, "collections"> & {
+type CollectionSaveActionsProps = Omit<UpdateCollectionActionProps, "onTrackUpdateCheckout">;
+
+type CollectionSaveButtonProps = Omit<CollectionSaveActionsProps, "collections"> & {
   collection: Collection;
 };
 
@@ -65,6 +69,9 @@ const updateKey = (update: Update): string =>
 
 const updateWindowLabel = (days: number): string =>
   days === 1 ? "the last day" : `the last ${days} days`;
+
+const saveableCollections = (collections: Collection[]): Collection[] =>
+  collections.filter((collection) => collection.id !== "history");
 
 const publishedLabelFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -175,7 +182,7 @@ const CollectionSaveActions = ({
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
   update,
-}: UpdateCollectionActionProps) => (
+}: CollectionSaveActionsProps) => (
   <div className="update-collection-actions" aria-label="Save update to collection">
     {collections.map((collection) => (
       <CollectionSaveButton
@@ -197,6 +204,7 @@ const UpdateItem = ({
   isSavingToCollection,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
   update,
 }: UpdateCollectionActionProps) => {
   const label = publishedLabel(update.published);
@@ -205,7 +213,12 @@ const UpdateItem = ({
     <article className="update-item-card">
       <UpdateSourceAvatar update={update} />
       <div className="update-item-content">
-        <a href={update.url} target="_blank" rel="noreferrer">
+        <a
+          href={update.url}
+          onClick={() => onTrackUpdateCheckout(update)}
+          target="_blank"
+          rel="noreferrer"
+        >
           {update.title ?? "Untitled update"}
         </a>
         <div className="update-item-meta">
@@ -234,6 +247,7 @@ const UpdateGroupCard = ({
   isSavingToCollection,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
 }: {
   collections: Collection[];
   group: UpdateGroup;
@@ -241,6 +255,7 @@ const UpdateGroupCard = ({
   isSavingToCollection: boolean;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
 }) => (
   <section className="update-group">
     <div className="update-group-header">
@@ -260,6 +275,7 @@ const UpdateGroupCard = ({
           key={updateKey(update)}
           onRemoveSavedUpdate={onRemoveSavedUpdate}
           onSaveUpdateToCollection={onSaveUpdateToCollection}
+          onTrackUpdateCheckout={onTrackUpdateCheckout}
           update={update}
         />
       ))}
@@ -371,10 +387,12 @@ export const UpdatesPage = ({
   onRefresh,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
   updates,
   updatesError,
 }: UpdatesPageProps) => {
   const groups = groupUpdates(updates?.updates ?? []);
+  const collectionsForManualSave = saveableCollections(collections);
 
   return (
     <section id="updates" className="panel updates-page" aria-label="Updates">
@@ -415,13 +433,14 @@ export const UpdatesPage = ({
             ) : (
               groups.map((group) => (
                 <UpdateGroupCard
-                  collections={collections}
+                  collections={collectionsForManualSave}
                   group={group}
                   isRemovingSavedUpdate={isRemovingSavedUpdate}
                   isSavingToCollection={isSavingToCollection}
                   key={group.interestName}
                   onRemoveSavedUpdate={onRemoveSavedUpdate}
                   onSaveUpdateToCollection={onSaveUpdateToCollection}
+                  onTrackUpdateCheckout={onTrackUpdateCheckout}
                 />
               ))
             )}
