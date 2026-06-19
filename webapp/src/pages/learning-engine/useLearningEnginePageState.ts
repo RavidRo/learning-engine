@@ -26,6 +26,7 @@ import {
 const interestsQueryKey = ["learning-engine", "interests"] as const;
 const collectionsQueryKey = ["learning-engine", "collections"] as const;
 const defaultUpdateDays = 2;
+const historyCollectionId = "history";
 const updatesQueryKey = (days: number) => ["learning-engine", "updates", days] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
 
@@ -253,6 +254,13 @@ const createLearningEngineActions = (
     }
 
     saveUpdateToCollection(collectionId, update);
+  },
+  trackUpdateCheckout: (update) => {
+    if (isOffline) {
+      return;
+    }
+
+    saveUpdateToCollection(historyCollectionId, update);
   },
   toggleInterest: (id) => {
     if (isOffline) {

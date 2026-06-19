@@ -87,6 +87,7 @@ const PageViewContent = ({
       onRefresh={actions.checkUpdates}
       onRemoveSavedUpdate={actions.removeSavedUpdate}
       onSaveUpdateToCollection={actions.saveUpdateToCollection}
+      onTrackUpdateCheckout={actions.trackUpdateCheckout}
       updates={state.updates}
       updatesError={state.updatesError}
     />

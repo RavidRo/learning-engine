@@ -492,6 +492,50 @@ async def test_collect_updates_collects_sources_concurrently() -> None:
 
 
 @pytest.mark.anyio
+async def test_collect_updates_resolves_source_image_while_collecting_updates() -> None:
+    rss = b"""<rss><channel><item><title>Source update</title><link>https://example.com/update</link>
+    <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""
+    fetch_started = asyncio.Event()
+    finish_fetch = asyncio.Event()
+    events: list[str] = []
+
+    async def fetch(_url: str) -> bytes:
+        events.append("fetch-start")
+        fetch_started.set()
+        await finish_fetch.wait()
+        events.append("fetch-end")
+        return rss
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        await fetch_started.wait()
+        events.append("image-start")
+        finish_fetch.set()
+        return "https://example.com/source.png"
+
+    payload = Interests.model_validate(
+        {
+            "interests": [
+                {
+                    "name": "Parallel image",
+                    "sources": [{"type": "feed", "url": "https://example.com/feed.xml"}],
+                }
+            ]
+        }
+    )
+
+    result = await _collect_updates(
+        payload,
+        timeframe=ALL_TIMEFRAME,
+        http_fetcher=StubHttpFetcher(fetch, unused_fetch_json),
+        source_image_provider=StubSourceImageProvider(resolve_source_image),
+        source_updates_cache=SourceUpdatesCacheOptions(cache={}),
+    )
+
+    assert events == ["fetch-start", "image-start", "fetch-end"]
+    assert result.updates[0].source_interest.source_image_url == "https://example.com/source.png"
+
+
+@pytest.mark.anyio
 async def test_collect_updates_returns_successes_and_source_errors() -> None:
     rss = b"""<rss><channel><item><title>Successful update</title><link>https://example.com/update</link>
     <pubDate>Fri, 15 May 2026 10:00:00 GMT</pubDate></item></channel></rss>"""

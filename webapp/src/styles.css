@@ -919,6 +919,11 @@ textarea {
   padding: 14px;
 }
 
+.update-item-card {
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: start;
+}
+
 .update-item-content,
 .collection-update-content {
   display: grid;
@@ -973,6 +978,11 @@ textarea {
   background: #eef2ff;
   font-size: 15px;
   font-weight: 800;
+}
+
+.update-item-card .source-avatar {
+  width: 76px;
+  height: 76px;
 }
 
 .updates-callout {
@@ -1320,6 +1330,11 @@ textarea {
     height: 48px;
   }
 
+  .update-item-card .source-avatar {
+    width: 56px;
+    height: 56px;
+  }
+
   .update-collection-actions,
   .collection-update-card .icon-button {
     max-width: 100%;
@@ -1391,7 +1406,7 @@ textarea {
   }
 
   .update-item-card {
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     min-height: 76px;
     padding: 12px;
   }

@@ -199,8 +199,21 @@ async def _collect_from_source(
     source: InterestSource,
     context: _SourceCollectionContext,
 ) -> list[Update]:
-    source_updates = await _get_source_updates(source, context)
-    source_image_url = await _source_image_url(source, context) if source_updates else source.image_url
+    source_updates_task = asyncio.create_task(_get_source_updates(source, context))
+    source_image_url_task = None if source.image_url else asyncio.create_task(_source_image_url(source, context))
+    try:
+        source_updates = await source_updates_task
+    except Exception:
+        if source_image_url_task is not None:
+            source_image_url_task.cancel()
+        raise
+
+    if not source_updates or source_image_url_task is None:
+        if source_image_url_task is not None:
+            source_image_url_task.cancel()
+        source_image_url = source.image_url
+    else:
+        source_image_url = await source_image_url_task
     return _enrich_updates(interest, source, source_updates, context.timeframe, source_image_url)
 
 
