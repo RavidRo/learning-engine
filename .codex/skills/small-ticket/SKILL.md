@@ -1,13 +1,13 @@
 ---
 name: small-ticket
-description: Spec, implement, verify, and open a PR for a small Linear ticket in one continuous workflow. Use when the user says /small-ticket, /quick-ticket, asks to handle a small ticket end-to-end, or wants the spec-ticket workflow followed immediately by applying the OpenSpec change and opening a PR without waiting for confirmation.
+description: Spec, implement, verify, sync and archive OpenSpec, and open a PR for a small Linear ticket in one continuous workflow. Use when the user says /small-ticket, /quick-ticket, asks to handle a small ticket end-to-end, or wants the spec-ticket workflow followed immediately by applying the OpenSpec change, finalizing specs, and opening a PR without waiting for confirmation.
 ---
 
 # Small Ticket
 
 ## Overview
 
-Handle a small Linear ticket through proposal, implementation, verification, and PR creation without pausing between planning and coding. This skill composes `spec-ticket`, `openspec-apply-change`, and the PR preparation parts of `ship-ticket`.
+Handle a small Linear ticket through proposal, implementation, verification, OpenSpec sync/archive, and PR creation without pausing between planning and coding. This skill composes `spec-ticket`, `openspec-apply-change`, `openspec-sync-specs`, `openspec-archive-change`, and the PR preparation parts of `ship-ticket`.
 
 ## Workflow
 
@@ -39,7 +39,14 @@ Handle a small Linear ticket through proposal, implementation, verification, and
    - Run `task check` before opening the PR when feasible.
    - If verification cannot run, report exactly why and include the best substitute evidence.
 
-6. Prepare and open the PR.
+6. Sync and archive OpenSpec.
+   - Use `openspec-sync-specs` to apply delta specs to `openspec/specs`.
+   - Use `openspec-archive-change` to move the completed change into the dated archive.
+   - Do not ask for confirmation before syncing or archiving when the change is complete and the artifact/task status is clean.
+   - If OpenSpec reports incomplete artifacts, incomplete tasks, workspace-planning mode, ambiguous change selection, or a sync conflict, follow the relevant OpenSpec skill guardrail and stop or ask as required.
+   - Re-run the narrowest useful verification after sync/archive when files changed. Run `task check` again when feasible.
+
+7. Prepare and open the PR.
    - Inspect `git status -sb` and the diff before staging.
    - Stage only files belonging to the ticket.
    - Commit with a terse message if there are uncommitted changes.
@@ -48,8 +55,8 @@ Handle a small Linear ticket through proposal, implementation, verification, and
    - Include screenshots in the PR description for visual UI changes. If screenshots cannot be produced locally, explain why in the PR description and include the best available substitute.
    - Explicitly state when no screenshots are needed.
 
-7. Finish with a concise summary.
-   - Include the Linear ticket key, OpenSpec change name, PR URL, commit, and verification performed.
+8. Finish with a concise summary.
+   - Include the Linear ticket key, OpenSpec change name, OpenSpec archive path, PR URL, commit, and verification performed.
    - Note any skipped verification, screenshot limitations, or follow-up needed before merge.
 
 ## Guardrails
