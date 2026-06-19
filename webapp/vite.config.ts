@@ -11,6 +11,9 @@ export default defineConfig({
     babel({ presets: [reactCompilerPreset()] }),
     VitePWA({
       includeAssets: ["favicon.ico", "favicon.svg", "apple-touch-icon.png"],
+      devOptions: {
+        enabled: true,
+      },
       manifest: {
         background_color: "#fafafa",
         description: "Track learning interests and review fresh updates from saved sources.",
