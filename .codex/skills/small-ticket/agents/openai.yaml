@@ -1,4 +1,4 @@
 interface:
   display_name: "Small Ticket"
-  short_description: "Spec, implement, archive, and open PRs for small Linear tickets."
-  default_prompt: "Use small-ticket for a small Linear ticket, archive the OpenSpec change, and open a PR."
+  short_description: "Move small Linear tickets to In Progress, implement, archive, and open PRs."
+  default_prompt: "Use small-ticket to move a small Linear ticket to In Progress, archive the OpenSpec change, and open a PR."
