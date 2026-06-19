@@ -1,4 +1,12 @@
+import { useState } from "react";
+
 import { TrashIcon } from "./CollectionActionIcons";
+import {
+  filterSavedUpdatesBySourceType,
+  type SourceTypeFilter,
+  sourceTypeFilterLabel,
+} from "./sourceTypeFilters";
+import { SourceTypeFilterSelect } from "./SourceTypeFilterSelect";
 import { type Collection, type SavedCollectionUpdate } from "./types";
 import { UpdateSourceAvatar } from "./UpdateSourceAvatar";
 
@@ -58,41 +66,54 @@ const CollectionPanel = ({
   collection,
   isRemovingSavedUpdate,
   onRemoveSavedUpdate,
+  sourceTypeFilter,
 }: {
   collection: Collection;
   isRemovingSavedUpdate: boolean;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
-}) => (
-  <section className="collection-panel" aria-label={collection.name}>
-    <div className="collection-panel-header">
-      <div>
-        <h3>{collection.name}</h3>
-        <p>
-          {collection.saved_updates.length} saved{" "}
-          {collection.saved_updates.length === 1 ? "update" : "updates"}
-        </p>
+  sourceTypeFilter: SourceTypeFilter;
+}) => {
+  const visibleSavedUpdates = filterSavedUpdatesBySourceType(
+    collection.saved_updates,
+    sourceTypeFilter,
+  );
+
+  return (
+    <section className="collection-panel" aria-label={collection.name}>
+      <div className="collection-panel-header">
+        <div>
+          <h3>{collection.name}</h3>
+          <p>
+            {visibleSavedUpdates.length} saved{" "}
+            {visibleSavedUpdates.length === 1 ? "update" : "updates"}
+          </p>
+        </div>
       </div>
-    </div>
-    {collection.saved_updates.length === 0 ? (
-      <div className="updates-callout empty">
-        <strong>No saved updates</strong>
-        <span>Save updates from the Updates page to collect them here.</span>
-      </div>
-    ) : (
-      <div className="collection-update-list">
-        {collection.saved_updates.map((savedUpdate) => (
-          <CollectionSavedUpdate
-            collectionId={collection.id}
-            isRemovingSavedUpdate={isRemovingSavedUpdate}
-            key={`${collection.id}-${savedUpdate.update_key}`}
-            onRemoveSavedUpdate={onRemoveSavedUpdate}
-            savedUpdate={savedUpdate}
-          />
-        ))}
-      </div>
-    )}
-  </section>
-);
+      {visibleSavedUpdates.length === 0 ? (
+        <div className="updates-callout empty">
+          <strong>No saved updates</strong>
+          <span>
+            {sourceTypeFilter === "all"
+              ? "Save updates from the Updates page to collect them here."
+              : `No saved ${sourceTypeFilterLabel(sourceTypeFilter).toLowerCase()} updates in this collection.`}
+          </span>
+        </div>
+      ) : (
+        <div className="collection-update-list">
+          {visibleSavedUpdates.map((savedUpdate) => (
+            <CollectionSavedUpdate
+              collectionId={collection.id}
+              isRemovingSavedUpdate={isRemovingSavedUpdate}
+              key={`${collection.id}-${savedUpdate.update_key}`}
+              onRemoveSavedUpdate={onRemoveSavedUpdate}
+              savedUpdate={savedUpdate}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
 
 export const CollectionsPage = ({
   collections,
@@ -100,38 +121,48 @@ export const CollectionsPage = ({
   isLoadingCollections,
   isRemovingSavedUpdate,
   onRemoveSavedUpdate,
-}: CollectionsPageProps) => (
-  <section className="panel collections-page" aria-label="Collections">
-    <div className="panel-header row">
-      <div>
-        <p className="section-label">Collections</p>
-        <h2>Saved updates</h2>
-      </div>
-    </div>
+}: CollectionsPageProps) => {
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<SourceTypeFilter>("all");
 
-    {collectionsError !== null ? (
-      <div className="updates-callout error">
-        <strong>Could not load collections</strong>
-        <span>{collectionsError}</span>
-      </div>
-    ) : null}
-
-    {isLoadingCollections ? (
-      <div className="updates-callout loading">
-        <strong>Loading collections...</strong>
-        <span>Reading saved updates from local storage.</span>
-      </div>
-    ) : null}
-
-    <div className="collections-grid">
-      {collections.map((collection) => (
-        <CollectionPanel
-          collection={collection}
-          isRemovingSavedUpdate={isRemovingSavedUpdate}
-          key={collection.id}
-          onRemoveSavedUpdate={onRemoveSavedUpdate}
+  return (
+    <section className="panel collections-page" aria-label="Collections">
+      <div className="panel-header row">
+        <div>
+          <p className="section-label">Collections</p>
+          <h2>Saved updates</h2>
+        </div>
+        <SourceTypeFilterSelect
+          label="Source type"
+          onChange={setSourceTypeFilter}
+          value={sourceTypeFilter}
         />
-      ))}
-    </div>
-  </section>
-);
+      </div>
+
+      {collectionsError !== null ? (
+        <div className="updates-callout error">
+          <strong>Could not load collections</strong>
+          <span>{collectionsError}</span>
+        </div>
+      ) : null}
+
+      {isLoadingCollections ? (
+        <div className="updates-callout loading">
+          <strong>Loading collections...</strong>
+          <span>Reading saved updates from local storage.</span>
+        </div>
+      ) : null}
+
+      <div className="collections-grid">
+        {collections.map((collection) => (
+          <CollectionPanel
+            collection={collection}
+            isRemovingSavedUpdate={isRemovingSavedUpdate}
+            key={collection.id}
+            onRemoveSavedUpdate={onRemoveSavedUpdate}
+            sourceTypeFilter={sourceTypeFilter}
+          />
+        ))}
+      </div>
+    </section>
+  );
+};

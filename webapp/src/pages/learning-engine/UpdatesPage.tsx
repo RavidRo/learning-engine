@@ -1,6 +1,12 @@
-import { type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 
 import { BookmarkIcon, HeartIcon } from "./CollectionActionIcons";
+import {
+  filterUpdatesBySourceType,
+  type SourceTypeFilter,
+  sourceTypeFilterLabel,
+} from "./sourceTypeFilters";
+import { SourceTypeFilterSelect } from "./SourceTypeFilterSelect";
 import { type Collection, type Update, type UpdatesPayload } from "./types";
 import { UpdateSourceAvatar } from "./UpdateSourceAvatar";
 
@@ -327,10 +333,20 @@ const RequestError = ({ updatesError }: { updatesError: string | null }) =>
     </div>
   );
 
-const EmptyUpdates = ({ days }: { days: number }) => (
+const EmptyUpdates = ({
+  days,
+  sourceTypeFilter,
+}: {
+  days: number;
+  sourceTypeFilter: SourceTypeFilter;
+}) => (
   <div className="updates-callout empty">
     <strong>No updates found</strong>
-    <span>The enabled sources did not publish matching updates in {updateWindowLabel(days)}.</span>
+    <span>
+      {sourceTypeFilter === "all"
+        ? `The enabled sources did not publish matching updates in ${updateWindowLabel(days)}.`
+        : `No ${sourceTypeFilterLabel(sourceTypeFilter).toLowerCase()} updates are loaded for ${updateWindowLabel(days)}.`}
+    </span>
   </div>
 );
 
@@ -374,7 +390,9 @@ export const UpdatesPage = ({
   updates,
   updatesError,
 }: UpdatesPageProps) => {
-  const groups = groupUpdates(updates?.updates ?? []);
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<SourceTypeFilter>("all");
+  const visibleUpdates = filterUpdatesBySourceType(updates?.updates ?? [], sourceTypeFilter);
+  const groups = groupUpdates(visibleUpdates);
 
   return (
     <section id="updates" className="panel updates-page" aria-label="Updates">
@@ -384,6 +402,11 @@ export const UpdatesPage = ({
           {updates !== null && <UpdatesSummary payload={updates} />}
         </div>
         <div className="updates-header-actions">
+          <SourceTypeFilterSelect
+            label="Source type"
+            onChange={setSourceTypeFilter}
+            value={sourceTypeFilter}
+          />
           <UpdateDaysSelect days={days} onDaysChange={onDaysChange} />
           <button
             className="button primary"
@@ -411,7 +434,7 @@ export const UpdatesPage = ({
           <section className="updates-feed" aria-label="Updates feed">
             <SourceErrors payload={updates} />
             {groups.length === 0 ? (
-              <EmptyUpdates days={days} />
+              <EmptyUpdates days={days} sourceTypeFilter={sourceTypeFilter} />
             ) : (
               groups.map((group) => (
                 <UpdateGroupCard
