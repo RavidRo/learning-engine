@@ -10,13 +10,15 @@ from pydantic import BaseModel, Field, field_validator
 
 from learning_engine.domain.updates import SourceInterest, Update
 
-CollectionId = Literal["see-later", "liked"]
+CollectionId = Literal["see-later", "liked", "history"]
 
 SEE_LATER_COLLECTION_ID: CollectionId = "see-later"
 LIKED_COLLECTION_ID: CollectionId = "liked"
+HISTORY_COLLECTION_ID: CollectionId = "history"
 FIXED_COLLECTIONS: dict[CollectionId, str] = {
     SEE_LATER_COLLECTION_ID: "See Later",
     LIKED_COLLECTION_ID: "Liked",
+    HISTORY_COLLECTION_ID: "History",
 }
 
 
