@@ -902,6 +902,30 @@ textarea {
   gap: 12px;
 }
 
+.update-source-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.update-source-meta span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.update-source-image {
+  display: block;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  object-fit: cover;
+}
+
 .update-group h3,
 .update-group p {
   margin: 0;
@@ -1356,6 +1380,10 @@ textarea {
   .collection-update-card span {
     min-width: 0;
     overflow-wrap: anywhere;
+  }
+
+  .update-source-meta {
+    align-self: stretch;
   }
 
   .update-collection-actions .icon-button,
