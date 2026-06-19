@@ -223,6 +223,137 @@ def test_source_image_endpoint_returns_null_on_resolver_miss(
     assert response.json() == {"imageUrl": None}
 
 
+def test_batch_source_images_endpoint_returns_results_by_source_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def resolve_source_image(
+        source_type: str,
+        source_url: str,
+        *_args: object,
+    ) -> str | None:
+        if source_type == "feed":
+            assert source_url == "https://example.com/feed.xml"
+            return "https://example.com/feed.png"
+        if source_type == "page":
+            assert source_url == "https://example.com/page"
+            return "https://example.com/page.png"
+        raise AssertionError(f"Unexpected source: {source_type} {source_url}")
+
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post(
+            "/api/source-images",
+            json=[
+                {"id": "feed-source", "type": "feed", "url": " https://example.com/feed.xml "},
+                {"id": "page-source", "type": "page", "url": "https://example.com/page"},
+            ],
+        )
+
+    assert response.status_code == HTTP_OK
+    assert response.json() == {
+        "images": [
+            {
+                "sourceId": "feed-source",
+                "imageUrl": "https://example.com/feed.png",
+                "status": None,
+                "error": None,
+            },
+            {
+                "sourceId": "page-source",
+                "imageUrl": "https://example.com/page.png",
+                "status": None,
+                "error": None,
+            },
+        ]
+    }
+
+
+def test_batch_source_images_endpoint_keeps_other_results_on_misses_and_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def resolve_source_image(
+        source_type: str,
+        source_url: str,
+        *_args: object,
+    ) -> str | None:
+        if source_url == "https://example.com/ok":
+            return "https://example.com/ok.png"
+        if source_url == "https://example.com/missing":
+            return None
+        if source_type == "spotify_podcast":
+            raise SourceImageConfigurationError("Spotify bearer token is not configured")
+        raise RuntimeError("unexpected resolver failure")
+
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post(
+            "/api/source-images",
+            json=[
+                {"id": "ok-source", "type": "page", "url": "https://example.com/ok"},
+                {"id": "missing-source", "type": "feed", "url": "https://example.com/missing"},
+                {"id": "bad-source", "type": "spotify_podcast", "url": "spotify:show:missing-token"},
+                {"id": "broken-source", "type": "page", "url": "https://example.com/broken"},
+            ],
+        )
+
+    assert response.status_code == HTTP_OK
+    assert response.json() == {
+        "images": [
+            {
+                "sourceId": "ok-source",
+                "imageUrl": "https://example.com/ok.png",
+                "status": None,
+                "error": None,
+            },
+            {
+                "sourceId": "missing-source",
+                "imageUrl": None,
+                "status": None,
+                "error": None,
+            },
+            {
+                "sourceId": "bad-source",
+                "imageUrl": None,
+                "status": HTTP_BAD_REQUEST,
+                "error": "Spotify bearer token is not configured",
+            },
+            {
+                "sourceId": "broken-source",
+                "imageUrl": None,
+                "status": HTTP_INTERNAL_SERVER_ERROR,
+                "error": "Could not resolve source image",
+            },
+        ]
+    }
+
+
+def test_batch_source_images_endpoint_does_not_persist_resolved_images(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = _payload()
+    repository = StubInterestRepository(payload)
+
+    async def resolve_source_image(*_args: object) -> str | None:
+        return "https://example.com/dynamic.png"
+
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
+
+    with TestClient(_create_test_app(repository=repository)) as client:
+        assert (
+            client.post(
+                "/api/source-images",
+                json=[{"id": "feed-source", "type": "feed", "url": "https://example.com/feed.xml"}],
+            ).json()["images"][0]["imageUrl"]
+            == "https://example.com/dynamic.png"
+        )
+        saved = payload.model_dump(mode="json", by_alias=True)
+        client.post("/api/interests", json=saved)
+
+        assert client.get("/api/interests").json()["interests"][0]["sources"][0]["imageUrl"] is None
+
+
 @pytest.mark.parametrize(
     ("resolver_error", "expected_status", "expected_detail"),
     [

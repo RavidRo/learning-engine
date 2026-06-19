@@ -114,6 +114,17 @@ export const sourceImageResponseSchema = z.object({
   imageUrl: z.string().nullable().catch(null),
 });
 
+const batchSourceImageResultSchema = z.object({
+  error: z.string().nullable().optional().catch(null),
+  imageUrl: z.string().nullable().catch(null),
+  sourceId: z.string(),
+  status: z.number().nullable().optional().catch(null),
+});
+
+export const batchSourceImageResponseSchema = z.object({
+  images: z.array(batchSourceImageResultSchema).catch([]),
+});
+
 export type Interest = z.infer<typeof interestSchema>;
 
 export type Update = z.infer<typeof updateSchema>;
@@ -121,6 +132,8 @@ export type Update = z.infer<typeof updateSchema>;
 export type UpdatesPayload = z.infer<typeof updatesPayloadSchema>;
 
 export type SourceImagePayload = z.infer<typeof sourceImageResponseSchema>;
+
+export type BatchSourceImagePayload = z.infer<typeof batchSourceImageResponseSchema>;
 
 export type Collection = z.infer<typeof collectionSchema>;
 

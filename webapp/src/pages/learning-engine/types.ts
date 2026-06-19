@@ -1,6 +1,7 @@
 import {
   type Collection,
   type Interest,
+  type BatchSourceImagePayload,
   type SavedCollectionUpdate,
   type SourceImagePayload,
   type Update,
@@ -8,6 +9,7 @@ import {
 } from "./schemas";
 
 export type {
+  BatchSourceImagePayload,
   Collection,
   Interest,
   SavedCollectionUpdate,

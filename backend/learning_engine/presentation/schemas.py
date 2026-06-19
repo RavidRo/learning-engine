@@ -58,6 +58,31 @@ class SourceImageResponse(BaseModel):
     image_url: str | None = Field(default=None, serialization_alias="imageUrl")
 
 
+class BatchSourceImageRequest(SourceImageRequest):
+    """Source image lookup request keyed to a client-side source id."""
+
+    source_id: str = Field(
+        validation_alias=AliasChoices("sourceId", "source_id", "id"),
+        serialization_alias="sourceId",
+        min_length=1,
+    )
+
+
+class BatchSourceImageResult(BaseModel):
+    """Dynamically resolved source image metadata for a source id."""
+
+    source_id: str = Field(serialization_alias="sourceId")
+    image_url: str | None = Field(default=None, serialization_alias="imageUrl")
+    status: int | None = None
+    error: str | None = None
+
+
+class BatchSourceImageResponse(BaseModel):
+    """Batch source image lookup response."""
+
+    images: list[BatchSourceImageResult]
+
+
 class SaveCollectionUpdateRequest(SaveUpdateToCollection):
     """Update snapshot to save into a collection."""
 

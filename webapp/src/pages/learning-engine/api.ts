@@ -1,5 +1,6 @@
 import {
   collectionsPayloadSchema,
+  batchSourceImageResponseSchema,
   interestsPayloadSchema,
   removeCollectionUpdateResponseSchema,
   saveCollectionUpdateResponseSchema,
@@ -11,6 +12,7 @@ import {
 import {
   type Interest,
   type InterestSource,
+  type BatchSourceImagePayload,
   type Collection,
   type SavedCollectionUpdate,
   type SourceImagePayload,
@@ -155,4 +157,20 @@ export const resolveSourceImage = async (
   }
 
   return sourceImageResponseSchema.parse(await response.json());
+};
+
+export const resolveSourceImages = async (
+  sources: Pick<InterestSource, "id" | "type" | "url">[],
+): Promise<BatchSourceImagePayload> => {
+  const response = await fetch("/api/source-images", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sources),
+  });
+
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+
+  return batchSourceImageResponseSchema.parse(await response.json());
 };

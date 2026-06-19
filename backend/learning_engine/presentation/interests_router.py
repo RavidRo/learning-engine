@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -24,6 +25,9 @@ from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.interests import Interests
 from learning_engine.presentation.schemas import (
+    BatchSourceImageRequest,
+    BatchSourceImageResponse,
+    BatchSourceImageResult,
     InterestExportEnvelope,
     SourceImageRequest,
     SourceImageResponse,
@@ -55,6 +59,22 @@ async def _source_image_response(
             detail="Could not resolve source image",
         ) from exc
     return SourceImageResponse(image_url=image_url)
+
+
+async def _batch_source_image_result(
+    payload: BatchSourceImageRequest,
+    source_image_provider: SourceImageProvider,
+) -> BatchSourceImageResult:
+    try:
+        response = await _source_image_response(payload, source_image_provider)
+    except HTTPException as exc:
+        return BatchSourceImageResult(
+            source_id=payload.source_id,
+            image_url=None,
+            status=exc.status_code,
+            error=str(exc.detail),
+        )
+    return BatchSourceImageResult(source_id=payload.source_id, image_url=response.image_url)
 
 
 def interests_router(api: FastAPI) -> APIRouter:
@@ -108,6 +128,14 @@ def interests_router(api: FastAPI) -> APIRouter:
     async def source_image(payload: SourceImageRequest) -> SourceImageResponse:
         app_state = get_app_state(api)
         return await _source_image_response(payload, app_state.source_image_provider)
+
+    @router.post("/source-images", response_model=BatchSourceImageResponse)
+    async def source_images(payload: list[BatchSourceImageRequest]) -> BatchSourceImageResponse:
+        app_state = get_app_state(api)
+        results = await asyncio.gather(
+            *(_batch_source_image_result(source, app_state.source_image_provider) for source in payload)
+        )
+        return BatchSourceImageResponse(images=list(results))
 
     @router.get("/updates", response_model=UpdatesResponse)
     async def updates(

@@ -1,7 +1,7 @@
-import { useQueries } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { resolveSourceImage } from "./api";
+import { resolveSourceImages } from "./api";
 import { type Interest, type InterestSource } from "./types";
 
 type SourceLinksProps = {
@@ -20,13 +20,17 @@ const canResolveSourceImage = (source: InterestSource): boolean =>
   trimmed(source.imageUrl) === "" && source.url.trim() !== "";
 
 /**
- * Builds the stable React Query key for resolving a source image.
+ * Builds the stable React Query key for resolving a batch of source images.
  *
- * @param source - Interest source whose type and trimmed URL identify the lookup.
+ * @param sources - Interest sources whose type and trimmed URL identify the lookup.
  * @returns A query key scoped to Learning Engine source-image resolution.
  */
-const sourceImageQueryKey = (source: InterestSource) =>
-  ["learning-engine", "source-image", source.type, source.url.trim()] as const;
+const sourceImagesQueryKey = (sources: InterestSource[]) =>
+  [
+    "learning-engine",
+    "source-images",
+    sources.map((source) => [source.id, source.type, source.url.trim()]),
+  ] as const;
 
 const visibleSources = (interest: Interest): InterestSource[] =>
   interest.sources.filter((source) => source.deletedAt == null);
@@ -49,23 +53,29 @@ const sourceImageUrl = (
  * @param sources - Interest sources to map by source ID.
  * @returns A record from source.id to the manual or resolved image URL.
  *
- * Uses React Query's useQueries to call resolveSourceImage only for sources that
- * need automatic lookup; manual image URLs are returned without resolution.
+ * Uses one React Query request for sources that need automatic lookup; manual
+ * image URLs are returned without resolution.
  */
 const useSourceImages = (sources: InterestSource[]): Record<string, string> => {
-  const imageQueries = useQueries({
-    queries: sources.map((source) => ({
-      enabled: canResolveSourceImage(source),
-      queryFn: () => resolveSourceImage({ type: source.type, url: source.url.trim() }),
-      queryKey: sourceImageQueryKey(source),
-    })),
+  const automaticSources = sources.filter(canResolveSourceImage);
+  const imageQuery = useQuery({
+    enabled: automaticSources.length > 0,
+    queryFn: () =>
+      resolveSourceImages(
+        automaticSources.map((source) => ({
+          id: source.id,
+          type: source.type,
+          url: source.url.trim(),
+        })),
+      ),
+    queryKey: sourceImagesQueryKey(automaticSources),
   });
+  const resolvedImages = Object.fromEntries(
+    (imageQuery.data?.images ?? []).map((image) => [image.sourceId, image.imageUrl]),
+  );
 
   return Object.fromEntries(
-    sources.map((source, index) => [
-      source.id,
-      sourceImageUrl(source, imageQueries[index]?.data?.imageUrl),
-    ]),
+    sources.map((source) => [source.id, sourceImageUrl(source, resolvedImages[source.id])]),
   );
 };
 
