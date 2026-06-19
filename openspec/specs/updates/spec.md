@@ -91,3 +91,18 @@ The Updates page SHALL provide save-to-collection actions for each visible updat
 #### Scenario: Updates page displays on a narrow viewport
 - **WHEN** the Updates page is viewed on a narrow viewport with save-to-collection controls visible
 - **THEN** update titles, metadata, thumbnails, and save controls remain readable and do not overlap
+
+### Requirement: Updates page loads within the target performance budget
+The Updates page SHALL fully load the updates view in under 4 seconds when enabled upstream sources respond within the target budget.
+
+#### Scenario: Updates load completes under four seconds
+- **WHEN** the user opens the Updates page and the enabled source endpoints respond within the target budget
+- **THEN** the page displays the loaded updates view in under 4 seconds
+
+#### Scenario: Source documents are not fetched redundantly
+- **WHEN** update collection and source image enrichment need the same feed or page source document during an updates load
+- **THEN** the system reuses the successful source document response instead of issuing a second equivalent network fetch
+
+#### Scenario: Failed source responses remain retryable
+- **WHEN** a source document fetch fails during an updates load
+- **THEN** the failed response is not cached and a later updates load can retry that source
