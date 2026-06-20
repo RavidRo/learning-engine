@@ -19,21 +19,6 @@ The system SHALL provide a reusable backend endpoint that accepts a source type 
 - **WHEN** provider metadata cannot be fetched or parsed because of a classified resolver failure
 - **THEN** the response fails with a status code and message that match the failure category
 
-### Requirement: Source image endpoint resolves batches of dynamic metadata
-The system SHALL provide a reusable backend endpoint that accepts multiple source image lookup requests and returns one source image result per requested source id.
-
-#### Scenario: Resolving supported source images in one request
-- **WHEN** a client requests source image metadata for multiple supported sources whose provider metadata includes images
-- **THEN** the response includes an image result for each requested source id without requiring interest ids
-
-#### Scenario: Batch source image miss
-- **WHEN** a batch source image request includes a source whose metadata does not expose an image
-- **THEN** that source result succeeds with a null image URL while other source results remain available
-
-#### Scenario: Batch source image lookup cannot complete
-- **WHEN** a batch source image request includes a source whose provider metadata cannot be fetched or parsed because of a classified resolver failure
-- **THEN** that source result includes a null image URL and diagnostic error details while other source results remain available
-
 ### Requirement: Automatic source images are not persisted
 The system MUST treat automatically resolved source images as derived metadata and MUST NOT write them to persisted interest source definitions.
 
@@ -133,17 +118,40 @@ The interests page SHALL display source images near each visible source link whe
 - **WHEN** an interest source has no manual `imageUrl` and dynamic source image resolution does not return an image URL
 - **THEN** the interests page keeps the source link visible without an image
 
-### Requirement: Interests page loads source images in aggregate
-The interests page SHALL resolve automatic source images in aggregate so visible interest source images load within 3 seconds for normal configured interests.
+### Requirement: Interests page loads fully within the expected time
 
-#### Scenario: Visible interest sources load through a batch request
-- **WHEN** the interests page displays sources without manual image URLs
-- **THEN** the page requests their automatic source images through the batch source-image endpoint instead of one request per source
+The interests page SHALL finish loading its visible content, including source images that can be resolved automatically, within 4 seconds for normal configured interests.
 
-#### Scenario: Manual image sources are not included in automatic batch lookup
+#### Scenario: Visible source images are included in the page load
+
+- **WHEN** the interests page displays sources without manual image URLs and automatic source image resolution finds image URLs
+- **THEN** those images appear with the visible source links before the page exceeds the 4 second loading target
+
+#### Scenario: Manual source images do not wait for automatic resolution
+
 - **WHEN** a visible source has a non-empty manual `imageUrl`
-- **THEN** the interests page displays the manual image and omits that source from automatic batch source-image lookup
+- **THEN** the interests page displays the manual image without delaying on automatic source image resolution
 
-#### Scenario: Batch automatic images are not persisted
-- **WHEN** automatic source images are resolved through the batch endpoint
+#### Scenario: Automatic image loading preserves editable source data
+
+- **WHEN** automatic source images appear on the interests page
 - **THEN** saving or reading interests still leaves those automatic image URLs out of persisted source definitions
+
+### Requirement: Updates page displays source identity images
+
+The system SHALL use source image metadata included in collected updates to identify the source beside update source names on the Updates page.
+
+#### Scenario: Update has both update image and source image
+
+- **WHEN** a collected update includes a non-empty update-specific image URL and a non-empty `source_interest.source_image_url`
+- **THEN** the Updates page renders the update-specific image as the update thumbnail and renders the source image beside the source label
+
+#### Scenario: Update thumbnail falls back to source image while source metadata also shows it
+
+- **WHEN** a collected update has no non-empty update-specific image URL and has a non-empty `source_interest.source_image_url`
+- **THEN** the Updates page renders the source image as the update thumbnail and also renders the source image beside the source label
+
+#### Scenario: Source image display does not persist derived metadata
+
+- **WHEN** the Updates page displays a source image from `source_interest.source_image_url`
+- **THEN** the system does not write that image URL to persisted interest source definitions

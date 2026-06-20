@@ -1,7 +1,9 @@
 import importlib
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
+from time import perf_counter
 
+import httpx
 import pytest
 from cachetools import TTLCache
 from fastapi import FastAPI
@@ -39,6 +41,7 @@ HTTP_UNAUTHORIZED = 401
 HTTP_FORBIDDEN = 403
 EXPECTED_EXPIRED_CALLS = 2
 EXPECTED_RETRY_CALLS = 2
+UPDATES_LOAD_BUDGET_SECONDS = 4
 UPDATE_KEY_LENGTH = 64
 MCP_HEADERS = {
     "Authorization": "Bearer mcp-secret",
@@ -785,9 +788,53 @@ def test_create_app_uses_cachetools_ttl_cache() -> None:
     api = create_app()
 
     assert isinstance(api.state.source_updates_cache, TTLCache)
+    assert isinstance(api.state.source_fetch_cache, TTLCache)
     app_module = importlib.import_module("learning_engine.presentation.app")
     assert api.state.source_updates_cache.maxsize == app_module.SOURCE_UPDATES_CACHE_MAX_ENTRIES
     assert api.state.source_updates_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
+    assert api.state.source_fetch_cache.maxsize == app_module.SOURCE_FETCH_CACHE_MAX_ENTRIES
+    assert api.state.source_fetch_cache.ttl == app_module.SOURCE_UPDATES_CACHE_TTL.total_seconds()
+
+
+def test_updates_endpoint_reuses_source_document_for_image_enrichment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app_module = importlib.import_module("learning_engine.presentation.app")
+    original_async_client = httpx.AsyncClient
+    called_urls: list[str] = []
+
+    def handle_request(request: httpx.Request) -> httpx.Response:
+        called_urls.append(str(request.url))
+        return httpx.Response(
+            HTTP_OK,
+            content=b"""<rss><channel>
+            <image><url>https://example.com/source.png</url></image>
+            <item><title>Fast update</title><link>https://example.com/update</link>
+            <pubDate>Fri, 19 Jun 2026 10:00:00 GMT</pubDate></item>
+            </channel></rss>""",
+            request=request,
+        )
+
+    def async_client(*, timeout: float) -> httpx.AsyncClient:
+        return original_async_client(
+            timeout=timeout,
+            transport=httpx.MockTransport(handle_request),
+        )
+
+    monkeypatch.setattr(app_module.httpx, "AsyncClient", async_client)
+    api = create_app()
+    api.state.interest_repository = StubInterestRepository(_read_default_payload())
+    api.state.collection_repository = StubCollectionRepository()
+
+    with TestClient(api) as client:
+        started_at = perf_counter()
+        response = client.get("/api/updates")
+        elapsed = perf_counter() - started_at
+
+    assert response.status_code == HTTP_OK
+    assert response.json()["updates"][0]["source_interest"]["source_image_url"] == "https://example.com/source.png"
+    assert called_urls == ["https://example.com/feed.xml"]
+    assert elapsed < UPDATES_LOAD_BUDGET_SECONDS
 
 
 def test_mcp_endpoint_lists_tools_when_configured(

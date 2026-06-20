@@ -91,3 +91,80 @@ The Updates page SHALL provide save-to-collection actions for each visible updat
 #### Scenario: Updates page displays on a narrow viewport
 - **WHEN** the Updates page is viewed on a narrow viewport with save-to-collection controls visible
 - **THEN** update titles, metadata, thumbnails, and save controls remain readable and do not overlap
+
+### Requirement: Update descriptions are displayed
+The Updates page SHALL display an update description under the update title when the fetched update includes a non-blank summary.
+
+#### Scenario: Update summary is visible below title
+- **WHEN** the Updates page renders an update with a non-blank `summary`
+- **THEN** the update card displays that summary directly below the update title and above the source metadata
+
+#### Scenario: Missing summary does not show placeholder text
+- **WHEN** the Updates page renders an update without a `summary`
+- **THEN** the update card omits the description line without showing placeholder text
+
+#### Scenario: Blank summary does not reserve description space
+- **WHEN** the Updates page renders an update with a whitespace-only `summary`
+- **THEN** the update card omits the description line without reserving empty description space
+
+#### Scenario: Existing update card behavior is preserved
+- **WHEN** the Updates page renders an update description
+- **THEN** the update card still displays its title, source metadata, optional publication timestamp, thumbnail, and save-to-collection controls according to the existing behavior
+
+### Requirement: Update cards show source images beside source metadata
+
+The Updates page SHALL render a source identity image beside the source label when a visible update includes a non-empty `source_interest.source_image_url`.
+
+#### Scenario: Source image appears beside source name
+
+- **WHEN** the Updates page renders an update whose `source_interest.source_image_url` is non-empty
+- **THEN** the update card displays that source image adjacent to the source label and source type metadata
+
+#### Scenario: Source metadata remains visible without a source image
+
+- **WHEN** the Updates page renders an update with no non-empty `source_interest.source_image_url`
+- **THEN** the update card still displays the source label and source type without an empty image placeholder
+
+#### Scenario: Source metadata image fails to load
+
+- **WHEN** the Updates page renders a source metadata image and the browser reports that the image failed to load
+- **THEN** the update card hides that failed image while keeping the source label and source type visible
+
+#### Scenario: Narrow viewport displays source metadata
+
+- **WHEN** the Updates page is viewed on a narrow viewport with source metadata images visible
+- **THEN** update titles, source metadata images, source labels, timestamps, thumbnails, and save controls remain readable and do not overlap
+
+### Requirement: Updates page loads within the target performance budget
+The Updates page SHALL fully load the updates view in under 4 seconds when enabled upstream sources respond within the target budget.
+
+#### Scenario: Updates load completes under four seconds
+- **WHEN** the user opens the Updates page and the enabled source endpoints respond within the target budget
+- **THEN** the page displays the loaded updates view in under 4 seconds
+
+#### Scenario: Source documents are not fetched redundantly
+- **WHEN** update collection and source image enrichment need the same feed or page source document during an updates load
+- **THEN** the system reuses the successful source document response instead of issuing a second equivalent network fetch
+
+#### Scenario: Failed source responses remain retryable
+- **WHEN** a source document fetch fails during an updates load
+- **THEN** the failed response is not cached and a later updates load can retry that source
+
+### Requirement: Updates can be filtered by source type
+The Updates page SHALL allow users to filter visible update items by source type while preserving the all-source default view.
+
+#### Scenario: All source types are visible by default
+- **WHEN** the Updates page has loaded updates from multiple source types
+- **THEN** the page displays updates from every loaded source type before the user changes the source type filter
+
+#### Scenario: User filters visible updates by source type
+- **WHEN** the user selects a specific source type on the Updates page
+- **THEN** the visible update groups include only updates whose `source_interest.source_type` matches the selected source type
+
+#### Scenario: Filtered updates are grouped by interest
+- **WHEN** the user filters visible updates by source type
+- **THEN** the remaining visible updates continue to be grouped under their source interest names
+
+#### Scenario: No loaded updates match the selected source type
+- **WHEN** the user selects a source type with no matching loaded updates
+- **THEN** the Updates page shows an empty update state for that filter instead of unrelated source type results

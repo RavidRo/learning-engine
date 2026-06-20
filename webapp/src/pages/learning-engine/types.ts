@@ -52,7 +52,7 @@ export type InterestFormValues = {
   sources: InterestSource[];
 };
 
-export type LearningEnginePageActions = {
+export type SignalGardenPageActions = {
   addInterest: (draft: InterestDraft) => void;
   changeView: (view: PageView) => void;
   checkUpdates: () => void;
@@ -61,6 +61,7 @@ export type LearningEnginePageActions = {
   removeInterest: (id: string) => void;
   removeSavedUpdate: (collectionId: string, updateKey: string) => void;
   saveUpdateToCollection: (collectionId: string, update: Update) => void;
+  trackUpdateCheckout: (update: Update) => void;
   toggleInterest: (id: string) => void;
   updateInterest: (draft: InterestDraft) => void;
 };

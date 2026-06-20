@@ -19,7 +19,7 @@ from learning_engine.application.ports import (
     SourceUpdateCollector,
 )
 from learning_engine.config import APPLICATION_VERSION, HOST, PORT
-from learning_engine.infrastructure.fetching import REQUEST_TIMEOUT_SECONDS, Fetcher
+from learning_engine.infrastructure.fetching import REQUEST_TIMEOUT_SECONDS, CachedFetcher, Fetcher
 from learning_engine.infrastructure.fetching import HttpFetcher as HttpxFetcher
 from learning_engine.infrastructure.source_collectors.registry import (
     SourceUpdateCollectorRegistry,
@@ -35,6 +35,7 @@ from learning_engine.presentation.mcp_interest_server import (
 
 SOURCE_UPDATES_CACHE_TTL = timedelta(minutes=5)
 SOURCE_UPDATES_CACHE_MAX_ENTRIES = 128
+SOURCE_FETCH_CACHE_MAX_ENTRIES = 256
 SourceUpdateCollectorFactory = Callable[[Fetcher], SourceUpdateCollector]
 SourceImageProviderFactory = Callable[[Fetcher], SourceImageProvider]
 
@@ -54,20 +55,25 @@ async def lifespan(api: FastAPI) -> AsyncIterator[None]:
             api.state.source_update_collector_factory,
         )
         source_image_provider_factory = cast(SourceImageProviderFactory, api.state.source_image_provider_factory)
-        api.state.source_update_collector = source_update_collector_factory(http_fetcher)
-        api.state.source_image_provider = source_image_provider_factory(http_fetcher)
+        cached_fetcher = CachedFetcher(http_fetcher, api.state.source_fetch_cache)
+        api.state.source_update_collector = source_update_collector_factory(cached_fetcher)
+        api.state.source_image_provider = source_image_provider_factory(cached_fetcher)
         yield
 
 
 def create_app() -> FastAPI:
     api = FastAPI(
-        title="Learning Engine",
+        title="Signal Garden",
         summary="Local-first API for personal interests and daily briefing source collection.",
         version=APPLICATION_VERSION,
         lifespan=lifespan,
     )
     api.state.source_updates_cache = TTLCache(
         maxsize=SOURCE_UPDATES_CACHE_MAX_ENTRIES,
+        ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
+    )
+    api.state.source_fetch_cache = TTLCache(
+        maxsize=SOURCE_FETCH_CACHE_MAX_ENTRIES,
         ttl=SOURCE_UPDATES_CACHE_TTL.total_seconds(),
     )
     api.state.interest_repository = DEFAULT_STORE

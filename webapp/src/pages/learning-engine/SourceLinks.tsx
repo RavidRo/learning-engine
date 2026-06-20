@@ -23,11 +23,11 @@ const canResolveSourceImage = (source: InterestSource): boolean =>
  * Builds the stable React Query key for resolving a batch of source images.
  *
  * @param sources - Interest sources whose type and trimmed URL identify the lookup.
- * @returns A query key scoped to Learning Engine source-image resolution.
+ * @returns A query key scoped to Signal Garden source-image resolution.
  */
 const sourceImagesQueryKey = (sources: InterestSource[]) =>
   [
-    "learning-engine",
+    "signal-garden",
     "source-images",
     sources.map((source) => [source.id, source.type, source.url.trim()]),
   ] as const;

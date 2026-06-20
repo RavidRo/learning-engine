@@ -1,6 +1,12 @@
-import { type ChangeEvent } from "react";
+import { type ChangeEvent, useState } from "react";
 
 import { BookmarkIcon, HeartIcon } from "./CollectionActionIcons";
+import {
+  filterUpdatesBySourceType,
+  type SourceTypeFilter,
+  sourceTypeFilterLabel,
+} from "./sourceTypeFilters";
+import { SourceTypeFilterSelect } from "./SourceTypeFilterSelect";
 import { type Collection, type Update, type UpdatesPayload } from "./types";
 import { UpdateSourceAvatar } from "./UpdateSourceAvatar";
 
@@ -15,6 +21,7 @@ type UpdatesPageProps = {
   onRefresh: () => void;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
   updates: UpdatesPayload | null;
   updatesError: string | null;
 };
@@ -30,10 +37,13 @@ type UpdateCollectionActionProps = {
   isSavingToCollection: boolean;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
   update: Update;
 };
 
-type CollectionSaveButtonProps = Omit<UpdateCollectionActionProps, "collections"> & {
+type CollectionSaveActionsProps = Omit<UpdateCollectionActionProps, "onTrackUpdateCheckout">;
+
+type CollectionSaveButtonProps = Omit<CollectionSaveActionsProps, "collections"> & {
   collection: Collection;
 };
 
@@ -66,6 +76,9 @@ const updateKey = (update: Update): string =>
 const updateWindowLabel = (days: number): string =>
   days === 1 ? "the last day" : `the last ${days} days`;
 
+const saveableCollections = (collections: Collection[]): Collection[] =>
+  collections.filter((collection) => collection.id !== "history");
+
 const publishedLabelFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -77,6 +90,37 @@ const publishedLabel = (published: Date | undefined): string | null => {
   }
 
   return publishedLabelFormatter.format(published);
+};
+
+const updateDescription = (summary: string | null | undefined): string | null => {
+  const description = summary?.trim();
+
+  return description === undefined || description.length === 0 ? null : description;
+};
+
+const presentSourceImageUrl = (imageUrl: string | null | undefined): string | undefined => {
+  const trimmedImageUrl = imageUrl?.trim();
+  return trimmedImageUrl === "" ? undefined : trimmedImageUrl;
+};
+
+const UpdateSourceMetadataImage = ({ update }: { update: Update }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const imageUrl = presentSourceImageUrl(update.source_interest.source_image_url);
+  const showImage = imageUrl !== undefined && imageUrl !== failedImageUrl;
+
+  if (!showImage) {
+    return null;
+  }
+
+  return (
+    <img
+      alt=""
+      className="update-source-image"
+      loading="lazy"
+      onError={() => setFailedImageUrl(imageUrl)}
+      src={imageUrl}
+    />
+  );
 };
 
 const sourceIdentity = (update: Update): string =>
@@ -175,7 +219,7 @@ const CollectionSaveActions = ({
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
   update,
-}: UpdateCollectionActionProps) => (
+}: CollectionSaveActionsProps) => (
   <div className="update-collection-actions" aria-label="Save update to collection">
     {collections.map((collection) => (
       <CollectionSaveButton
@@ -197,20 +241,31 @@ const UpdateItem = ({
   isSavingToCollection,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
   update,
 }: UpdateCollectionActionProps) => {
   const label = publishedLabel(update.published);
+  const description = updateDescription(update.summary);
 
   return (
     <article className="update-item-card">
       <UpdateSourceAvatar update={update} />
       <div className="update-item-content">
-        <a href={update.url} target="_blank" rel="noreferrer">
+        <a
+          href={update.url}
+          onClick={() => onTrackUpdateCheckout(update)}
+          target="_blank"
+          rel="noreferrer"
+        >
           {update.title ?? "Untitled update"}
         </a>
+        {description === null ? null : <p className="update-item-description">{description}</p>}
         <div className="update-item-meta">
-          <span>
-            {update.source_interest.source_label} · {update.source_interest.source_type}
+          <span className="update-source-meta">
+            <UpdateSourceMetadataImage update={update} />
+            <span>
+              {update.source_interest.source_label} · {update.source_interest.source_type}
+            </span>
           </span>
           {label ? <span>{label}</span> : null}
         </div>
@@ -234,6 +289,7 @@ const UpdateGroupCard = ({
   isSavingToCollection,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
 }: {
   collections: Collection[];
   group: UpdateGroup;
@@ -241,6 +297,7 @@ const UpdateGroupCard = ({
   isSavingToCollection: boolean;
   onRemoveSavedUpdate: (collectionId: string, updateKey: string) => void;
   onSaveUpdateToCollection: (collectionId: string, update: Update) => void;
+  onTrackUpdateCheckout: (update: Update) => void;
 }) => (
   <section className="update-group">
     <div className="update-group-header">
@@ -260,6 +317,7 @@ const UpdateGroupCard = ({
           key={updateKey(update)}
           onRemoveSavedUpdate={onRemoveSavedUpdate}
           onSaveUpdateToCollection={onSaveUpdateToCollection}
+          onTrackUpdateCheckout={onTrackUpdateCheckout}
           update={update}
         />
       ))}
@@ -327,10 +385,20 @@ const RequestError = ({ updatesError }: { updatesError: string | null }) =>
     </div>
   );
 
-const EmptyUpdates = ({ days }: { days: number }) => (
+const EmptyUpdates = ({
+  days,
+  sourceTypeFilter,
+}: {
+  days: number;
+  sourceTypeFilter: SourceTypeFilter;
+}) => (
   <div className="updates-callout empty">
     <strong>No updates found</strong>
-    <span>The enabled sources did not publish matching updates in {updateWindowLabel(days)}.</span>
+    <span>
+      {sourceTypeFilter === "all"
+        ? `The enabled sources did not publish matching updates in ${updateWindowLabel(days)}.`
+        : `No ${sourceTypeFilterLabel(sourceTypeFilter).toLowerCase()} updates are loaded for ${updateWindowLabel(days)}.`}
+    </span>
   </div>
 );
 
@@ -371,10 +439,14 @@ export const UpdatesPage = ({
   onRefresh,
   onRemoveSavedUpdate,
   onSaveUpdateToCollection,
+  onTrackUpdateCheckout,
   updates,
   updatesError,
 }: UpdatesPageProps) => {
-  const groups = groupUpdates(updates?.updates ?? []);
+  const [sourceTypeFilter, setSourceTypeFilter] = useState<SourceTypeFilter>("all");
+  const visibleUpdates = filterUpdatesBySourceType(updates?.updates ?? [], sourceTypeFilter);
+  const groups = groupUpdates(visibleUpdates);
+  const collectionsForManualSave = saveableCollections(collections);
 
   return (
     <section id="updates" className="panel updates-page" aria-label="Updates">
@@ -384,6 +456,11 @@ export const UpdatesPage = ({
           {updates !== null && <UpdatesSummary payload={updates} />}
         </div>
         <div className="updates-header-actions">
+          <SourceTypeFilterSelect
+            label="Source type"
+            onChange={setSourceTypeFilter}
+            value={sourceTypeFilter}
+          />
           <UpdateDaysSelect days={days} onDaysChange={onDaysChange} />
           <button
             className="button primary"
@@ -411,17 +488,18 @@ export const UpdatesPage = ({
           <section className="updates-feed" aria-label="Updates feed">
             <SourceErrors payload={updates} />
             {groups.length === 0 ? (
-              <EmptyUpdates days={days} />
+              <EmptyUpdates days={days} sourceTypeFilter={sourceTypeFilter} />
             ) : (
               groups.map((group) => (
                 <UpdateGroupCard
-                  collections={collections}
+                  collections={collectionsForManualSave}
                   group={group}
                   isRemovingSavedUpdate={isRemovingSavedUpdate}
                   isSavingToCollection={isSavingToCollection}
                   key={group.interestName}
                   onRemoveSavedUpdate={onRemoveSavedUpdate}
                   onSaveUpdateToCollection={onSaveUpdateToCollection}
+                  onTrackUpdateCheckout={onTrackUpdateCheckout}
                 />
               ))
             )}

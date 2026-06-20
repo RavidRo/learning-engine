@@ -1,5 +1,8 @@
 ## TypeScript & Code Style
 
+- For brand or theme changes, follow
+  `docs/brand/signal-garden-design-system.md` before adjusting frontend colors,
+  typography, logo usage, or component tone.
 - Never use `any` in TypeScript
 - Prefer `type` over `interface`
 - Prefer arrow functions over `function` keyword

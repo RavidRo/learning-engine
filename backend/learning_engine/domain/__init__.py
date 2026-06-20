@@ -1,1 +1,1 @@
-"""Domain models and rules for the Learning Engine."""
+"""Domain models and rules for Signal Garden."""

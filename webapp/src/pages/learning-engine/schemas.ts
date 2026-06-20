@@ -89,7 +89,7 @@ const savedCollectionUpdateSchema = z.object({
 });
 
 const collectionSchema = z.object({
-  id: z.enum(["see-later", "liked"]),
+  id: z.enum(["see-later", "liked", "history"]),
   name: z.string(),
   saved_updates: z.array(savedCollectionUpdateSchema).catch([]),
 });

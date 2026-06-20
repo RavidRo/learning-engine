@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const briefingPrompt = "Read my Learning Engine interests and prepare an evening briefing.";
+const briefingPrompt = "Read my Signal Garden interests and prepare an evening briefing.";
 
 export const BriefingSection = () => {
   const [didCopy, setDidCopy] = useState(false);

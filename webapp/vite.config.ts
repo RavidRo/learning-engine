@@ -10,12 +10,12 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] }),
     VitePWA({
-      includeAssets: ["favicon.ico", "favicon.svg", "apple-touch-icon.png"],
+      includeAssets: ["favicon.ico", "favicon-32x32.png", "apple-touch-icon.png"],
       devOptions: {
         enabled: true,
       },
       manifest: {
-        background_color: "#fafafa",
+        background_color: "#f8faf8",
         description: "Track learning interests and review fresh updates from saved sources.",
         display: "standalone",
         icons: [
@@ -42,11 +42,11 @@ export default defineConfig({
             type: "image/png",
           },
         ],
-        name: "Learning Engine",
+        name: "Signal Garden",
         scope: "/",
-        short_name: "Learning Engine",
+        short_name: "Signal Garden",
         start_url: "/updates",
-        theme_color: "#fafafa",
+        theme_color: "#f8faf8",
       },
       manifestFilename: "site.webmanifest",
       registerType: "prompt",

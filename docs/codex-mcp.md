@@ -1,6 +1,6 @@
 # Configure Codex MCP Access
 
-This guide connects Codex to the Learning Engine MCP endpoint so Codex can manage
+This guide connects Codex to the Signal Garden MCP endpoint so Codex can manage
 interests and sources through the project backend.
 
 ## Endpoint

@@ -19,11 +19,11 @@ export const HeroSection = ({
   <section id="top" className="hero">
     <div className="hero-copy">
       <p className="eyebrow">Local engine</p>
-      <h1>Learning Engine</h1>
+      <h1>Signal Garden</h1>
       <p className="subtitle">Track the sources that feed your personal learning loop.</p>
     </div>
 
-    <aside className="summary-card" aria-label="Learning Engine summary">
+    <aside className="summary-card" aria-label="Signal Garden summary">
       <div className="summary-header">
         <span className="status-dot" />
         <span>Ready</span>

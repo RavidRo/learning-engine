@@ -1,13 +1,13 @@
 ---
 name: spec-ticket
-description: Read a Linear ticket, interrogate unclear requirements with grill-me, and create an OpenSpec proposal/design/spec/tasks change. Use when the user says /spec-ticket, asks to plan/spec a Linear ticket, or wants the read Linear, grill me, OpenSpec propose workflow.
+description: Read a Linear ticket, move it to In Progress, interrogate unclear requirements with grill-me, and create an OpenSpec proposal/design/spec/tasks change. Use when the user says /spec-ticket, asks to plan/spec a Linear ticket, or wants the read Linear, move to In Progress, grill me, OpenSpec propose workflow.
 ---
 
 # Spec Ticket
 
 ## Overview
 
-Turn a Linear issue into an implementation-ready OpenSpec change. This skill composes the Linear plugin, `grill-me`, and `openspec-propose` into one ticket-planning workflow.
+Turn a Linear issue into an implementation-ready OpenSpec change. This skill composes the Linear plugin, `grill-me`, and `openspec-propose` into one ticket-planning workflow, and moves the ticket to `In Progress` before planning work begins.
 
 ## Workflow
 
@@ -16,26 +16,32 @@ Turn a Linear issue into an implementation-ready OpenSpec change. This skill com
    - If no ticket is provided, ask for the ticket key.
    - Use the ticket title, description, labels, attachments, and project/milestone context.
 
-2. Explore the codebase before asking questions.
+2. Move the ticket to In Progress.
+   - Use the Linear plugin to update the ticket status to `In Progress` before codebase exploration or planning work.
+   - If the exact `In Progress` status is ambiguous, discover statuses for the ticket's team and choose the matching in-progress workflow state.
+   - If the Linear plugin is unavailable, say so and continue only if the user supplied the ticket text.
+
+3. Explore the codebase before asking questions.
    - Search for existing code, specs, docs, and tests related to the ticket.
    - Answer anything discoverable locally without asking the user.
    - Use project guidance from `AGENTS.md`, `.contextive/definitions.yml`, and relevant docs when the change touches architecture, APIs, persistence, security, deployment, or public UX.
 
-3. Grill the ticket.
+4. Grill the ticket.
    - Use `grill-me` behavior: ask one question at a time.
    - Provide a recommended answer for every question.
    - Only ask questions that cannot be answered from Linear or the codebase.
    - Stop grilling once decisions are sufficient for an OpenSpec proposal.
 
-4. Propose the OpenSpec change.
+5. Propose the OpenSpec change.
    - Derive a concise kebab-case change name from the ticket.
    - Use `openspec-propose` to create all required planning artifacts.
    - Make the proposal explicitly reference the Linear ticket key when useful.
    - Include architectural trade-offs for public API, persistence, cross-cutting, service, datastore, or integration changes.
 
-5. Finish with a short summary.
+6. Finish with a short summary.
    - Report the change name and artifact paths.
    - State the key decisions made during grilling.
+   - State that the Linear ticket was moved to `In Progress`, or explain why it was not changed.
    - State whether the change is ready for implementation.
 
 ## Guardrails
