@@ -20,14 +20,49 @@ import {
   type UpdatesPayload,
 } from "./types";
 
+export type SessionTokenProvider = () => Promise<string | null>;
+
 /** Reads the best available error message from a failed response. */
 const readError = async (response: Response): Promise<string> => {
   const message = await response.text();
   return message || response.statusText;
 };
 
-export const fetchInterests = async (): Promise<Interest[]> => {
-  const response = await fetch("/api/interests");
+const authorizationHeader = async (getToken: SessionTokenProvider): Promise<string> => {
+  const token = await getToken();
+  if (token === null) {
+    throw new Error("Sign in again to continue.");
+  }
+  return `Bearer ${token}`;
+};
+
+const authenticatedFetch = async (
+  getToken: SessionTokenProvider,
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response> => {
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", await authorizationHeader(getToken));
+  return await fetch(input, { ...init, headers });
+};
+
+export type LearningEngineApi = ReturnType<typeof createLearningEngineApi>;
+
+export const createLearningEngineApi = (getToken: SessionTokenProvider) => ({
+  downloadInterestExport: () => downloadInterestExport(getToken),
+  fetchCollections: () => fetchCollections(getToken),
+  fetchInterests: () => fetchInterests(getToken),
+  fetchUpdates: (days: number) => fetchUpdates(getToken, days),
+  removeSavedUpdate: (collectionId: string, updateKey: string) =>
+    removeSavedUpdate(getToken, collectionId, updateKey),
+  saveInterests: (interests: Interest[]) => saveInterests(getToken, interests),
+  saveUpdateToCollection: (collectionId: string, update: Update) =>
+    saveUpdateToCollection(getToken, collectionId, update),
+  uploadInterestExport: (file: File) => uploadInterestExport(getToken, file),
+});
+
+const fetchInterests = async (getToken: SessionTokenProvider): Promise<Interest[]> => {
+  const response = await authenticatedFetch(getToken, "/api/interests");
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -37,13 +72,7 @@ export const fetchInterests = async (): Promise<Interest[]> => {
   return payload.interests;
 };
 
-export const saveInterests = async (interests: Interest[]): Promise<Interest[]> => {
-  const response = await fetch("/api/interests", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ interests }, null, 2),
-  });
-
+const savedInterestsFromResponse = async (response: Response): Promise<Interest[]> => {
   if (!response.ok) {
     throw new Error(await readError(response));
   }
@@ -52,8 +81,21 @@ export const saveInterests = async (interests: Interest[]): Promise<Interest[]> 
   return payload.saved.interests;
 };
 
-export const downloadInterestExport = async (): Promise<Blob> => {
-  const response = await fetch("/api/interests/export");
+const saveInterests = async (
+  getToken: SessionTokenProvider,
+  interests: Interest[],
+): Promise<Interest[]> => {
+  const response = await authenticatedFetch(getToken, "/api/interests", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ interests }, null, 2),
+  });
+
+  return await savedInterestsFromResponse(response);
+};
+
+const downloadInterestExport = async (getToken: SessionTokenProvider): Promise<Blob> => {
+  const response = await authenticatedFetch(getToken, "/api/interests/export");
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -62,19 +104,17 @@ export const downloadInterestExport = async (): Promise<Blob> => {
   return await response.blob();
 };
 
-export const uploadInterestExport = async (file: File): Promise<Interest[]> => {
-  const response = await fetch("/api/interests/import", {
+const uploadInterestExport = async (
+  getToken: SessionTokenProvider,
+  file: File,
+): Promise<Interest[]> => {
+  const response = await authenticatedFetch(getToken, "/api/interests/import", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: await file.text(),
   });
 
-  if (!response.ok) {
-    throw new Error(await readError(response));
-  }
-
-  const payload = saveInterestsResponseSchema.parse(await response.json());
-  return payload.saved.interests;
+  return await savedInterestsFromResponse(response);
 };
 
 const parseUpdatesPayload = (responsePayload: unknown): UpdatesPayload => {
@@ -92,8 +132,11 @@ const updatesRequestErrorMessage = (responsePayload: unknown, fallback: string):
   return payload.success ? (payload.data.error ?? "Failed to fetch updates") : fallback;
 };
 
-export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
-  const response = await fetch(`/api/updates?days=${days}`);
+const fetchUpdates = async (
+  getToken: SessionTokenProvider,
+  days: number,
+): Promise<UpdatesPayload> => {
+  const response = await authenticatedFetch(getToken, `/api/updates?days=${days}`);
   const responsePayload = await response.json();
 
   if (!response.ok) {
@@ -103,8 +146,8 @@ export const fetchUpdates = async (days: number): Promise<UpdatesPayload> => {
   return parseUpdatesPayload(responsePayload);
 };
 
-export const fetchCollections = async (): Promise<Collection[]> => {
-  const response = await fetch("/api/collections");
+const fetchCollections = async (getToken: SessionTokenProvider): Promise<Collection[]> => {
+  const response = await authenticatedFetch(getToken, "/api/collections");
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -114,15 +157,20 @@ export const fetchCollections = async (): Promise<Collection[]> => {
   return payload.collections;
 };
 
-export const saveUpdateToCollection = async (
+const saveUpdateToCollection = async (
+  getToken: SessionTokenProvider,
   collectionId: string,
   update: Update,
 ): Promise<SavedCollectionUpdate> => {
-  const response = await fetch(`/api/collections/${collectionId}/updates`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ update }),
-  });
+  const response = await authenticatedFetch(
+    getToken,
+    `/api/collections/${encodeURIComponent(collectionId)}/updates`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ update }),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -131,10 +179,18 @@ export const saveUpdateToCollection = async (
   return saveCollectionUpdateResponseSchema.parse(await response.json()).saved_update;
 };
 
-export const removeSavedUpdate = async (collectionId: string, updateKey: string): Promise<void> => {
-  const response = await fetch(`/api/collections/${collectionId}/updates/${updateKey}`, {
-    method: "DELETE",
-  });
+const removeSavedUpdate = async (
+  getToken: SessionTokenProvider,
+  collectionId: string,
+  updateKey: string,
+): Promise<void> => {
+  const response = await authenticatedFetch(
+    getToken,
+    `/api/collections/${encodeURIComponent(collectionId)}/updates/${encodeURIComponent(updateKey)}`,
+    {
+      method: "DELETE",
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readError(response));

@@ -52,12 +52,12 @@ export default defineConfig({
       registerType: "prompt",
       workbox: {
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/mcp(?:\/|$)/],
       },
     }),
   ],
   lint: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "dev-dist/**"],
     options: {
       denyWarnings: true,
       reportUnusedDisableDirectives: "deny",
@@ -66,12 +66,13 @@ export default defineConfig({
     },
   },
   fmt: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "dev-dist/**"],
     sortPackageJson: true,
   },
   server: {
     proxy: {
       "/api": backendOrigin,
+      "/mcp": backendOrigin,
     },
   },
 });

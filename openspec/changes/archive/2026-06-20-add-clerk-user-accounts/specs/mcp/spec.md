@@ -1,8 +1,6 @@
-## Purpose
+# MCP
 
-Provide authenticated MCP access for AI agents to manage interests and sources through safe command-style tools.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Authenticated MCP endpoint
 The system SHALL expose a remote MCP Streamable HTTP endpoint at `/mcp` from the existing FastAPI backend process for authenticated Clerk users.
@@ -18,25 +16,6 @@ The system SHALL expose a remote MCP Streamable HTTP endpoint at `/mcp` from the
 #### Scenario: Clerk session token is invalid
 - **WHEN** the backend receives an MCP request with an expired, malformed, or unverifiable Clerk session bearer token
 - **THEN** the request is rejected without invoking an MCP tool
-
-### Requirement: MCP browser-origin validation
-The system SHALL validate the `Origin` header for browser-origin MCP requests using `MCP_ALLOWED_ORIGINS`.
-
-#### Scenario: Browser origin is allowed
-- **WHEN** an MCP request includes an `Origin` header listed in `MCP_ALLOWED_ORIGINS` and a valid bearer token
-- **THEN** the request is allowed to continue to MCP protocol handling
-
-#### Scenario: Browser origin is not allowed
-- **WHEN** an MCP request includes an `Origin` header that is not listed in `MCP_ALLOWED_ORIGINS`
-- **THEN** the request is rejected without invoking an MCP tool
-
-#### Scenario: Browser origin allowlist is unset
-- **WHEN** an MCP request includes an `Origin` header and `MCP_ALLOWED_ORIGINS` is empty
-- **THEN** the request is rejected without invoking an MCP tool
-
-#### Scenario: Non-browser client omits origin
-- **WHEN** an MCP request has no `Origin` header and includes a valid bearer token
-- **THEN** the request is not rejected for missing `MCP_ALLOWED_ORIGINS`
 
 ### Requirement: MCP interest listing
 The system SHALL provide an MCP tool that lists interests and their sources with stable IDs and human-readable names for the authenticated user.

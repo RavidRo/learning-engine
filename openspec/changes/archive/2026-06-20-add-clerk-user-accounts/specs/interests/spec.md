@@ -1,8 +1,6 @@
-## Purpose
+# Interests
 
-Define interest data management, including user-facing backup and restore behavior.
-
-## Requirements
+## ADDED Requirements
 
 ### Requirement: Interest API requires user context
 The system SHALL require authenticated user context for interest read and write API operations.
@@ -22,6 +20,8 @@ The system SHALL require authenticated user context for interest read and write 
 #### Scenario: User attempts cross-user write
 - **WHEN** one signed-in user saves interests
 - **THEN** interest lists owned by other users are unchanged
+
+## MODIFIED Requirements
 
 ### Requirement: Export interests as versioned JSON
 
@@ -72,19 +72,3 @@ The system SHALL allow users to import a version 1 interest export envelope as a
 
 - **WHEN** one signed-in user imports interests
 - **THEN** stored interests owned by other users are unchanged
-
-### Requirement: Import action requires explicit replacement confirmation
-
-The system SHALL require explicit user confirmation before uploading an interest import file that will replace the current stored interest list.
-
-#### Scenario: User cancels replacement confirmation
-
-- **WHEN** the user selects an import file and cancels the replacement confirmation
-- **THEN** the system does not upload the file
-- **AND** the current stored interest list remains unchanged
-
-#### Scenario: User confirms replacement
-
-- **WHEN** the user selects an import file and confirms replacement
-- **THEN** the system uploads the file to the import endpoint
-- **AND** the displayed interest list refreshes from the imported saved payload after a successful import

@@ -3,22 +3,62 @@ import pytest
 from learning_engine import config
 
 
-def test_mcp_auth_token_returns_none_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("MCP_AUTH_TOKEN", raising=False)
+def test_clerk_issuer_returns_none_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLERK_ISSUER", raising=False)
 
-    assert config.mcp_auth_token() is None
-
-
-def test_mcp_auth_token_returns_configured_empty_string_when_blank(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", " \t ")
-
-    assert config.mcp_auth_token() == ""
+    assert config.clerk_issuer() is None
 
 
-def test_mcp_auth_token_trims_configured_token(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", " secret-token \n")
+def test_clerk_issuer_returns_none_when_blank(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "  /  ")
 
-    assert config.mcp_auth_token() == "secret-token"
+    assert config.clerk_issuer() is None
+
+
+def test_clerk_issuer_trims_trailing_slash(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", " https://example.clerk.accounts.dev/ ")
+
+    assert config.clerk_issuer() == "https://example.clerk.accounts.dev"
+
+
+def test_clerk_jwks_url_returns_none_without_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLERK_ISSUER", raising=False)
+    monkeypatch.delenv("CLERK_JWKS_URL", raising=False)
+
+    assert config.clerk_jwks_url() is None
+
+
+def test_clerk_jwks_url_uses_explicit_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "https://example.clerk.accounts.dev")
+    monkeypatch.setenv("CLERK_JWKS_URL", " https://clerk.example.test/jwks.json ")
+
+    assert config.clerk_jwks_url() == "https://clerk.example.test/jwks.json"
+
+
+def test_clerk_jwks_url_returns_none_for_blank_explicit_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "https://example.clerk.accounts.dev")
+    monkeypatch.setenv("CLERK_JWKS_URL", "  ")
+
+    assert config.clerk_jwks_url() is None
+
+
+def test_clerk_jwks_url_uses_issuer_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "https://example.clerk.accounts.dev/")
+    monkeypatch.delenv("CLERK_JWKS_URL", raising=False)
+
+    assert config.clerk_jwks_url() == "https://example.clerk.accounts.dev/.well-known/jwks.json"
+
+
+def test_clerk_authorized_parties_returns_empty_list_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CLERK_AUTHORIZED_PARTIES", raising=False)
+
+    assert config.clerk_authorized_parties() == []
+
+
+def test_clerk_authorized_parties_parses_multiple_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_AUTHORIZED_PARTIES", " http://localhost:5173,https://app.example.com , ")
+
+    assert config.clerk_authorized_parties() == ["http://localhost:5173", "https://app.example.com"]
 
 
 def test_mcp_allowed_origins_returns_empty_list_when_missing(monkeypatch: pytest.MonkeyPatch) -> None:

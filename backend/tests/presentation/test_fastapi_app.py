@@ -10,6 +10,7 @@ from cachetools import TTLCache
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from learning_engine.application.auth import UserContext
 from learning_engine.application.resolve_source_image import (
     SourceImageConfigurationError,
     SourceImageProviderError,
@@ -28,6 +29,7 @@ from learning_engine.domain.interests import Interests, InterestSource
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceInterest, SourceUpdate, Update
 from learning_engine.presentation.app import app, create_app
+from learning_engine.presentation.auth import INVALID_AUTH_TOKEN_DETAIL, InvalidAuthTokenError
 
 router_module = importlib.import_module("learning_engine.presentation.interests_router")
 
@@ -46,9 +48,11 @@ EXPECTED_RETRY_CALLS = 2
 UPDATES_LOAD_BUDGET_SECONDS = 4
 UPDATE_KEY_LENGTH = 64
 MCP_HEADERS = {
-    "Authorization": "Bearer mcp-secret",
+    "Authorization": "Bearer test-session",
     "Accept": "application/json, text/event-stream",
 }
+AUTH_HEADERS = {"Authorization": "Bearer test-session"}
+TEST_USER_CONTEXT = UserContext(user_id="user_test")
 
 
 async def no_source_image(*_args: object) -> str | None:
@@ -64,11 +68,11 @@ class StubInterestRepository:
     def ensure_data_store(self) -> None:
         return None
 
-    def read_interests(self) -> Interests:
+    def read_interests(self, _user_context: UserContext) -> Interests:
         self.read_calls += 1
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
-    def write_interests(self, payload: Interests) -> None:
+    def write_interests(self, _user_context: UserContext, payload: Interests) -> None:
         self.saved_payloads.append(payload)
 
 
@@ -80,7 +84,7 @@ class StubCollectionRepository:
     def ensure_data_store(self) -> None:
         return None
 
-    def list_collections(self) -> Collections:
+    def list_collections(self, _user_context: UserContext) -> Collections:
         saved_updates_by_collection = {
             "see-later": [
                 saved_update
@@ -124,6 +128,7 @@ class StubCollectionRepository:
 
     def save_update_to_collection(
         self,
+        _user_context: UserContext,
         collection_id: CollectionId,
         update_key: str,
         update: SavedUpdateSnapshot,
@@ -138,7 +143,12 @@ class StubCollectionRepository:
         self.saved_updates[(collection_id, update_key)] = saved_update
         return saved_update
 
-    def remove_update_from_collection(self, collection_id: CollectionId, update_key: str) -> None:
+    def remove_update_from_collection(
+        self,
+        _user_context: UserContext,
+        collection_id: CollectionId,
+        update_key: str,
+    ) -> None:
         if collection_id not in {"see-later", "liked"}:
             raise CollectionNotFoundError(f"Collection not found: {collection_id}")
         self.removed.append((collection_id, update_key))
@@ -165,6 +175,13 @@ class StubSourceUpdateCollector:
         return await self._collect_source_updates(source)
 
 
+class StubAuthVerifier:
+    def verify_token(self, token: str) -> UserContext:
+        if token != "test-session":  # noqa: S105
+            raise InvalidAuthTokenError(INVALID_AUTH_TOKEN_DETAIL)
+        return TEST_USER_CONTEXT
+
+
 def _create_test_app(
     *,
     repository: StubInterestRepository | None = None,
@@ -174,10 +191,19 @@ def _create_test_app(
     api = create_app()
     api.state.interest_repository = repository or StubInterestRepository()
     api.state.collection_repository = collection_repository or StubCollectionRepository()
+    api.state.auth_verifier = StubAuthVerifier()
     api.state.source_image_provider_factory = lambda _fetcher: StubSourceImageProvider()
     if source_update_collector is not None:
         api.state.source_update_collector_factory = lambda _fetcher: source_update_collector
     return api
+
+
+def _client(api: FastAPI, *, base_url: str = "http://testserver") -> TestClient:
+    return TestClient(api, base_url=base_url, headers=AUTH_HEADERS)
+
+
+def _bare_client(api: FastAPI, *, base_url: str = "http://testserver") -> TestClient:
+    return TestClient(api, base_url=base_url)
 
 
 def test_health_endpoint() -> None:
@@ -203,7 +229,7 @@ def test_source_image_endpoint_returns_resolved_image(
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
-    with TestClient(_create_test_app()) as client:
+    with _client(_create_test_app()) as client:
         response = client.post("/api/source-image", json={"type": "youtube_channel", "url": " @example "})
 
     assert response.status_code == HTTP_OK
@@ -218,7 +244,7 @@ def test_source_image_endpoint_returns_null_on_resolver_miss(
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
-    with TestClient(_create_test_app()) as client:
+    with _client(_create_test_app()) as client:
         response = client.post(
             "/api/source-image",
             json={"type": "feed", "url": "https://example.com/feed.xml"},
@@ -395,7 +421,7 @@ def test_batch_source_images_endpoint_does_not_persist_resolved_images(
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         assert (
             client.post(
                 "/api/source-images",
@@ -445,7 +471,7 @@ def test_source_image_endpoint_returns_matching_error_for_resolver_failures(
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
-    with TestClient(_create_test_app()) as client:
+    with _client(_create_test_app()) as client:
         response = client.post(
             "/api/source-image",
             json={"type": "spotify_podcast", "url": "spotify:show:show-one"},
@@ -466,7 +492,7 @@ def test_source_image_endpoint_does_not_persist_resolved_image(
 
     monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         assert client.post(
             "/api/source-image",
             json={"type": "feed", "url": "https://example.com/feed.xml"},
@@ -480,7 +506,7 @@ def test_source_image_endpoint_does_not_persist_resolved_image(
 def test_export_interests_returns_versioned_envelope_with_all_stored_interests() -> None:
     repository = StubInterestRepository(_payload_with_archived_interest())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         response = client.get("/api/interests/export")
 
     assert response.status_code == HTTP_OK
@@ -517,7 +543,7 @@ def test_import_interests_replaces_all_stored_interests() -> None:
         ],
     }
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         response = client.post("/api/interests/import", json=imported)
         saved = client.get("/api/interests")
 
@@ -544,7 +570,7 @@ def test_import_interests_rejects_invalid_envelope_without_writing(
 ) -> None:
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         response = client.post("/api/interests/import", json=payload)
 
     assert response.status_code == HTTP_BAD_REQUEST
@@ -555,7 +581,7 @@ def test_import_interests_rejects_invalid_envelope_without_writing(
 def test_import_interests_rejects_malformed_json_without_writing() -> None:
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         response = client.post(
             "/api/interests/import",
             content="{",
@@ -568,7 +594,7 @@ def test_import_interests_rejects_malformed_json_without_writing() -> None:
 
 
 def test_collections_endpoint_lists_fixed_collections() -> None:
-    with TestClient(_create_test_app()) as client:
+    with _client(_create_test_app()) as client:
         response = client.get("/api/collections")
 
     assert response.status_code == HTTP_OK
@@ -582,7 +608,7 @@ def test_collections_endpoint_lists_fixed_collections() -> None:
 def test_save_collection_update_stores_snapshot_and_returns_key() -> None:
     collection_repository = StubCollectionRepository()
 
-    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+    with _client(_create_test_app(collection_repository=collection_repository)) as client:
         response = client.post(
             "/api/collections/see-later/updates",
             json={"update": _saved_update_payload()},
@@ -600,7 +626,7 @@ def test_save_collection_update_stores_snapshot_and_returns_key() -> None:
 def test_repeated_collection_save_preserves_original_saved_update() -> None:
     collection_repository = StubCollectionRepository()
 
-    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+    with _client(_create_test_app(collection_repository=collection_repository)) as client:
         first = client.post(
             "/api/collections/liked/updates",
             json={"update": _saved_update_payload(title="Original")},
@@ -619,7 +645,7 @@ def test_repeated_collection_save_preserves_original_saved_update() -> None:
 def test_collections_endpoint_returns_saved_updates_ordered_by_save_time() -> None:
     collection_repository = StubCollectionRepository()
 
-    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+    with _client(_create_test_app(collection_repository=collection_repository)) as client:
         client.post(
             "/api/collections/see-later/updates",
             json={"update": _saved_update_payload(url="https://e.test/old")},
@@ -641,7 +667,7 @@ def test_collections_endpoint_returns_saved_updates_ordered_by_save_time() -> No
 def test_remove_collection_update_removes_one_saved_update() -> None:
     collection_repository = StubCollectionRepository()
 
-    with TestClient(_create_test_app(collection_repository=collection_repository)) as client:
+    with _client(_create_test_app(collection_repository=collection_repository)) as client:
         save_response = client.post("/api/collections/liked/updates", json={"update": _saved_update_payload()})
         update_key = save_response.json()["saved_update"]["update_key"]
         remove_response = client.delete(f"/api/collections/liked/updates/{update_key}")
@@ -660,7 +686,7 @@ def test_remove_collection_update_removes_one_saved_update() -> None:
     ],
 )
 def test_collection_endpoints_reject_unknown_collections(method: str, path: str) -> None:
-    with TestClient(_create_test_app()) as client:
+    with _client(_create_test_app()) as client:
         if method == "post":
             response = client.post(path, json={"update": _saved_update_payload()})
         else:
@@ -671,7 +697,7 @@ def test_collection_endpoints_reject_unknown_collections(method: str, path: str)
 
 
 def test_updates_rejects_non_positive_days() -> None:
-    client = TestClient(app)
+    client = _client(_create_test_app())
 
     response = client.get("/api/updates?days=0")
 
@@ -824,7 +850,7 @@ def test_updates_endpoint_reuses_cached_response_for_five_minutes(
         repository=StubInterestRepository(_read_default_payload()),
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
-    with TestClient(api) as client:
+    with _client(api) as client:
         first = client.get(path)
         second = client.get(path)
 
@@ -877,8 +903,9 @@ def test_updates_endpoint_reuses_source_document_for_image_enrichment(
     api = create_app()
     api.state.interest_repository = StubInterestRepository(_read_default_payload())
     api.state.collection_repository = StubCollectionRepository()
+    api.state.auth_verifier = StubAuthVerifier()
 
-    with TestClient(api) as client:
+    with _client(api) as client:
         started_at = perf_counter()
         response = client.get("/api/updates")
         elapsed = perf_counter() - started_at
@@ -892,11 +919,10 @@ def test_updates_endpoint_reuses_source_document_for_image_enrichment(
 def test_mcp_endpoint_lists_tools_when_configured(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository), base_url="http://localhost") as client:
+    with _client(_create_test_app(repository=repository), base_url="http://localhost") as client:
         response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
 
     assert response.status_code == HTTP_OK
@@ -917,11 +943,10 @@ def test_mcp_endpoint_lists_tools_when_configured(
 
 
 def test_mcp_tool_uses_app_interest_repository(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository), base_url="http://localhost") as client:
+    with _client(_create_test_app(repository=repository), base_url="http://localhost") as client:
         response = client.post(
             "/mcp",
             headers=MCP_HEADERS,
@@ -933,13 +958,12 @@ def test_mcp_tool_uses_app_interest_repository(monkeypatch: pytest.MonkeyPatch) 
     assert repository.read_calls == 1
 
 
-def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.delenv("MCP_AUTH_TOKEN", raising=False)
+def test_mcp_endpoint_returns_unavailable_when_clerk_is_not_configured() -> None:
     repository = StubInterestRepository(_payload())
+    api = _create_test_app(repository=repository)
+    del api.state.auth_verifier
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(api) as client:
         response = client.post(
             "/mcp",
             headers=MCP_HEADERS,
@@ -947,14 +971,14 @@ def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(
         )
 
     assert response.status_code == HTTP_SERVICE_UNAVAILABLE
-    assert response.json() == {"detail": "MCP is unavailable because MCP_AUTH_TOKEN is not configured"}
+    assert response.json() == {"detail": "Authentication is unavailable because Clerk is not configured"}
     assert repository.read_calls == 0
 
 
 @pytest.mark.parametrize(
     "headers",
     [
-        {},
+        {"Accept": "application/json, text/event-stream"},
         {
             "Authorization": "Bearer wrong",
             "Accept": "application/json, text/event-stream",
@@ -962,13 +986,11 @@ def test_mcp_endpoint_returns_unavailable_when_token_is_not_configured(
     ],
 )
 def test_mcp_endpoint_rejects_missing_or_invalid_bearer_token(
-    monkeypatch: pytest.MonkeyPatch,
     headers: dict[str, str],
 ) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _bare_client(_create_test_app(repository=repository), base_url="http://localhost") as client:
         response = client.post(
             "/mcp",
             headers=headers,
@@ -976,17 +998,16 @@ def test_mcp_endpoint_rejects_missing_or_invalid_bearer_token(
         )
 
     assert response.status_code == HTTP_UNAUTHORIZED
-    assert response.json() == {"detail": "Missing or invalid MCP bearer token"}
+    assert response.json() == {"detail": "Missing or invalid Clerk bearer token"}
     assert repository.read_calls == 0
 
 
 def test_mcp_endpoint_allows_configured_browser_origin(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.setenv("MCP_ALLOWED_ORIGINS", "https://app.example.com")
 
-    with TestClient(_create_test_app(), base_url="http://localhost") as client:
+    with _client(_create_test_app(), base_url="http://localhost") as client:
         response = client.post(
             "/mcp",
             headers={**MCP_HEADERS, "Origin": "https://app.example.com"},
@@ -1001,11 +1022,10 @@ def test_mcp_endpoint_rejects_disallowed_or_unset_browser_origin(
     monkeypatch: pytest.MonkeyPatch,
     allowed_origins: str,
 ) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.setenv("MCP_ALLOWED_ORIGINS", allowed_origins)
     repository = StubInterestRepository(_payload())
 
-    with TestClient(_create_test_app(repository=repository)) as client:
+    with _client(_create_test_app(repository=repository)) as client:
         response = client.post(
             "/mcp",
             headers={**MCP_HEADERS, "Origin": "https://evil.example.com"},
@@ -1020,10 +1040,9 @@ def test_mcp_endpoint_rejects_disallowed_or_unset_browser_origin(
 def test_mcp_endpoint_allows_non_browser_request_without_origin_allowlist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("MCP_AUTH_TOKEN", "mcp-secret")
     monkeypatch.delenv("MCP_ALLOWED_ORIGINS", raising=False)
 
-    with TestClient(_create_test_app(), base_url="http://localhost") as client:
+    with _client(_create_test_app(), base_url="http://localhost") as client:
         response = client.post("/mcp", headers=MCP_HEADERS, json=_mcp_request(1, "tools/list"))
 
     assert response.status_code == HTTP_OK
@@ -1049,7 +1068,7 @@ def test_updates_endpoint_expires_cached_response_after_five_minutes(
     )
     api.state.source_updates_cache = TTLCache(maxsize=128, ttl=300, timer=monotonic)
 
-    with TestClient(api) as client:
+    with _client(api) as client:
         assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
         current_time += 301
         assert client.get("/api/updates").json()["updates"][0]["title"] == "call-2"
@@ -1069,7 +1088,7 @@ def test_updates_endpoint_cache_key_includes_selected_days(
         repository=StubInterestRepository(_read_default_payload()),
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
-    with TestClient(api) as client:
+    with _client(api) as client:
         first = client.get("/api/updates?days=7")
         second = client.get("/api/updates?days=30")
         repeated_first = client.get("/api/updates?days=7")
@@ -1094,7 +1113,7 @@ def test_saving_interests_keeps_source_cache(
         repository=repository,
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
-    with TestClient(api) as client:
+    with _client(api) as client:
         assert client.get("/api/updates").json()["updates"][0]["title"] == "call-1"
         saved = _payload().model_dump(mode="json", by_alias=True)
         client.post("/api/interests", json=saved)
@@ -1116,7 +1135,7 @@ def test_updates_endpoint_retries_source_errors_instead_of_caching_them(
         repository=StubInterestRepository(_read_default_payload()),
         source_update_collector=StubSourceUpdateCollector(collect_source_updates),
     )
-    with TestClient(api) as client:
+    with _client(api) as client:
         first_response = client.get("/api/updates")
         second_response = client.get("/api/updates")
 

@@ -26,9 +26,14 @@ services:
         sync: false
       - key: SPOTIFY_ACCESS_TOKEN
         sync: false
-      # MCP interest-management access. Fill these in the Render Dashboard before using /mcp.
-      - key: MCP_AUTH_TOKEN
+      # Clerk authentication. Fill these in the Render Dashboard before deployment.
+      - key: CLERK_ISSUER
         sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: CLERK_AUTHORIZED_PARTIES
+        sync: false
+      # MCP browser-origin protection. Auth uses Clerk session bearer tokens.
       - key: MCP_ALLOWED_ORIGINS
         sync: false
       - key: MCP_ALLOWED_HOSTS
@@ -41,6 +46,9 @@ services:
     buildCommand: pnpm install --frozen-lockfile && pnpm run build
     staticPublishPath: ./dist
     autoDeployTrigger: commit
+    envVars:
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
     routes:
       # Keep browser requests same-origin by proxying API calls from the static site
       # to the public backend service. If Render assigns a different backend URL,
@@ -51,6 +59,12 @@ services:
       - type: rewrite
         source: /api
         destination: https://learning-engine-backend.onrender.com/api
+      - type: rewrite
+        source: /mcp
+        destination: https://learning-engine-backend.onrender.com/mcp
+      - type: rewrite
+        source: /mcp/*
+        destination: https://learning-engine-backend.onrender.com/mcp/*
       # Support client-side routing for the React/Vite app.
       - type: rewrite
         source: /*

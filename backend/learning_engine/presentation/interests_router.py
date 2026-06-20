@@ -1,14 +1,13 @@
 """FastAPI routes for interests, source images, and updates."""
 
-from __future__ import annotations
-
 import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, FastAPI, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, status
 from pydantic import ValidationError
 
+from learning_engine.application.auth import UserContext
 from learning_engine.application.collect_updates import (
     CollectUpdatesDependencies,
     SourceUpdatesCacheOptions,
@@ -24,6 +23,7 @@ from learning_engine.application.resolve_source_image import (
 from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.interests import Interests
+from learning_engine.presentation.auth import user_context_dependency
 from learning_engine.presentation.schemas import (
     BatchSourceImageRequest,
     BatchSourceImageResponse,
@@ -102,30 +102,38 @@ async def _batch_source_image_results(
 
 def interests_router(api: FastAPI) -> APIRouter:
     router = APIRouter(prefix="/api")
+    require_user_context = user_context_dependency(api)
+    current_user_context = Annotated[UserContext, Depends(require_user_context)]
 
     @router.get("/interests", response_model=Interests)
-    def get_interests() -> Interests:
-        return get_app_state(api).interest_repository.read_interests()
+    def get_interests(user_context: current_user_context) -> Interests:
+        return get_app_state(api).interest_repository.read_interests(user_context)
 
     @router.post("/interests")
-    def save_interests(interests: Interests) -> dict[str, object]:
+    def save_interests(
+        interests: Interests,
+        user_context: current_user_context,
+    ) -> dict[str, object]:
         repository = get_app_state(api).interest_repository
-        repository.write_interests(interests)
+        repository.write_interests(user_context, interests)
         return {
             "ok": True,
-            "saved": repository.read_interests().model_dump(mode="json", by_alias=True),
+            "saved": repository.read_interests(user_context).model_dump(mode="json", by_alias=True),
         }
 
     @router.get("/interests/export", response_model=InterestExportEnvelope)
-    def export_interests() -> InterestExportEnvelope:
+    def export_interests(user_context: current_user_context) -> InterestExportEnvelope:
         return InterestExportEnvelope(
             schema_version=1,
             exported_at=datetime.now(UTC),
-            interests=get_app_state(api).interest_repository.read_interests().interests,
+            interests=get_app_state(api).interest_repository.read_interests(user_context).interests,
         )
 
     @router.post("/interests/import")
-    async def import_interests(request: Request) -> dict[str, object]:
+    async def import_interests(
+        request: Request,
+        user_context: current_user_context,
+    ) -> dict[str, object]:
         try:
             payload = await request.json()
             imported = InterestExportEnvelope.model_validate(payload)
@@ -141,10 +149,10 @@ def interests_router(api: FastAPI) -> APIRouter:
             ) from exc
 
         repository = get_app_state(api).interest_repository
-        repository.write_interests(Interests(interests=imported.interests))
+        repository.write_interests(user_context, Interests(interests=imported.interests))
         return {
             "ok": True,
-            "saved": repository.read_interests().model_dump(mode="json", by_alias=True),
+            "saved": repository.read_interests(user_context).model_dump(mode="json", by_alias=True),
         }
 
     @router.post("/source-image", response_model=SourceImageResponse)
@@ -160,17 +168,18 @@ def interests_router(api: FastAPI) -> APIRouter:
 
     @router.get("/updates", response_model=UpdatesResponse)
     async def updates(
+        user_context: current_user_context,
         days: Annotated[int | None, Query(ge=1)] = None,
     ) -> UpdatesResponse:
         timeframe = _timeframe_from_days(days, datetime.now(UTC))
-        cache_scope = "all" if days is None else f"days:{days}"
+        cache_scope = f"user:{user_context.user_id}:all" if days is None else f"user:{user_context.user_id}:days:{days}"
         app_state = get_app_state(api)
         source_updates_cache_options = SourceUpdatesCacheOptions(
             cache=app_state.source_updates_cache,
             scope=cache_scope,
         )
         return await collect_updates(
-            app_state.interest_repository.read_interests(),
+            app_state.interest_repository.read_interests(user_context),
             timeframe=timeframe,
             dependencies=CollectUpdatesDependencies(
                 source_update_collector=app_state.source_update_collector,

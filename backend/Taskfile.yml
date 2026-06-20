@@ -23,12 +23,12 @@ tasks:
   run:
     desc: Run the FastAPI app
     cmds:
-      - uv run uvicorn learning_engine.app:app --host {{.HOST}} --port {{.PORT}}
+      - uv run uvicorn learning_engine.presentation.app:app --host {{.HOST}} --port {{.PORT}}
 
   dev:
     desc: Run the FastAPI app with reload enabled
     cmds:
-      - uv run uvicorn learning_engine.app:app --host {{.HOST}} --port {{.PORT}} --reload
+      - uv run uvicorn learning_engine.presentation.app:app --host {{.HOST}} --port {{.PORT}} --reload
 
   lint:
     desc: Lint the project with Ruff

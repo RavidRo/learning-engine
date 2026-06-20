@@ -16,6 +16,7 @@ from pydantic import (
     field_validator,
 )
 
+from learning_engine.application.auth import UserContext
 from learning_engine.application.ports import InterestRepository
 from learning_engine.domain.interests import (
     Interest,
@@ -113,8 +114,13 @@ class SourceUpdateInput(BaseModel):
         return normalize_source_type(value)
 
 
-def list_interests(repository: InterestRepository, *, include_deleted: bool = False) -> CommandResponse:
-    payload = repository.read_interests()
+def list_interests(
+    repository: InterestRepository,
+    user_context: UserContext,
+    *,
+    include_deleted: bool = False,
+) -> CommandResponse:
+    payload = repository.read_interests(user_context)
     interests = [
         _interest_response(interest, include_deleted=include_deleted)
         for interest in payload.interests
@@ -129,11 +135,12 @@ def _default_id_factory() -> str:
 
 def create_interest(
     repository: InterestRepository,
+    user_context: UserContext,
     command: InterestCreateInput,
     *,
     id_factory: IdFactory = _default_id_factory,
 ) -> CommandResponse:
-    payload = repository.read_interests()
+    payload = repository.read_interests(user_context)
     used_ids = _all_ids(payload)
     interest_id = _generate_id("interest", used_ids, id_factory)
     sources = [_source_from_input(source, _generate_id("source", used_ids, id_factory)) for source in command.sources]
@@ -146,62 +153,65 @@ def create_interest(
         sources=sources,
     )
     updated = Interests(interests=[*payload.interests, interest])
-    _write_validated(repository, updated)
+    _write_validated(repository, user_context, updated)
     return {"interest": _interest_response(interest, include_deleted=True)}
 
 
 def update_interest(
     repository: InterestRepository,
+    user_context: UserContext,
     interest_id: str,
     command: InterestUpdateInput,
 ) -> CommandResponse:
-    payload = repository.read_interests()
+    payload = repository.read_interests(user_context)
     interests = list(payload.interests)
     index, interest = _find_active_interest(interests, interest_id)
     updated_interest = interest.model_copy(
         update={key: value for key, value in command.model_dump(exclude_unset=True).items() if value is not None}
     )
     interests[index] = updated_interest
-    _write_validated(repository, Interests(interests=interests))
+    _write_validated(repository, user_context, Interests(interests=interests))
     return {"interest": _interest_response(updated_interest, include_deleted=True)}
 
 
-def pause_interest(repository: InterestRepository, interest_id: str) -> CommandResponse:
-    return _set_interest_state(repository, interest_id, "pause")
+def pause_interest(repository: InterestRepository, user_context: UserContext, interest_id: str) -> CommandResponse:
+    return _set_interest_state(repository, user_context, interest_id, "pause")
 
 
-def resume_interest(repository: InterestRepository, interest_id: str) -> CommandResponse:
-    return _set_interest_state(repository, interest_id, "resume")
+def resume_interest(repository: InterestRepository, user_context: UserContext, interest_id: str) -> CommandResponse:
+    return _set_interest_state(repository, user_context, interest_id, "resume")
 
 
-def delete_interest(repository: InterestRepository, interest_id: str) -> CommandResponse:
-    return _set_interest_state(repository, interest_id, "delete")
+def delete_interest(repository: InterestRepository, user_context: UserContext, interest_id: str) -> CommandResponse:
+    return _set_interest_state(repository, user_context, interest_id, "delete")
 
 
 def add_source(
     repository: InterestRepository,
+    user_context: UserContext,
     interest_id: str,
     command: SourceInput,
     *,
     id_factory: IdFactory = _default_id_factory,
 ) -> CommandResponse:
-    payload = repository.read_interests()
+    payload = repository.read_interests(user_context)
     interests = list(payload.interests)
     index, interest = _find_active_interest(interests, interest_id)
     source = _source_from_input(command, _generate_id("source", _all_ids(payload), id_factory))
     updated_interest = interest.model_copy(update={"sources": [*interest.sources, source]})
     interests[index] = updated_interest
-    _write_validated(repository, Interests(interests=interests))
+    _write_validated(repository, user_context, Interests(interests=interests))
     return {"source": _source_response(source, include_deleted=True)}
 
 
 def update_source(
     repository: InterestRepository,
+    user_context: UserContext,
     interest_id: str,
     source_id: str,
     command: SourceUpdateInput,
 ) -> CommandResponse:
-    payload = repository.read_interests()
+    payload = repository.read_interests(user_context)
     interests = list(payload.interests)
     interest_index, interest = _find_active_interest(interests, interest_id)
     sources = list(interest.sources)
@@ -209,40 +219,61 @@ def update_source(
     updated_source = source.model_copy(update=command.model_dump(exclude_unset=True))
     sources[source_index] = updated_source
     interests[interest_index] = interest.model_copy(update={"sources": sources})
-    _write_validated(repository, Interests(interests=interests))
+    _write_validated(repository, user_context, Interests(interests=interests))
     return {"source": _source_response(updated_source, include_deleted=True)}
 
 
-def pause_source(repository: InterestRepository, interest_id: str, source_id: str) -> CommandResponse:
-    return _set_source_state(repository, interest_id, source_id, "pause")
+def pause_source(
+    repository: InterestRepository,
+    user_context: UserContext,
+    interest_id: str,
+    source_id: str,
+) -> CommandResponse:
+    return _set_source_state(repository, user_context, interest_id, source_id, "pause")
 
 
-def resume_source(repository: InterestRepository, interest_id: str, source_id: str) -> CommandResponse:
-    return _set_source_state(repository, interest_id, source_id, "resume")
+def resume_source(
+    repository: InterestRepository,
+    user_context: UserContext,
+    interest_id: str,
+    source_id: str,
+) -> CommandResponse:
+    return _set_source_state(repository, user_context, interest_id, source_id, "resume")
 
 
-def delete_source(repository: InterestRepository, interest_id: str, source_id: str) -> CommandResponse:
-    return _set_source_state(repository, interest_id, source_id, "delete")
+def delete_source(
+    repository: InterestRepository,
+    user_context: UserContext,
+    interest_id: str,
+    source_id: str,
+) -> CommandResponse:
+    return _set_source_state(repository, user_context, interest_id, source_id, "delete")
 
 
-def _set_interest_state(repository: InterestRepository, interest_id: str, action: WriteAction) -> CommandResponse:
-    payload = repository.read_interests()
+def _set_interest_state(
+    repository: InterestRepository,
+    user_context: UserContext,
+    interest_id: str,
+    action: WriteAction,
+) -> CommandResponse:
+    payload = repository.read_interests(user_context)
     interests = list(payload.interests)
     index, interest = _find_active_interest(interests, interest_id)
     update = _state_update(action)
     updated_interest = interest.model_copy(update=update)
     interests[index] = updated_interest
-    _write_validated(repository, Interests(interests=interests))
+    _write_validated(repository, user_context, Interests(interests=interests))
     return {"interest": _interest_response(updated_interest, include_deleted=True)}
 
 
 def _set_source_state(
     repository: InterestRepository,
+    user_context: UserContext,
     interest_id: str,
     source_id: str,
     action: WriteAction,
 ) -> CommandResponse:
-    payload = repository.read_interests()
+    payload = repository.read_interests(user_context)
     interests = list(payload.interests)
     interest_index, interest = _find_active_interest(interests, interest_id)
     sources = list(interest.sources)
@@ -250,7 +281,7 @@ def _set_source_state(
     updated_source = source.model_copy(update=_state_update(action))
     sources[source_index] = updated_source
     interests[interest_index] = interest.model_copy(update={"sources": sources})
-    _write_validated(repository, Interests(interests=interests))
+    _write_validated(repository, user_context, Interests(interests=interests))
     return {"source": _source_response(updated_source, include_deleted=True)}
 
 
@@ -262,12 +293,12 @@ def _state_update(action: WriteAction) -> CommandResponse:
     return {"deleted_at": _deleted_timestamp()}
 
 
-def _write_validated(repository: InterestRepository, payload: Interests) -> None:
+def _write_validated(repository: InterestRepository, user_context: UserContext, payload: Interests) -> None:
     try:
         validated = Interests.model_validate(payload.model_dump(mode="json", by_alias=True))
     except ValidationError as exc:
         raise McpInterestValidationError(str(exc)) from exc
-    repository.write_interests(validated)
+    repository.write_interests(user_context, validated)
 
 
 def _source_from_input(source: SourceInput, source_id: str) -> InterestSource:
