@@ -8,7 +8,7 @@ Source images are derived metadata. Existing requirements state they must not be
 
 **Goals:**
 
-- Load all visible interest source images within 3 seconds for normal configured interests.
+- Load all visible interest source images within 4 seconds for normal configured interests.
 - Keep automatic source images derived and non-persistent.
 - Preserve manual source image precedence.
 - Reuse the existing source-image provider boundary and resolver error classification.

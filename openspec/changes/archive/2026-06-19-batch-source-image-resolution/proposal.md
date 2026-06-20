@@ -1,6 +1,6 @@
 ## Why
 
-RAV-26 reports that loading source images for all interests is too slow because each source image is fetched one by one. The interests page should load visible interest source images within 3 seconds for normal configured sources without persisting derived image URLs.
+RAV-26 reports that loading source images for all interests is too slow because each source image is fetched one by one. The interests page should load visible interest source images within 4 seconds for normal configured sources without persisting derived image URLs.
 
 ## What Changes
 

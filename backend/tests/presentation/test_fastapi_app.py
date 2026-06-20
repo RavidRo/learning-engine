@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
@@ -33,6 +34,7 @@ router_module = importlib.import_module("learning_engine.presentation.interests_
 HTTP_OK = 200
 HTTP_BAD_REQUEST = 400
 HTTP_BAD_GATEWAY = 502
+HTTP_PAYLOAD_TOO_LARGE = 413
 HTTP_SERVICE_UNAVAILABLE = 503
 HTTP_INTERNAL_SERVER_ERROR = 500
 HTTP_NOT_FOUND = 404
@@ -330,6 +332,56 @@ def test_batch_source_images_endpoint_keeps_other_results_on_misses_and_errors(
             },
         ]
     }
+
+
+def test_batch_source_images_endpoint_rejects_too_many_sources() -> None:
+    payload = [
+        {"id": f"source-{index}", "type": "feed", "url": f"https://example.com/{index}.xml"}
+        for index in range(router_module.BATCH_SOURCE_IMAGE_MAX_REQUESTS + 1)
+    ]
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post("/api/source-images", json=payload)
+
+    assert response.status_code == HTTP_PAYLOAD_TOO_LARGE
+    assert response.json() == {
+        "detail": f"Batch source image requests are limited to {router_module.BATCH_SOURCE_IMAGE_MAX_REQUESTS} sources"
+    }
+
+
+def test_batch_source_images_endpoint_limits_concurrent_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    running = 0
+    max_running = 0
+
+    async def resolve_source_image(
+        source_type: str,
+        source_url: str,
+        *_args: object,
+    ) -> str | None:
+        nonlocal max_running, running
+        running += 1
+        max_running = max(max_running, running)
+        await asyncio.sleep(0.01)
+        running -= 1
+        return f"{source_url}.png"
+
+    monkeypatch.setattr(router_module, "resolve_source_image", resolve_source_image)
+
+    payload = [
+        {"id": f"source-{index}", "type": "feed", "url": f"https://example.com/{index}.xml"}
+        for index in range(router_module.BATCH_SOURCE_IMAGE_MAX_CONCURRENCY + 5)
+    ]
+
+    with TestClient(_create_test_app()) as client:
+        response = client.post("/api/source-images", json=payload)
+
+    assert response.status_code == HTTP_OK
+    assert max_running == router_module.BATCH_SOURCE_IMAGE_MAX_CONCURRENCY
+    assert [image["sourceId"] for image in response.json()["images"]] == [
+        f"source-{index}" for index in range(router_module.BATCH_SOURCE_IMAGE_MAX_CONCURRENCY + 5)
+    ]
 
 
 def test_batch_source_images_endpoint_does_not_persist_resolved_images(
