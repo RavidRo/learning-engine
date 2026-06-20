@@ -1,14 +1,18 @@
 name: learning-engine-dev
 
+x-clerk-publishable-key: &clerk-publishable-key ${VITE_CLERK_PUBLISHABLE_KEY:-pk_test_YXNzdXJlZC1nYXItNTQuY2xlcmsuYWNjb3VudHMuZGV2JA}
+x-clerk-issuer: &clerk-issuer ${CLERK_ISSUER:-https://assured-gar-54.clerk.accounts.dev}
+x-clerk-jwks-url: &clerk-jwks-url ${CLERK_JWKS_URL:-https://assured-gar-54.clerk.accounts.dev/.well-known/jwks.json}
+
 services:
   backend:
     build:
       context: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://learning_engine:learning_engine@postgres:5432/learning_engine
-      CLERK_ISSUER: ${CLERK_ISSUER:-}
-      CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
-      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-http://127.0.0.1:5173,http://127.0.0.1:5174}
+      CLERK_ISSUER: *clerk-issuer
+      CLERK_JWKS_URL: *clerk-jwks-url
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-http://127.0.0.1:5173,http://127.0.0.1:5174,http://localhost:5173,http://localhost:5174}
       MCP_ALLOWED_HOSTS: backend:8765,127.0.0.1:8765,localhost:8765
     ports:
       - "8765:8765"
@@ -42,6 +46,7 @@ services:
       target: dev
     environment:
       VITE_BACKEND_ORIGIN: http://backend:8765
+      VITE_CLERK_PUBLISHABLE_KEY: *clerk-publishable-key
     ports:
       - "5173:5173"
     volumes:
@@ -61,6 +66,8 @@ services:
     build:
       context: ./webapp
       target: prod
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: *clerk-publishable-key
     ports:
       - "4173:80"
     depends_on:

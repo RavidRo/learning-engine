@@ -23,6 +23,9 @@ COPY index.html tsconfig.json tsconfig.app.json tsconfig.node.json vite.config.t
 COPY public ./public
 COPY src ./src
 
+ARG VITE_CLERK_PUBLISHABLE_KEY
+ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY
+
 RUN pnpm run build
 
 FROM nginx:1.29-alpine AS prod

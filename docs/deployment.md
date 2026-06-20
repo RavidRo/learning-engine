@@ -28,15 +28,23 @@ Render syncs to the main branch and deploys on every commit to `main`.
 
 The webapp and backend require Clerk before user-owned data can load.
 
-Set these environment variables in the Render Dashboard:
+The default Render Blueprint configures these non-secret Clerk values for the
+Signal Garden development Clerk instance:
 
 - `VITE_CLERK_PUBLISHABLE_KEY` on `learning-engine-frontend`.
-- `CLERK_ISSUER` on `learning-engine-backend`, for example `https://<your-clerk-domain>`.
-- `CLERK_JWKS_URL` on `learning-engine-backend` only when the default
-  `<CLERK_ISSUER>/.well-known/jwks.json` URL is not correct.
+- `CLERK_ISSUER` on `learning-engine-backend`. This must match the token `iss`
+  claim exactly; for the current Clerk app that is
+  `https://assured-gar-54.clerk.accounts.dev`.
+- `CLERK_JWKS_URL` on `learning-engine-backend`. The current Blueprint sets it
+  to `https://assured-gar-54.clerk.accounts.dev/.well-known/jwks.json`.
 - `CLERK_AUTHORIZED_PARTIES` on `learning-engine-backend` as a comma-separated
   list of allowed frontend origins. This is required so the backend can enforce
-  Clerk's `azp` claim, for example `https://learning-engine-frontend.onrender.com`.
+  Clerk's `azp` claim. The default Render frontend origin is
+  `https://learning-engine-frontend.onrender.com`.
+
+If you attach a custom frontend domain, add that exact origin to
+`CLERK_AUTHORIZED_PARTIES` and `MCP_ALLOWED_ORIGINS` before using the app from
+that domain.
 
 Do not commit Clerk secret values. The current backend verifies Clerk session
 JWTs with the issuer and JWKS URL; it does not require a Clerk secret key for the

@@ -26,16 +26,16 @@ services:
         sync: false
       - key: SPOTIFY_ACCESS_TOKEN
         sync: false
-      # Clerk authentication. Fill these in the Render Dashboard before deployment.
+      # Clerk authentication. These values are public verifier configuration, not secrets.
       - key: CLERK_ISSUER
-        sync: false
+        value: https://assured-gar-54.clerk.accounts.dev
       - key: CLERK_JWKS_URL
-        sync: false
+        value: https://assured-gar-54.clerk.accounts.dev/.well-known/jwks.json
       - key: CLERK_AUTHORIZED_PARTIES
-        sync: false
+        value: https://learning-engine-frontend.onrender.com
       # MCP browser-origin protection. Auth uses Clerk session bearer tokens.
       - key: MCP_ALLOWED_ORIGINS
-        sync: false
+        value: https://learning-engine-frontend.onrender.com
       - key: MCP_ALLOWED_HOSTS
         value: learning-engine-backend.onrender.com
 
@@ -48,7 +48,7 @@ services:
     autoDeployTrigger: commit
     envVars:
       - key: VITE_CLERK_PUBLISHABLE_KEY
-        sync: false
+        value: pk_test_YXNzdXJlZC1nYXItNTQuY2xlcmsuYWNjb3VudHMuZGV2JA
     routes:
       # Keep browser requests same-origin by proxying API calls from the static site
       # to the public backend service. If Render assigns a different backend URL,
