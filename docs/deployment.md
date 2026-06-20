@@ -42,14 +42,6 @@ Do not commit Clerk secret values. The current backend verifies Clerk session
 JWTs with the issuer and JWKS URL; it does not require a Clerk secret key for the
 implemented request path.
 
-### Existing data reset
-
-RAV-18 changes existing global interest and collection tables into user-owned
-data. Fresh deployments need no reset. For an existing deployment that already
-has global rows, export anything worth preserving, reset or recreate the
-database, deploy the user-account build, then sign in and re-import the exported
-interests as the intended user.
-
 ## MCP interest management
 
 The backend exposes an MCP Streamable HTTP endpoint at:

@@ -56,7 +56,6 @@ class StoredInterestSource(SQLModel, table=True):
     __tablename__ = "interest_sources"
 
     source_id: str = Field(primary_key=True)
-    user_id: str = Field(index=True)
     interest_id: str = Field(sa_column=Column(ForeignKey("interests.interest_id"), index=True, nullable=False))
     label: str
     source_type: str
@@ -78,7 +77,6 @@ class StoredSourceIgnoreKeyword(SQLModel, table=True):
     __tablename__ = "source_ignore_keywords"
 
     keyword_id: int | None = Field(default=None, primary_key=True)
-    user_id: str = Field(index=True)
     source_id: str = Field(sa_column=Column(ForeignKey("interest_sources.source_id"), index=True, nullable=False))
     keyword: str
 
@@ -265,7 +263,7 @@ class InterestStore:
             for source in interest.sources:
                 source_id = self._source_id_or_raise(source)
                 self._raise_on_duplicate_id(source_id, source_ids, "source")
-                stored_sources.append(self._stored_source_from_domain(user_context, source, source_id))
+                stored_sources.append(self._stored_source_from_domain(source, source_id))
             stored_interests.append(
                 self._stored_interest_from_domain(user_context, interest, interest_id, stored_sources)
             )
@@ -291,12 +289,10 @@ class InterestStore:
 
     def _stored_source_from_domain(
         self,
-        user_context: UserContext,
         source: InterestSource,
         source_id: str,
     ) -> StoredInterestSource:
         return StoredInterestSource(
-            user_id=user_context.user_id,
             source_id=source_id,
             label=source.label,
             source_type=source.type,
@@ -304,10 +300,7 @@ class InterestStore:
             image_url=source.image_url,
             enabled=source.enabled,
             deleted_at=self._datetime_from_domain(source.deleted_at),
-            ignore_keywords=[
-                StoredSourceIgnoreKeyword(user_id=user_context.user_id, keyword=keyword)
-                for keyword in source.ignore_keywords
-            ],
+            ignore_keywords=[StoredSourceIgnoreKeyword(keyword=keyword) for keyword in source.ignore_keywords],
         )
 
     def _interest_from_stored(self, stored_interest: StoredInterest) -> Interest:

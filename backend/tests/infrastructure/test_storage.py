@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, select
@@ -89,6 +89,21 @@ def test_interest_store_writes_normalized_interests_to_relational_tables() -> No
             "beta",
             "nightly",
         ]
+    finally:
+        engine.dispose()
+
+
+def test_interest_store_keeps_user_ownership_on_interest_rows_only() -> None:
+    engine = _sqlite_engine()
+    try:
+        store = InterestStore(engine)
+        store.write_interests(USER_CONTEXT, _payload())
+
+        inspector = inspect(engine)
+
+        assert "user_id" in {column["name"] for column in inspector.get_columns("interests")}
+        assert "user_id" not in {column["name"] for column in inspector.get_columns("interest_sources")}
+        assert "user_id" not in {column["name"] for column in inspector.get_columns("source_ignore_keywords")}
     finally:
         engine.dispose()
 
