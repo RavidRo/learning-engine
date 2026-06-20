@@ -222,7 +222,13 @@ const InterestCards = ({
 }: InterestCardsProps) => (
   <div className="cards" aria-live="polite">
     {loadError !== null ? null : interests.length === 0 ? (
-      <p className="empty">No interests yet. Create one with as many sources as it needs.</p>
+      <div className="empty interest-empty-state">
+        <strong>No interests tracked yet</strong>
+        <p>
+          Add the first interest in the editor, then attach the sources that should feed future
+          updates and briefings.
+        </p>
+      </div>
     ) : (
       interests.map((interest) => (
         <InterestCard

@@ -347,6 +347,9 @@ const BasicInterestFields = ({
         required
         value={draft.description}
       />
+      <span className="field-hint">
+        What should future updates about this interest help you notice?
+      </span>
     </label>
   </>
 );
@@ -443,10 +446,13 @@ const SourceEditorCard = ({
             url: event.currentTarget.value,
           })
         }
-        placeholder="URL, @handle, channel ID, or Spotify show URI"
+        placeholder="Feed URL, page, @handle, or show URI"
         required
         value={source.url}
       />
+      <span className="field-hint">
+        Paste a feed, page, account handle, channel ID, or podcast URI.
+      </span>
     </label>
     <label>
       Image URL
@@ -462,6 +468,9 @@ const SourceEditorCard = ({
         placeholder="https://example.com/avatar.png"
         value={source.imageUrl ?? ""}
       />
+      <span className="field-hint">
+        Optional. Leave blank to let the engine look for a source image.
+      </span>
     </label>
     <SourceImagePreview isOffline={isOffline} source={source} />
     <label>
@@ -478,6 +487,9 @@ const SourceEditorCard = ({
         placeholder="nightly, webinar"
         value={keywordText(source.ignoreKeywords)}
       />
+      <span className="field-hint">
+        Optional comma-separated terms to skip when updates are collected.
+      </span>
     </label>
   </section>
 );
@@ -553,9 +565,9 @@ export const InterestEditor = ({
       <div className="panel-header row">
         <div>
           <p className="section-label">{isEditing ? "Editor" : "New interest"}</p>
-          <h2>{isEditing ? "Edit interest" : "Create an interest"}</h2>
+          <h2>{isEditing ? "Edit interest" : "Add interest"}</h2>
           <p className="panel-copy">
-            Define the topic once, then attach every source the engine should check.
+            Use this panel when you need to add coverage or adjust an existing signal.
           </p>
         </div>
         {isEditing ? (
@@ -575,7 +587,7 @@ export const InterestEditor = ({
           title={isOffline ? "Connect to save interests" : undefined}
           type="submit"
         >
-          {isOffline ? "Connect to save" : isEditing ? "Save changes" : "Create interest"}
+          {isOffline ? "Connect to save" : isEditing ? "Save changes" : "Add interest"}
         </button>
       </form>
     </aside>
