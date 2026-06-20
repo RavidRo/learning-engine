@@ -108,7 +108,8 @@ button:disabled {
 }
 
 .brand,
-.navlinks {
+.navlinks,
+.auth-controls {
   display: flex;
   align-items: center;
 }
@@ -131,6 +132,11 @@ button:disabled {
 
 .navlinks {
   gap: 18px;
+}
+
+.auth-controls {
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .navlinks a,
@@ -167,6 +173,101 @@ button:disabled {
   border-radius: 999px;
   background: var(--accent);
   content: "";
+}
+
+.auth-page {
+  display: grid;
+  align-content: center;
+  min-height: 100vh;
+}
+
+.auth-page-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  font-weight: 700;
+}
+
+.auth-gate {
+  max-width: 680px;
+  padding: 28px;
+}
+
+.auth-gate .subtitle {
+  max-width: 56ch;
+  margin-bottom: 0;
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.account-menu-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 7px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mcp-token-page {
+  display: grid;
+  gap: 16px;
+  max-width: 560px;
+}
+
+.mcp-token-page h2 {
+  margin-bottom: 6px;
+  font-size: 22px;
+}
+
+.mcp-token-page p {
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mcp-token-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.mcp-token-error {
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.mcp-token-command {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+}
+
+.mcp-token-command pre {
+  margin: 0;
+  color: var(--text);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .app-status-banner {
@@ -1505,6 +1606,7 @@ textarea {
     gap: 14px;
   }
 
+  .auth-controls,
   .navlinks {
     width: 100%;
     flex-wrap: wrap;

@@ -1,3 +1,6 @@
+import { SignInButton, SignUpButton } from "@clerk/react";
+import { useState } from "react";
+
 import { Toast } from "../../components/Toast";
 import { useIsOffline } from "../../useOnlineStatus";
 import { usePwaUpdate } from "../../usePwaUpdate";
@@ -9,7 +12,6 @@ import { InterestsPanel } from "./InterestsPanel";
 import { TopNavigation } from "./TopNavigation";
 import { UpdatesPage } from "./UpdatesPage";
 import { useSignalGardenPageState } from "./useSignalGardenPageState";
-import { useState } from "react";
 
 type SignalGardenState = ReturnType<typeof useSignalGardenPageState>["state"];
 type SignalGardenActions = ReturnType<typeof useSignalGardenPageState>["actions"];
@@ -23,6 +25,46 @@ type PageViewContentProps = {
   onCreateInterest: SignalGardenActions["addInterest"];
   state: SignalGardenState;
 };
+
+const SignedOutPage = ({ isAuthLoaded }: { isAuthLoaded: boolean }) => (
+  <main className="shell auth-page">
+    <section className="auth-page-brand" aria-label="Signal Garden">
+      <img
+        className="brand-mark"
+        src="/pwa-192x192.png"
+        width="30"
+        height="30"
+        alt=""
+        aria-hidden="true"
+      />
+      <span>Signal Garden</span>
+    </section>
+
+    <section className="panel auth-gate" aria-label="Account required">
+      <p className="section-label">Account required</p>
+      <h1>{isAuthLoaded ? "Sign in to open Signal Garden" : "Preparing your account"}</h1>
+      <p className="subtitle">
+        {isAuthLoaded
+          ? "Create an account or sign in to load your personal interests, updates, and saved collections."
+          : "Checking the active session before loading your workspace."}
+      </p>
+      {isAuthLoaded ? (
+        <div className="auth-page-actions">
+          <SignInButton mode="modal">
+            <button className="button ghost" type="button">
+              Sign in
+            </button>
+          </SignInButton>
+          <SignUpButton mode="modal">
+            <button className="button primary" type="button">
+              Sign up
+            </button>
+          </SignUpButton>
+        </div>
+      ) : null}
+    </section>
+  </main>
+);
 
 const PageViewContent = ({
   actions,
@@ -108,6 +150,10 @@ export const SignalGardenPage = () => {
     setEditingInterestId(null);
     setNewEditorVersion((version) => version + 1);
   };
+
+  if (!state.isAuthenticated) {
+    return <SignedOutPage isAuthLoaded={state.isAuthLoaded} />;
+  }
 
   return (
     <>

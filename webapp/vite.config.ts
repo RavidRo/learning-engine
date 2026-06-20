@@ -57,7 +57,7 @@ export default defineConfig({
     }),
   ],
   lint: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "dev-dist/**"],
     options: {
       denyWarnings: true,
       reportUnusedDisableDirectives: "deny",
@@ -66,7 +66,7 @@ export default defineConfig({
     },
   },
   fmt: {
-    ignorePatterns: ["dist/**"],
+    ignorePatterns: ["dist/**", "dev-dist/**"],
     sortPackageJson: true,
   },
   server: {

@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+from learning_engine.application.auth import UserContext
 from learning_engine.application.mcp_interest_commands import (
     InterestCreateInput,
     InterestUpdateInput,
@@ -24,6 +25,8 @@ from learning_engine.application.mcp_interest_commands import (
 )
 from learning_engine.domain.interests import Interests
 
+USER_CONTEXT = UserContext(user_id="user_test")
+
 
 class StubInterestRepository:
     def __init__(self, payload: Interests) -> None:
@@ -33,17 +36,17 @@ class StubInterestRepository:
     def ensure_data_store(self) -> None:
         return None
 
-    def read_interests(self) -> Interests:
+    def read_interests(self, _user_context: UserContext) -> Interests:
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
-    def write_interests(self, payload: Interests) -> None:
+    def write_interests(self, _user_context: UserContext, payload: Interests) -> None:
         self.saved_payloads.append(payload)
 
 
 def test_list_interests_excludes_deleted_records_by_default() -> None:
     repository = StubInterestRepository(_payload())
 
-    response = list_interests(repository)
+    response = list_interests(repository, USER_CONTEXT)
 
     assert response["interests"] == [
         {
@@ -70,7 +73,7 @@ def test_list_interests_excludes_deleted_records_by_default() -> None:
 def test_list_interests_can_include_deleted_records() -> None:
     repository = StubInterestRepository(_payload())
 
-    response = list_interests(repository, include_deleted=True)
+    response = list_interests(repository, USER_CONTEXT, include_deleted=True)
 
     interests = response["interests"]
     assert isinstance(interests, list)
@@ -88,6 +91,7 @@ def test_create_interest_generates_ids_and_preserves_existing_records() -> None:
 
     response = create_interest(
         repository,
+        USER_CONTEXT,
         InterestCreateInput(
             name="  Python  ",
             description="  Core Python  ",
@@ -136,6 +140,7 @@ def test_create_interest_retries_duplicate_generated_ids() -> None:
 
     create_interest(
         repository,
+        USER_CONTEXT,
         InterestCreateInput(
             name="Python",
             sources=[SourceInput(label="Docs", type="page", url="https://docs.python.org")],
@@ -154,6 +159,7 @@ def test_create_interest_raises_validation_error_when_unique_id_cannot_be_genera
     with pytest.raises(McpInterestValidationError, match="unique interest id"):
         create_interest(
             repository,
+            USER_CONTEXT,
             InterestCreateInput(
                 name="Python",
                 sources=[SourceInput(label="Docs", type="page", url="https://docs.python.org")],
@@ -169,12 +175,13 @@ def test_update_pause_resume_and_delete_interest_by_id() -> None:
 
     updated = update_interest(
         repository,
+        USER_CONTEXT,
         "typescript",
         InterestUpdateInput(name="TS", description="Typed JavaScript", priority="low", enabled=False),
     )
-    paused = pause_interest(repository, "typescript")
-    resumed = resume_interest(repository, "typescript")
-    deleted = delete_interest(repository, "typescript")
+    paused = pause_interest(repository, USER_CONTEXT, "typescript")
+    resumed = resume_interest(repository, USER_CONTEXT, "typescript")
+    deleted = delete_interest(repository, USER_CONTEXT, "typescript")
 
     assert updated["interest"]["name"] == "TS"
     assert paused["interest"]["enabled"] is False
@@ -189,7 +196,7 @@ def test_interest_write_missing_id_does_not_write() -> None:
     repository = StubInterestRepository(_payload())
 
     with pytest.raises(McpInterestNotFoundError, match="Interest not found"):
-        update_interest(repository, "missing", InterestUpdateInput(name="Nope"))
+        update_interest(repository, USER_CONTEXT, "missing", InterestUpdateInput(name="Nope"))
 
     assert repository.saved_payloads == []
 
@@ -208,6 +215,7 @@ def test_add_update_pause_resume_and_delete_source_by_id() -> None:
 
     added = add_source(
         repository,
+        USER_CONTEXT,
         "typescript",
         SourceInput(
             label="Handbook",
@@ -219,19 +227,21 @@ def test_add_update_pause_resume_and_delete_source_by_id() -> None:
     )
     updated = update_source(
         repository,
+        USER_CONTEXT,
         "typescript",
         "source-handbook",
         SourceUpdateInput(label="TS Handbook", ignore_keywords=["draft", " jobs "], enabled=False),
     )
     cleared_image = update_source(
         repository,
+        USER_CONTEXT,
         "typescript",
         "source-handbook",
         SourceUpdateInput(image_url=None),
     )
-    paused = pause_source(repository, "typescript", "source-handbook")
-    resumed = resume_source(repository, "typescript", "source-handbook")
-    deleted = delete_source(repository, "typescript", "source-handbook")
+    paused = pause_source(repository, USER_CONTEXT, "typescript", "source-handbook")
+    resumed = resume_source(repository, USER_CONTEXT, "typescript", "source-handbook")
+    deleted = delete_source(repository, USER_CONTEXT, "typescript", "source-handbook")
 
     assert added["source"]["id"] == "source-handbook"
     assert added["source"]["imageUrl"] == "https://example.com/handbook.png"
@@ -250,7 +260,7 @@ def test_source_write_missing_id_does_not_write() -> None:
     repository = StubInterestRepository(_payload())
 
     with pytest.raises(McpInterestNotFoundError, match="Source not found"):
-        update_source(repository, "typescript", "missing", SourceUpdateInput(label="Nope"))
+        update_source(repository, USER_CONTEXT, "typescript", "missing", SourceUpdateInput(label="Nope"))
 
     assert repository.saved_payloads == []
 

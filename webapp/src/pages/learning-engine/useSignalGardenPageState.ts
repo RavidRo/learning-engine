@@ -1,16 +1,8 @@
+import { useAuth } from "@clerk/react";
 import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 
-import {
-  downloadInterestExport,
-  fetchCollections,
-  fetchInterests,
-  fetchUpdates,
-  removeSavedUpdate,
-  saveUpdateToCollection as saveUpdateToCollectionApi,
-  saveInterests,
-  uploadInterestExport,
-} from "./api";
+import { type LearningEngineApi, createLearningEngineApi } from "./api";
 import { createInterest, updateInterestFromDraft } from "./interestForm";
 import { navigateToView, usePageRoute } from "./usePageRoute";
 import {
@@ -23,11 +15,13 @@ import {
   type ToastState,
 } from "./types";
 
-const interestsQueryKey = ["signal-garden", "interests"] as const;
-const collectionsQueryKey = ["signal-garden", "collections"] as const;
 const defaultUpdateDays = 2;
 const historyCollectionId = "history";
-const updatesQueryKey = (days: number) => ["signal-garden", "updates", days] as const;
+const interestsQueryKey = (authScope: string) => ["signal-garden", authScope, "interests"] as const;
+const collectionsQueryKey = (authScope: string) =>
+  ["signal-garden", authScope, "collections"] as const;
+const updatesQueryKey = (authScope: string, days: number) =>
+  ["signal-garden", authScope, "updates", days] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
 
 type ToastAction = { type: "hideToast" } | { type: "showToast"; message: string };
@@ -72,23 +66,28 @@ const useAutoDismissToast = (): [ToastState, ShowToast] => {
   return [toast, showToast];
 };
 
-const useSaveInterestsMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+const useSaveInterestsMutation = (
+  api: LearningEngineApi,
+  queryClient: QueryClient,
+  showToast: ShowToast,
+  authScope: string,
+) =>
   useMutation<Interest[], Error, Interest[], SaveInterestsContext>({
-    mutationFn: saveInterests,
+    mutationFn: api.saveInterests,
     onError: (error, _nextInterests, context) => {
-      queryClient.setQueryData(interestsQueryKey, context?.previousInterests ?? []);
+      queryClient.setQueryData(interestsQueryKey(authScope), context?.previousInterests ?? []);
       showToast(errorMessage(error, "Failed to save"));
     },
     onMutate: async (nextInterests: Interest[]) => {
-      await queryClient.cancelQueries({ queryKey: interestsQueryKey });
-      const previousInterests = queryClient.getQueryData<Interest[]>(interestsQueryKey);
+      await queryClient.cancelQueries({ queryKey: interestsQueryKey(authScope) });
+      const previousInterests = queryClient.getQueryData<Interest[]>(interestsQueryKey(authScope));
 
-      queryClient.setQueryData(interestsQueryKey, nextInterests);
+      queryClient.setQueryData(interestsQueryKey(authScope), nextInterests);
 
       return { previousInterests: previousInterests ?? [] };
     },
     onSuccess: (savedInterests) => {
-      queryClient.setQueryData(interestsQueryKey, savedInterests);
+      queryClient.setQueryData(interestsQueryKey(authScope), savedInterests);
       showToast("Saved locally");
     },
   });
@@ -107,9 +106,9 @@ const downloadBlob = (blob: Blob, filename: string): void => {
 const interestExportFilename = (): string =>
   `signal-garden-interests-${new Date().toISOString().slice(0, 10)}.json`;
 
-const useExportInterestsMutation = (showToast: ShowToast) =>
+const useExportInterestsMutation = (api: LearningEngineApi, showToast: ShowToast) =>
   useMutation<Blob, Error>({
-    mutationFn: downloadInterestExport,
+    mutationFn: api.downloadInterestExport,
     onError: (error) => {
       showToast(errorMessage(error, "Failed to export interests"));
     },
@@ -119,40 +118,55 @@ const useExportInterestsMutation = (showToast: ShowToast) =>
     },
   });
 
-const useImportInterestsMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+const useImportInterestsMutation = (
+  api: LearningEngineApi,
+  queryClient: QueryClient,
+  showToast: ShowToast,
+  authScope: string,
+) =>
   useMutation<Interest[], Error, File>({
-    mutationFn: uploadInterestExport,
+    mutationFn: api.uploadInterestExport,
     onError: (error) => {
       showToast(errorMessage(error, "Failed to import interests"));
     },
     onSuccess: (savedInterests) => {
-      queryClient.setQueryData(interestsQueryKey, savedInterests);
+      queryClient.setQueryData(interestsQueryKey(authScope), savedInterests);
       showToast("Interests imported");
     },
   });
 
-const useSaveUpdateToCollectionMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+const useSaveUpdateToCollectionMutation = (
+  api: LearningEngineApi,
+  queryClient: QueryClient,
+  showToast: ShowToast,
+  authScope: string,
+) =>
   useMutation({
     mutationFn: ({ collectionId, update }: SaveUpdateToCollectionInput) =>
-      saveUpdateToCollectionApi(collectionId, update),
+      api.saveUpdateToCollection(collectionId, update),
     onError: (error) => {
       showToast(errorMessage(error, "Failed to save update"));
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
+      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey(authScope) });
       showToast("Update saved");
     },
   });
 
-const useRemoveSavedUpdateMutation = (queryClient: QueryClient, showToast: ShowToast) =>
+const useRemoveSavedUpdateMutation = (
+  api: LearningEngineApi,
+  queryClient: QueryClient,
+  showToast: ShowToast,
+  authScope: string,
+) =>
   useMutation({
     mutationFn: ({ collectionId, updateKey }: RemoveSavedUpdateInput) =>
-      removeSavedUpdate(collectionId, updateKey),
+      api.removeSavedUpdate(collectionId, updateKey),
     onError: (error) => {
       showToast(errorMessage(error, "Failed to remove update"));
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey });
+      await queryClient.invalidateQueries({ queryKey: collectionsQueryKey(authScope) });
       showToast("Update removed");
     },
   });
@@ -299,35 +313,59 @@ type UseSignalGardenPageStateOptions = {
 // fallow-ignore-next-line complexity
 export const useSignalGardenPageState = ({ isBrowserOffline }: UseSignalGardenPageStateOptions) => {
   const queryClient = useQueryClient();
+  const { getToken, isLoaded, isSignedIn, sessionId, userId } = useAuth();
+  const isAuthenticated = isLoaded && isSignedIn === true;
+  const authScope = isAuthenticated
+    ? `${userId ?? "unknown"}:${sessionId ?? "no-session"}`
+    : "signed-out";
+  const api = useMemo(() => createLearningEngineApi(getToken), [getToken]);
   const [toast, showToast] = useAutoDismissToast();
   const view = usePageRoute();
   const [updateDays, setUpdateDays] = useState(defaultUpdateDays);
-  const currentUpdatesQueryKey = updatesQueryKey(updateDays);
+  const currentInterestsQueryKey = interestsQueryKey(authScope);
+  const currentCollectionsQueryKey = collectionsQueryKey(authScope);
+  const currentUpdatesQueryKey = updatesQueryKey(authScope, updateDays);
 
   const interestsQuery = useQuery({
-    queryFn: fetchInterests,
-    queryKey: interestsQueryKey,
+    enabled: isAuthenticated,
+    queryFn: api.fetchInterests,
+    queryKey: currentInterestsQueryKey,
   });
 
   const updatesQuery = useQuery({
-    enabled: view === "updates",
-    queryFn: () => fetchUpdates(updateDays),
+    enabled: isAuthenticated && view === "updates",
+    queryFn: () => api.fetchUpdates(updateDays),
     queryKey: currentUpdatesQueryKey,
   });
 
   const collectionsQuery = useQuery({
-    enabled: view === "collections" || view === "updates",
-    queryFn: fetchCollections,
-    queryKey: collectionsQueryKey,
+    enabled: isAuthenticated && (view === "collections" || view === "updates"),
+    queryFn: api.fetchCollections,
+    queryKey: currentCollectionsQueryKey,
   });
 
-  const saveInterestsMutation = useSaveInterestsMutation(queryClient, showToast);
-  const exportInterestsMutation = useExportInterestsMutation(showToast);
-  const importInterestsMutation = useImportInterestsMutation(queryClient, showToast);
-  const saveUpdateToCollectionMutation = useSaveUpdateToCollectionMutation(queryClient, showToast);
-  const removeSavedUpdateMutation = useRemoveSavedUpdateMutation(queryClient, showToast);
+  const saveInterestsMutation = useSaveInterestsMutation(api, queryClient, showToast, authScope);
+  const exportInterestsMutation = useExportInterestsMutation(api, showToast);
+  const importInterestsMutation = useImportInterestsMutation(
+    api,
+    queryClient,
+    showToast,
+    authScope,
+  );
+  const saveUpdateToCollectionMutation = useSaveUpdateToCollectionMutation(
+    api,
+    queryClient,
+    showToast,
+    authScope,
+  );
+  const removeSavedUpdateMutation = useRemoveSavedUpdateMutation(
+    api,
+    queryClient,
+    showToast,
+    authScope,
+  );
   const isConnectionUnavailable =
-    isBrowserOffline || interestsQuery.isError || updatesQuery.isError;
+    !isAuthenticated || isBrowserOffline || interestsQuery.isError || updatesQuery.isError;
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
   const actions = createSignalGardenActions(
@@ -360,6 +398,8 @@ export const useSignalGardenPageState = ({ isBrowserOffline }: UseSignalGardenPa
     actions,
     state: {
       enabledInterests: visibleInterests.filter((interest) => interest.enabled).length,
+      isAuthLoaded: isLoaded,
+      isAuthenticated,
       sourcesTracked: visibleInterests.reduce(
         (count, interest) =>
           count + interest.sources.filter((source) => source.deletedAt == null).length,

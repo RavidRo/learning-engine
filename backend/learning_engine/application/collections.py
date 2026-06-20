@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from learning_engine.application.auth import UserContext
 from learning_engine.application.ports import CollectionRepository
 from learning_engine.domain.collections import (
     Collections,
@@ -14,12 +15,13 @@ from learning_engine.domain.collections import (
 )
 
 
-def list_collections(repository: CollectionRepository) -> Collections:
-    return repository.list_collections()
+def list_collections(repository: CollectionRepository, user_context: UserContext) -> Collections:
+    return repository.list_collections(user_context)
 
 
 def save_update_to_collection(
     repository: CollectionRepository,
+    user_context: UserContext,
     collection_id: str,
     command: SaveUpdateToCollection,
     *,
@@ -29,6 +31,7 @@ def save_update_to_collection(
     saved_at = now or datetime.now(UTC)
     update_key = deterministic_update_key(command.update)
     return repository.save_update_to_collection(
+        user_context,
         fixed_collection_id,
         update_key,
         command.update,
@@ -36,6 +39,11 @@ def save_update_to_collection(
     )
 
 
-def remove_update_from_collection(repository: CollectionRepository, collection_id: str, update_key: str) -> None:
+def remove_update_from_collection(
+    repository: CollectionRepository,
+    user_context: UserContext,
+    collection_id: str,
+    update_key: str,
+) -> None:
     fixed_collection_id = validate_collection_id(collection_id)
-    repository.remove_update_from_collection(fixed_collection_id, update_key)
+    repository.remove_update_from_collection(user_context, fixed_collection_id, update_key)

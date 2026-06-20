@@ -3,11 +3,12 @@
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import Column, DateTime, UniqueConstraint
+from sqlalchemy import Column, DateTime, ForeignKeyConstraint, UniqueConstraint, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
 
+from learning_engine.application.auth import UserContext
 from learning_engine.config import DATABASE_URL
 from learning_engine.domain.collections import (
     FIXED_COLLECTIONS,
@@ -28,12 +29,25 @@ from learning_engine.domain.interests import (
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceInterest
 
+USER_OWNED_TABLES = (
+    "interests",
+    "interest_sources",
+    "source_ignore_keywords",
+    "collections",
+    "saved_collection_updates",
+)
+
+
+class LegacyGlobalSchemaError(RuntimeError):
+    """Raised when an existing database still has pre-auth global tables."""
+
 
 class StoredInterest(SQLModel, table=True):
     """Relational persistence row for an interest."""
 
     __tablename__ = "interests"
 
+    user_id: str = Field(primary_key=True)
     interest_id: str = Field(primary_key=True)
     name: str
     description: str
@@ -52,8 +66,11 @@ class StoredInterestSource(SQLModel, table=True):
 
     __tablename__ = "interest_sources"
 
+    __table_args__ = (ForeignKeyConstraint(["user_id", "interest_id"], ["interests.user_id", "interests.interest_id"]),)
+
+    user_id: str = Field(primary_key=True)
     source_id: str = Field(primary_key=True)
-    interest_id: str = Field(foreign_key="interests.interest_id", index=True)
+    interest_id: str = Field(index=True)
     label: str
     source_type: str
     url: str
@@ -73,8 +90,13 @@ class StoredSourceIgnoreKeyword(SQLModel, table=True):
 
     __tablename__ = "source_ignore_keywords"
 
+    __table_args__ = (
+        ForeignKeyConstraint(["user_id", "source_id"], ["interest_sources.user_id", "interest_sources.source_id"]),
+    )
+
     keyword_id: int | None = Field(default=None, primary_key=True)
-    source_id: str = Field(foreign_key="interest_sources.source_id", index=True)
+    user_id: str
+    source_id: str = Field(index=True)
     keyword: str
 
     source: StoredInterestSource = Relationship(back_populates="ignore_keywords")
@@ -85,6 +107,7 @@ class StoredCollection(SQLModel, table=True):
 
     __tablename__ = "collections"
 
+    user_id: str = Field(primary_key=True)
     collection_id: str = Field(primary_key=True)
     name: str
 
@@ -98,10 +121,14 @@ class StoredSavedCollectionUpdate(SQLModel, table=True):
     """Relational persistence row for an update saved to a collection."""
 
     __tablename__ = "saved_collection_updates"
-    __table_args__ = (UniqueConstraint("collection_id", "update_key", name="uq_saved_update_collection_key"),)
+    __table_args__ = (
+        ForeignKeyConstraint(["user_id", "collection_id"], ["collections.user_id", "collections.collection_id"]),
+        UniqueConstraint("user_id", "collection_id", "update_key", name="uq_saved_update_user_collection_key"),
+    )
 
     saved_update_id: int | None = Field(default=None, primary_key=True)
-    collection_id: str = Field(foreign_key="collections.collection_id", index=True)
+    user_id: str = Field(index=True)
+    collection_id: str = Field(index=True)
     update_key: str = Field(index=True)
     saved_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     title: str | None = None
@@ -129,17 +156,35 @@ class InterestStore:
     def ensure_data_store(self) -> None:
         if self._schema_initialized:
             return
+        self._raise_on_legacy_global_schema()
         SQLModel.metadata.create_all(self.engine)
-        with Session(self.engine) as session:
-            self._ensure_fixed_collections(session)
-            session.commit()
         self._schema_initialized = True
 
-    def list_collections(self) -> Collections:
+    def _raise_on_legacy_global_schema(self) -> None:
+        inspector = inspect(self.engine)
+        legacy_tables = [
+            table_name
+            for table_name in USER_OWNED_TABLES
+            if inspector.has_table(table_name)
+            and "user_id" not in {column["name"] for column in inspector.get_columns(table_name)}
+        ]
+        if legacy_tables:
+            joined_tables = ", ".join(legacy_tables)
+            raise LegacyGlobalSchemaError(
+                "Existing database uses the pre-auth global schema. "
+                f"Missing user_id ownership columns on: {joined_tables}. "
+                "Reset the local database or run a one-time backfill/migration before starting the app."
+            )
+
+    def list_collections(self, user_context: UserContext) -> Collections:
         self.ensure_data_store()
         with Session(self.engine) as session:
+            self._ensure_fixed_collections(session, user_context)
+            session.commit()
             stored_collections = session.exec(
-                select(StoredCollection).options(selectinload(cast(Any, StoredCollection.saved_updates)))
+                select(StoredCollection)
+                .where(StoredCollection.user_id == user_context.user_id)
+                .options(selectinload(cast(Any, StoredCollection.saved_updates)))
             ).all()
             collections_by_id = {stored.collection_id: stored for stored in stored_collections}
             return Collections(
@@ -152,6 +197,7 @@ class InterestStore:
 
     def save_update_to_collection(
         self,
+        user_context: UserContext,
         collection_id: CollectionId,
         update_key: str,
         update: SavedUpdateSnapshot,
@@ -159,30 +205,41 @@ class InterestStore:
     ) -> SavedCollectionUpdate:
         self.ensure_data_store()
         with Session(self.engine) as session:
-            self._raise_on_missing_collection(session, collection_id)
-            existing = self._stored_saved_update(session, collection_id, update_key)
+            self._ensure_fixed_collections(session, user_context)
+            self._raise_on_missing_collection(session, user_context, collection_id)
+            existing = self._stored_saved_update(session, user_context, collection_id, update_key)
             if existing is not None:
                 return self._saved_update_from_stored(existing)
-            stored_update = self._stored_saved_update_from_domain(collection_id, update_key, update, saved_at)
+            stored_update = self._stored_saved_update_from_domain(
+                user_context, collection_id, update_key, update, saved_at
+            )
             session.add(stored_update)
             session.commit()
             session.refresh(stored_update)
             return self._saved_update_from_stored(stored_update)
 
-    def remove_update_from_collection(self, collection_id: CollectionId, update_key: str) -> None:
+    def remove_update_from_collection(
+        self,
+        user_context: UserContext,
+        collection_id: CollectionId,
+        update_key: str,
+    ) -> None:
         self.ensure_data_store()
         with Session(self.engine) as session:
-            self._raise_on_missing_collection(session, collection_id)
-            stored_update = self._stored_saved_update(session, collection_id, update_key)
+            self._ensure_fixed_collections(session, user_context)
+            self._raise_on_missing_collection(session, user_context, collection_id)
+            stored_update = self._stored_saved_update(session, user_context, collection_id, update_key)
             if stored_update is not None:
                 session.delete(stored_update)
                 session.commit()
 
-    def read_interests(self) -> Interests:
+    def read_interests(self, user_context: UserContext) -> Interests:
         self.ensure_data_store()
         with Session(self.engine) as session:
             stored_interests = session.exec(
-                select(StoredInterest).options(
+                select(StoredInterest)
+                .where(StoredInterest.user_id == user_context.user_id)
+                .options(
                     selectinload(cast(Any, StoredInterest.sources)).selectinload(
                         cast(Any, StoredInterestSource.ignore_keywords)
                     )
@@ -195,28 +252,43 @@ class InterestStore:
                 ]
             )
 
-    def write_interests(self, interests: Interests) -> None:
+    def write_interests(self, user_context: UserContext, interests: Interests) -> None:
         self.ensure_data_store()
         with Session(self.engine) as session:
-            self._write_interests(session, interests)
+            self._write_interests(session, user_context, interests)
             session.commit()
 
-    def _ensure_fixed_collections(self, session: Session) -> None:
+    def _ensure_fixed_collections(self, session: Session, user_context: UserContext) -> None:
         existing_collection_ids = {
-            collection.collection_id for collection in session.exec(select(StoredCollection)).all()
+            collection.collection_id
+            for collection in session.exec(
+                select(StoredCollection).where(StoredCollection.user_id == user_context.user_id)
+            ).all()
         }
         for collection_id in FIXED_COLLECTIONS:
             if collection_id not in existing_collection_ids:
-                session.add(StoredCollection(collection_id=collection_id, name=collection_name(collection_id)))
+                session.add(
+                    StoredCollection(
+                        user_id=user_context.user_id,
+                        collection_id=collection_id,
+                        name=collection_name(collection_id),
+                    )
+                )
 
-    def _write_interests(self, session: Session, interests: Interests) -> None:
-        stored_interests = self._stored_interests_from_domain(interests.interests)
-        for stored_interest in session.exec(select(StoredInterest)).all():
+    def _write_interests(self, session: Session, user_context: UserContext, interests: Interests) -> None:
+        stored_interests = self._stored_interests_from_domain(user_context, interests.interests)
+        for stored_interest in session.exec(
+            select(StoredInterest).where(StoredInterest.user_id == user_context.user_id)
+        ).all():
             session.delete(stored_interest)
         session.flush()
         session.add_all(stored_interests)
 
-    def _stored_interests_from_domain(self, interests: list[Interest]) -> list[StoredInterest]:
+    def _stored_interests_from_domain(
+        self,
+        user_context: UserContext,
+        interests: list[Interest],
+    ) -> list[StoredInterest]:
         interest_ids: set[str] = set()
         source_ids: set[str] = set()
         stored_interests: list[StoredInterest] = []
@@ -227,17 +299,21 @@ class InterestStore:
             for source in interest.sources:
                 source_id = self._source_id_or_raise(source)
                 self._raise_on_duplicate_id(source_id, source_ids, "source")
-                stored_sources.append(self._stored_source_from_domain(source, source_id))
-            stored_interests.append(self._stored_interest_from_domain(interest, interest_id, stored_sources))
+                stored_sources.append(self._stored_source_from_domain(user_context, source, source_id))
+            stored_interests.append(
+                self._stored_interest_from_domain(user_context, interest, interest_id, stored_sources)
+            )
         return stored_interests
 
     def _stored_interest_from_domain(
         self,
+        user_context: UserContext,
         interest: Interest,
         interest_id: str,
         stored_sources: list[StoredInterestSource],
     ) -> StoredInterest:
         return StoredInterest(
+            user_id=user_context.user_id,
             interest_id=interest_id,
             name=interest.name,
             description=interest.description,
@@ -247,8 +323,14 @@ class InterestStore:
             sources=stored_sources,
         )
 
-    def _stored_source_from_domain(self, source: InterestSource, source_id: str) -> StoredInterestSource:
+    def _stored_source_from_domain(
+        self,
+        user_context: UserContext,
+        source: InterestSource,
+        source_id: str,
+    ) -> StoredInterestSource:
         return StoredInterestSource(
+            user_id=user_context.user_id,
             source_id=source_id,
             label=source.label,
             source_type=source.type,
@@ -256,7 +338,10 @@ class InterestStore:
             image_url=source.image_url,
             enabled=source.enabled,
             deleted_at=self._datetime_from_domain(source.deleted_at),
-            ignore_keywords=[StoredSourceIgnoreKeyword(keyword=keyword) for keyword in source.ignore_keywords],
+            ignore_keywords=[
+                StoredSourceIgnoreKeyword(user_id=user_context.user_id, keyword=keyword)
+                for keyword in source.ignore_keywords
+            ],
         )
 
     def _interest_from_stored(self, stored_interest: StoredInterest) -> Interest:
@@ -303,29 +388,38 @@ class InterestStore:
     def _stored_saved_update(
         self,
         session: Session,
+        user_context: UserContext,
         collection_id: CollectionId,
         update_key: str,
     ) -> StoredSavedCollectionUpdate | None:
         return session.exec(
             select(StoredSavedCollectionUpdate).where(
                 StoredSavedCollectionUpdate.collection_id == collection_id,
+                StoredSavedCollectionUpdate.user_id == user_context.user_id,
                 StoredSavedCollectionUpdate.update_key == update_key,
             )
         ).first()
 
-    def _raise_on_missing_collection(self, session: Session, collection_id: CollectionId) -> None:
-        stored_collection = session.get(StoredCollection, collection_id)
+    def _raise_on_missing_collection(
+        self,
+        session: Session,
+        user_context: UserContext,
+        collection_id: CollectionId,
+    ) -> None:
+        stored_collection = session.get(StoredCollection, (user_context.user_id, collection_id))
         if stored_collection is None:
             raise CollectionNotFoundError(f"Collection not found: {collection_id}")
 
     def _stored_saved_update_from_domain(
         self,
+        user_context: UserContext,
         collection_id: CollectionId,
         update_key: str,
         update: SavedUpdateSnapshot,
         saved_at: datetime,
     ) -> StoredSavedCollectionUpdate:
         return StoredSavedCollectionUpdate(
+            user_id=user_context.user_id,
             collection_id=collection_id,
             update_key=update_key,
             saved_at=self._datetime_from_datetime(saved_at),

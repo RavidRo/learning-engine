@@ -6,8 +6,10 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql+psycopg://learning_engine:learning_engine@postgres:5432/learning_engine
-      # Token used only for development purposes. In production, the token is stored in a secret.
-      MCP_AUTH_TOKEN: "da5f895aad0b9a0e1ca9729367efafaf3e61ef7ddbb09555777be86725a6986f"
+      CLERK_ISSUER: ${CLERK_ISSUER:-}
+      CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
+      CLERK_AUTHORIZED_PARTIES: ${CLERK_AUTHORIZED_PARTIES:-http://127.0.0.1:5173,http://127.0.0.1:5174}
+      MCP_ALLOWED_HOSTS: backend:8765,127.0.0.1:8765,localhost:8765
     ports:
       - "8765:8765"
     volumes:

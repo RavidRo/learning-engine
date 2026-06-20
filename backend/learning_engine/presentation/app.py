@@ -88,7 +88,7 @@ def create_app() -> FastAPI:
 
     api.include_router(interests_router(api))
     api.include_router(collections_router(api))
-    api.mount("/mcp", create_authenticated_mcp_app(api.state.mcp_server))
+    api.mount("/mcp", create_authenticated_mcp_app(api, api.state.mcp_server))
 
     return api
 

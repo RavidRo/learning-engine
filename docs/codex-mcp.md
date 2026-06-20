@@ -17,17 +17,18 @@ For a Render deployment, use the deployed backend URL instead:
 https://learning-engine-backend.onrender.com/mcp
 ```
 
-## Backend token
+## Backend authentication
 
-The backend disables MCP until `MCP_AUTH_TOKEN` is configured. Generate a strong
-token and provide it to the backend process:
+The backend verifies Clerk session tokens for MCP. Configure the backend with
+the same Clerk issuer/JWKS settings used by the HTTP API:
 
-```bash
-openssl rand -hex 32
-```
+- `CLERK_ISSUER`
+- `CLERK_JWKS_URL`, only when the default `<CLERK_ISSUER>/.well-known/jwks.json`
+  URL is not correct
+- `CLERK_AUTHORIZED_PARTIES`, when Clerk `azp` claim enforcement is needed
 
-For Render, set `MCP_AUTH_TOKEN` as a secret environment variable in the Render
-Dashboard for `learning-engine-backend`.
+If Clerk is not configured, `/mcp` returns a service-unavailable response before
+tool handling begins.
 
 For Render, also set `MCP_ALLOWED_HOSTS` to the public backend host:
 
@@ -40,15 +41,16 @@ while connecting to production, the backend is rejecting the HTTP `Host` header
 before the MCP handshake. Confirm `MCP_ALLOWED_HOSTS` includes the hostname from
 the MCP URL, then redeploy or restart the backend service.
 
-For local Docker Compose, pass the token to the backend container. One convenient
-local-only approach is to create an untracked override file:
+For local Docker Compose, provide the Clerk settings to the backend container.
+One convenient local-only approach is to create an untracked override file:
 
 ```yaml
 # compose.local.yaml
 services:
   backend:
     environment:
-      MCP_AUTH_TOKEN: "<generated-token>"
+      CLERK_ISSUER: "https://<your-clerk-domain>"
+      CLERK_AUTHORIZED_PARTIES: "http://127.0.0.1:5173"
 ```
 
 Then start the stack with both compose files:
@@ -63,10 +65,15 @@ the endpoint with an `Origin` header.
 
 ## Codex configuration
 
-Store the same token in your shell environment before starting Codex:
+In the webapp, sign in and open the account menu. The account settings include
+an **MCP token** page that copies the current Clerk session token and shows the
+Codex setup command pattern.
+
+Store that token for the user whose interests Codex should manage in your shell
+environment before starting Codex:
 
 ```bash
-export LEARNING_ENGINE_MCP_TOKEN="<generated-token>"
+export LEARNING_ENGINE_CLERK_SESSION_TOKEN="<clerk-session-token>"
 ```
 
 Add the MCP server with the Codex CLI:
@@ -74,7 +81,7 @@ Add the MCP server with the Codex CLI:
 ```bash
 codex mcp add learning-engine \
   --url http://127.0.0.1:8765/mcp \
-  --bearer-token-env-var LEARNING_ENGINE_MCP_TOKEN
+  --bearer-token-env-var LEARNING_ENGINE_CLERK_SESSION_TOKEN
 ```
 
 For a deployed backend, replace the URL:
@@ -82,7 +89,7 @@ For a deployed backend, replace the URL:
 ```bash
 codex mcp add learning-engine \
   --url https://learning-engine-backend.onrender.com/mcp \
-  --bearer-token-env-var LEARNING_ENGINE_MCP_TOKEN
+  --bearer-token-env-var LEARNING_ENGINE_CLERK_SESSION_TOKEN
 ```
 
 Equivalent `config.toml` entry:
@@ -90,7 +97,7 @@ Equivalent `config.toml` entry:
 ```toml
 [mcp_servers.learning-engine]
 url = "http://127.0.0.1:8765/mcp"
-bearer_token_env_var = "LEARNING_ENGINE_MCP_TOKEN"
+bearer_token_env_var = "LEARNING_ENGINE_CLERK_SESSION_TOKEN"
 tool_timeout_sec = 60
 enabled = true
 ```
@@ -116,9 +123,9 @@ In the Codex TUI, use:
 The `learning-engine` server should appear as enabled. If it does not, check:
 
 - the backend is running and `http://127.0.0.1:8765/api/health` returns `{"status":"ok"}`;
-- `MCP_AUTH_TOKEN` is set for the backend;
-- `LEARNING_ENGINE_MCP_TOKEN` is set in the environment that starts Codex;
-- both token values match exactly;
+- Clerk issuer/JWKS settings are configured for the backend;
+- `LEARNING_ENGINE_CLERK_SESSION_TOKEN` is set in the environment that starts Codex;
+- the Clerk session token is current and belongs to the intended user;
 - the MCP URL matches the backend you are using.
 - for deployed backends, `MCP_ALLOWED_HOSTS` includes the hostname from the MCP
   URL.

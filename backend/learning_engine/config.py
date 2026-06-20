@@ -28,11 +28,26 @@ def spotify_bearer_token() -> str | None:
     return token.strip() if token else None
 
 
-def mcp_auth_token() -> str | None:
-    token = os.getenv("MCP_AUTH_TOKEN")
-    if token is None:
+def clerk_issuer() -> str | None:
+    issuer = os.getenv("CLERK_ISSUER")
+    return issuer.strip().rstrip("/") if issuer else None
+
+
+def clerk_jwks_url() -> str | None:
+    configured_url = os.getenv("CLERK_JWKS_URL")
+    if configured_url:
+        return configured_url.strip()
+    issuer = clerk_issuer()
+    if issuer is None:
         return None
-    return token.strip()
+    return f"{issuer}/.well-known/jwks.json"
+
+
+def clerk_authorized_parties() -> list[str]:
+    parties = os.getenv("CLERK_AUTHORIZED_PARTIES")
+    if parties is None:
+        return []
+    return [party for candidate in parties.split(",") if (party := candidate.strip())]
 
 
 def mcp_allowed_origins() -> list[str]:
