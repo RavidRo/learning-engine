@@ -1,6 +1,6 @@
-# Learning Engine
+# Signal Garden
 
-A local-first project for Ravid's custom learning engine.
+A local-first project for Ravid's Signal Garden.
 
 The first goal is intentionally small: maintain a personal list of interests and sources that Hermes can later read and use to prepare an evening briefing.
 
@@ -122,7 +122,7 @@ The interests database may reveal personal interests, professional priorities, p
 Ask Hermes:
 
 ```text
-Read my Learning Engine interests from the Learning Engine API or PostgreSQL database and prepare an evening briefing.
+Read my Signal Garden interests from the Signal Garden API or PostgreSQL database and prepare an evening briefing.
 ```
 
 Hermes can use interests as briefing context and sources as the raw material for update collection.

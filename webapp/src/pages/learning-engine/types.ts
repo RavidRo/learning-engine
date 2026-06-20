@@ -50,7 +50,7 @@ export type InterestFormValues = {
   sources: InterestSource[];
 };
 
-export type LearningEnginePageActions = {
+export type SignalGardenPageActions = {
   addInterest: (draft: InterestDraft) => void;
   changeView: (view: PageView) => void;
   checkUpdates: () => void;

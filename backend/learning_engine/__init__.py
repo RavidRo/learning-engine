@@ -1,4 +1,4 @@
-"""Learning Engine backend package."""
+"""Signal Garden backend package."""
 
 from learning_engine.presentation.app import app, create_app
 

@@ -15,7 +15,7 @@ import { createInterest, updateInterestFromDraft } from "./interestForm";
 import { navigateToView, usePageRoute } from "./usePageRoute";
 import {
   type Interest,
-  type LearningEnginePageActions,
+  type SignalGardenPageActions,
   type PageView,
   type SaveStatus,
   type Update,
@@ -23,11 +23,11 @@ import {
   type ToastState,
 } from "./types";
 
-const interestsQueryKey = ["learning-engine", "interests"] as const;
-const collectionsQueryKey = ["learning-engine", "collections"] as const;
+const interestsQueryKey = ["signal-garden", "interests"] as const;
+const collectionsQueryKey = ["signal-garden", "collections"] as const;
 const defaultUpdateDays = 2;
 const historyCollectionId = "history";
-const updatesQueryKey = (days: number) => ["learning-engine", "updates", days] as const;
+const updatesQueryKey = (days: number) => ["signal-garden", "updates", days] as const;
 const emptyToast: ToastState = { message: "Saved locally", visible: false };
 
 type ToastAction = { type: "hideToast" } | { type: "showToast"; message: string };
@@ -105,7 +105,7 @@ const downloadBlob = (blob: Blob, filename: string): void => {
 };
 
 const interestExportFilename = (): string =>
-  `learning-engine-interests-${new Date().toISOString().slice(0, 10)}.json`;
+  `signal-garden-interests-${new Date().toISOString().slice(0, 10)}.json`;
 
 const useExportInterestsMutation = (showToast: ShowToast) =>
   useMutation<Blob, Error>({
@@ -174,7 +174,7 @@ const updatesErrorPayload = (error: unknown): UpdatesPayload => ({
   updates: [],
 });
 
-const createLearningEngineActions = (
+const createSignalGardenActions = (
   interests: Interest[],
   isOffline: boolean,
   setView: (view: PageView) => void,
@@ -185,7 +185,7 @@ const createLearningEngineActions = (
   importInterests: (file: File) => void,
   saveUpdateToCollection: (collectionId: string, update: Update) => void,
   removeSavedUpdate: (collectionId: string, updateKey: string) => void,
-): LearningEnginePageActions => ({
+): SignalGardenPageActions => ({
   addInterest: (draft) => {
     if (isOffline) {
       showToast("Connect to save interests");
@@ -292,14 +292,12 @@ const createLearningEngineActions = (
   },
 });
 
-type UseLearningEnginePageStateOptions = {
+type UseSignalGardenPageStateOptions = {
   isBrowserOffline: boolean;
 };
 
 // fallow-ignore-next-line complexity
-export const useLearningEnginePageState = ({
-  isBrowserOffline,
-}: UseLearningEnginePageStateOptions) => {
+export const useSignalGardenPageState = ({ isBrowserOffline }: UseSignalGardenPageStateOptions) => {
   const queryClient = useQueryClient();
   const [toast, showToast] = useAutoDismissToast();
   const view = usePageRoute();
@@ -332,7 +330,7 @@ export const useLearningEnginePageState = ({
     isBrowserOffline || interestsQuery.isError || updatesQuery.isError;
   const interests = interestsQuery.data ?? [];
   const visibleInterests = interests.filter((interest) => interest.deletedAt == null);
-  const actions = createLearningEngineActions(
+  const actions = createSignalGardenActions(
     interests,
     isConnectionUnavailable,
     navigateToView,

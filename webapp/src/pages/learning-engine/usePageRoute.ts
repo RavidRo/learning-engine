@@ -2,7 +2,7 @@ import { useSyncExternalStore } from "react";
 
 import { type PageView } from "./types";
 
-const routeChangeEvent = "learning-engine-routechange";
+const routeChangeEvent = "signal-garden-routechange";
 const pathByView: Record<PageView, string> = {
   collections: "/collections",
   interests: "/interests",

@@ -256,7 +256,7 @@ const SourceImagePreview = ({
   const imageQuery = useQuery({
     enabled: canQuerySourceImage(isOffline, manualImageUrl, debouncedSourceUrl),
     queryFn: () => resolveSourceImage({ type: source.type, url: debouncedSourceUrl }),
-    queryKey: ["learning-engine", "source-image", source.type, debouncedSourceUrl] as const,
+    queryKey: ["signal-garden", "source-image", source.type, debouncedSourceUrl] as const,
   });
   const resolvedImageUrl = sourceImageUrl(imageQuery.data);
   const isDebouncing = sourceUrl !== debouncedSourceUrl;

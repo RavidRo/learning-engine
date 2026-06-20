@@ -53,7 +53,7 @@ class AuthenticatedMcpApp:
 
 def create_interest_mcp_server(api: FastAPI) -> FastMCP:  # noqa: C901
     mcp = FastMCP(
-        "Learning Engine Interest Management",
+        "Signal Garden Interest Management",
         stateless_http=True,
         json_response=True,
         streamable_http_path="/",

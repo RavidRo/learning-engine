@@ -63,7 +63,7 @@ async def lifespan(api: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     api = FastAPI(
-        title="Learning Engine",
+        title="Signal Garden",
         summary="Local-first API for personal interests and daily briefing source collection.",
         version=APPLICATION_VERSION,
         lifespan=lifespan,
