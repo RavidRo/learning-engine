@@ -1,0 +1,4 @@
+interface:
+  display_name: "UI/UX Foundations Review"
+  short_description: "Critique layout, hierarchy, spacing, and UI feedback."
+  default_prompt: "Use $ui-ux-foundations-review to review this page's space usage, hierarchy, and interaction feedback."

@@ -36,3 +36,4 @@ Run `task --list` to see various tasks.
 - See `.contextive/definitions.yml` for project-related terms.
 - Refer to `./docs/coding_guidelines.md` for coding guidelines.
 - Consult `./docs/deployment.md` for deployment details.
+- See `openspec/` for product specification.

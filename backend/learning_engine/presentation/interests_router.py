@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
@@ -24,11 +25,17 @@ from learning_engine.application.responses import UpdatesResponse
 from learning_engine.common.timeframe import Timeframe
 from learning_engine.domain.interests import Interests
 from learning_engine.presentation.schemas import (
+    BatchSourceImageRequest,
+    BatchSourceImageResponse,
+    BatchSourceImageResult,
     InterestExportEnvelope,
     SourceImageRequest,
     SourceImageResponse,
 )
 from learning_engine.presentation.state import get_app_state
+
+BATCH_SOURCE_IMAGE_MAX_CONCURRENCY = 10
+BATCH_SOURCE_IMAGE_MAX_REQUESTS = 50
 
 
 def _timeframe_from_days(days: int | None, now: datetime) -> Timeframe:
@@ -55,6 +62,42 @@ async def _source_image_response(
             detail="Could not resolve source image",
         ) from exc
     return SourceImageResponse(image_url=image_url)
+
+
+async def _batch_source_image_result(
+    payload: BatchSourceImageRequest,
+    source_image_provider: SourceImageProvider,
+) -> BatchSourceImageResult:
+    try:
+        response = await _source_image_response(payload, source_image_provider)
+    except HTTPException as exc:
+        return BatchSourceImageResult(
+            source_id=payload.source_id,
+            image_url=None,
+            status=exc.status_code,
+            error=str(exc.detail),
+        )
+    return BatchSourceImageResult(source_id=payload.source_id, image_url=response.image_url)
+
+
+async def _batch_source_image_results(
+    payload: list[BatchSourceImageRequest],
+    source_image_provider: SourceImageProvider,
+) -> list[BatchSourceImageResult]:
+    if len(payload) > BATCH_SOURCE_IMAGE_MAX_REQUESTS:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail=f"Batch source image requests are limited to {BATCH_SOURCE_IMAGE_MAX_REQUESTS} sources",
+        )
+
+    semaphore = asyncio.Semaphore(BATCH_SOURCE_IMAGE_MAX_CONCURRENCY)
+
+    async def resolve_with_limit(source: BatchSourceImageRequest) -> BatchSourceImageResult:
+        async with semaphore:
+            return await _batch_source_image_result(source, source_image_provider)
+
+    results = await asyncio.gather(*(resolve_with_limit(source) for source in payload))
+    return list(results)
 
 
 def interests_router(api: FastAPI) -> APIRouter:
@@ -108,6 +151,12 @@ def interests_router(api: FastAPI) -> APIRouter:
     async def source_image(payload: SourceImageRequest) -> SourceImageResponse:
         app_state = get_app_state(api)
         return await _source_image_response(payload, app_state.source_image_provider)
+
+    @router.post("/source-images", response_model=BatchSourceImageResponse)
+    async def source_images(payload: list[BatchSourceImageRequest]) -> BatchSourceImageResponse:
+        app_state = get_app_state(api)
+        results = await _batch_source_image_results(payload, app_state.source_image_provider)
+        return BatchSourceImageResponse(images=results)
 
     @router.get("/updates", response_model=UpdatesResponse)
     async def updates(
