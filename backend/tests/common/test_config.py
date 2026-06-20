@@ -9,6 +9,12 @@ def test_clerk_issuer_returns_none_when_missing(monkeypatch: pytest.MonkeyPatch)
     assert config.clerk_issuer() is None
 
 
+def test_clerk_issuer_returns_none_when_blank(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "  /  ")
+
+    assert config.clerk_issuer() is None
+
+
 def test_clerk_issuer_trims_trailing_slash(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CLERK_ISSUER", " https://example.clerk.accounts.dev/ ")
 
@@ -27,6 +33,13 @@ def test_clerk_jwks_url_uses_explicit_configuration(monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("CLERK_JWKS_URL", " https://clerk.example.test/jwks.json ")
 
     assert config.clerk_jwks_url() == "https://clerk.example.test/jwks.json"
+
+
+def test_clerk_jwks_url_returns_none_for_blank_explicit_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "https://example.clerk.accounts.dev")
+    monkeypatch.setenv("CLERK_JWKS_URL", "  ")
+
+    assert config.clerk_jwks_url() is None
 
 
 def test_clerk_jwks_url_uses_issuer_default(monkeypatch: pytest.MonkeyPatch) -> None:

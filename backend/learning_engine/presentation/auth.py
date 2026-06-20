@@ -54,12 +54,13 @@ class ClerkTokenVerifier:
     def from_config(cls) -> "ClerkTokenVerifier":
         issuer = clerk_issuer()
         jwks_url = clerk_jwks_url()
-        if issuer is None or jwks_url is None:
+        authorized_parties = clerk_authorized_parties()
+        if issuer is None or jwks_url is None or not authorized_parties:
             raise AuthConfigurationError(CLERK_AUTH_UNAVAILABLE_DETAIL)
         return cls(
             issuer=issuer,
             jwks_client=PyJWKClient(jwks_url),
-            authorized_parties=clerk_authorized_parties(),
+            authorized_parties=authorized_parties,
         )
 
     def verify_token(self, token: str) -> UserContext:

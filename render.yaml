@@ -59,6 +59,12 @@ services:
       - type: rewrite
         source: /api
         destination: https://learning-engine-backend.onrender.com/api
+      - type: rewrite
+        source: /mcp
+        destination: https://learning-engine-backend.onrender.com/mcp
+      - type: rewrite
+        source: /mcp/*
+        destination: https://learning-engine-backend.onrender.com/mcp/*
       # Support client-side routing for the React/Vite app.
       - type: rewrite
         source: /*

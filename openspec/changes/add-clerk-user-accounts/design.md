@@ -1,3 +1,5 @@
+# Design: Clerk User Accounts
+
 ## Context
 
 RAV-18 moves Signal Garden from a single-user deployment model to a multi-user account model. The current FastAPI app wires one `DEFAULT_STORE` into every HTTP route and MCP tool, so interests, update collections, and update cache entries are shared globally. MCP is protected by one `MCP_AUTH_TOKEN`, which is intentionally coarse but cannot isolate different signed-in users.
@@ -58,23 +60,19 @@ The ticket selects Clerk as the identity provider. Clerk's React integration fit
 ## Risks / Trade-offs
 
 - Clerk token verification or JWKS retrieval fails -> Return an explicit unauthorized or service-unavailable response at the auth boundary and do not call application services.
-- Existing deployment data is global and unowned -> Add a migration/backfill step that assigns pre-existing rows to a configured bootstrap user, or fail deployment migration until the operator provides that user id.
+- Existing deployment data is global and unowned -> Export anything worth preserving, reset or recreate the database, deploy the user-account build, and re-import data while signed in as the intended user.
 - User ownership columns and constraints touch multiple tables -> Keep the migration focused on owner columns, indexes, and constraints; avoid unrelated storage refactors.
 - MCP clients may not yet have an ergonomic Clerk login flow -> Document that MCP clients must provide a Clerk session bearer token and leave richer OAuth onboarding for a later ticket.
 - Public API behavior becomes stricter -> Treat anonymous access removal as a breaking change and update frontend, docs, and tests together.
 
 ## Migration Plan
 
-1. Add Clerk configuration without committing secrets: frontend publishable key, backend issuer/JWKS or secret configuration, and optional bootstrap user id for existing rows.
+1. Add Clerk configuration without committing secrets: frontend publishable key and backend issuer/JWKS configuration.
 2. Add auth boundary tests using fake/verifiable tokens before wiring route protection.
-3. Add user ownership columns and constraints to persistence models and migration/backfill logic.
+3. Add user ownership columns and constraints to persistence models.
 4. Update repository ports, application services, HTTP routes, and MCP tools to require user context.
 5. Update the webapp to initialize Clerk, require sign-in, show signed-in user controls, and attach session tokens to API requests.
 6. Update deployment and MCP docs to remove global bearer token setup and explain Clerk user authentication requirements.
 7. Run focused backend and web checks, then `task check` when feasible.
 
-Rollback requires reverting the code deployment and database migration together. If user columns are added in a backward-compatible way before global reads are removed, rollback can keep the columns unused; after code starts enforcing user predicates, rollback must restore the previous global routes or provide a one-time data export first.
-
-## Open Questions
-
-- Which existing Clerk user id should own any already-deployed global data during the first migration?
+Rollback requires reverting the code deployment and database reset together. If old data was exported before the reset, it can be re-imported after returning to the previous build.

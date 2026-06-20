@@ -35,26 +35,20 @@ Set these environment variables in the Render Dashboard:
 - `CLERK_JWKS_URL` on `learning-engine-backend` only when the default
   `<CLERK_ISSUER>/.well-known/jwks.json` URL is not correct.
 - `CLERK_AUTHORIZED_PARTIES` on `learning-engine-backend` as a comma-separated
-  list of allowed frontend origins when the deployment should enforce Clerk's
-  `azp` claim, for example `https://learning-engine-frontend.onrender.com`.
+  list of allowed frontend origins. This is required so the backend can enforce
+  Clerk's `azp` claim, for example `https://learning-engine-frontend.onrender.com`.
 
 Do not commit Clerk secret values. The current backend verifies Clerk session
 JWTs with the issuer and JWKS URL; it does not require a Clerk secret key for the
 implemented request path.
 
-### Existing data bootstrap
+### Existing data reset
 
 RAV-18 changes existing global interest and collection tables into user-owned
-data. Fresh deployments need no bootstrap. For an existing deployment that
-already has global rows, choose the Clerk user id that should own those rows,
-record it in the deployment runbook, and run a one-time database backfill before
-deploying code that enforces user predicates.
-
-The backfill must set that Clerk user id on every existing interest, source,
-source ignore keyword, collection, and saved update row before adding the new
-user-owned uniqueness constraints. If no owner can be chosen, export the old
-data before the deployment and re-import it after signing in as the intended
-user.
+data. Fresh deployments need no reset. For an existing deployment that already
+has global rows, export anything worth preserving, reset or recreate the
+database, deploy the user-account build, then sign in and re-import the exported
+interests as the intended user.
 
 ## MCP interest management
 

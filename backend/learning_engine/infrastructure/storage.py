@@ -2,8 +2,9 @@
 
 from datetime import UTC, datetime
 from typing import Any, cast
+from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, ForeignKeyConstraint, UniqueConstraint, inspect
+from sqlalchemy import Column, DateTime, ForeignKey, ForeignKeyConstraint, UniqueConstraint
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import selectinload
 from sqlmodel import Field, Relationship, Session, SQLModel, create_engine, select
@@ -29,26 +30,14 @@ from learning_engine.domain.interests import (
 from learning_engine.domain.source_types import SourceType
 from learning_engine.domain.updates import SourceInterest
 
-USER_OWNED_TABLES = (
-    "interests",
-    "interest_sources",
-    "source_ignore_keywords",
-    "collections",
-    "saved_collection_updates",
-)
-
-
-class LegacyGlobalSchemaError(RuntimeError):
-    """Raised when an existing database still has pre-auth global tables."""
-
 
 class StoredInterest(SQLModel, table=True):
     """Relational persistence row for an interest."""
 
     __tablename__ = "interests"
 
-    user_id: str = Field(primary_key=True)
     interest_id: str = Field(primary_key=True)
+    user_id: str = Field(index=True)
     name: str
     description: str
     priority: str
@@ -66,11 +55,9 @@ class StoredInterestSource(SQLModel, table=True):
 
     __tablename__ = "interest_sources"
 
-    __table_args__ = (ForeignKeyConstraint(["user_id", "interest_id"], ["interests.user_id", "interests.interest_id"]),)
-
-    user_id: str = Field(primary_key=True)
     source_id: str = Field(primary_key=True)
-    interest_id: str = Field(index=True)
+    user_id: str = Field(index=True)
+    interest_id: str = Field(sa_column=Column(ForeignKey("interests.interest_id"), index=True, nullable=False))
     label: str
     source_type: str
     url: str
@@ -90,13 +77,9 @@ class StoredSourceIgnoreKeyword(SQLModel, table=True):
 
     __tablename__ = "source_ignore_keywords"
 
-    __table_args__ = (
-        ForeignKeyConstraint(["user_id", "source_id"], ["interest_sources.user_id", "interest_sources.source_id"]),
-    )
-
     keyword_id: int | None = Field(default=None, primary_key=True)
-    user_id: str
-    source_id: str = Field(index=True)
+    user_id: str = Field(index=True)
+    source_id: str = Field(sa_column=Column(ForeignKey("interest_sources.source_id"), index=True, nullable=False))
     keyword: str
 
     source: StoredInterestSource = Relationship(back_populates="ignore_keywords")
@@ -156,25 +139,8 @@ class InterestStore:
     def ensure_data_store(self) -> None:
         if self._schema_initialized:
             return
-        self._raise_on_legacy_global_schema()
         SQLModel.metadata.create_all(self.engine)
         self._schema_initialized = True
-
-    def _raise_on_legacy_global_schema(self) -> None:
-        inspector = inspect(self.engine)
-        legacy_tables = [
-            table_name
-            for table_name in USER_OWNED_TABLES
-            if inspector.has_table(table_name)
-            and "user_id" not in {column["name"] for column in inspector.get_columns(table_name)}
-        ]
-        if legacy_tables:
-            joined_tables = ", ".join(legacy_tables)
-            raise LegacyGlobalSchemaError(
-                "Existing database uses the pre-auth global schema. "
-                f"Missing user_id ownership columns on: {joined_tables}. "
-                "Reset the local database or run a one-time backfill/migration before starting the app."
-            )
 
     def list_collections(self, user_context: UserContext) -> Collections:
         self.ensure_data_store()
@@ -463,13 +429,16 @@ class InterestStore:
 
     def _interest_id_or_raise(self, interest: Interest) -> str:
         if interest.id is None:
-            raise ValueError("Interest id is required for database persistence")
+            return self._generated_id("interest")
         return interest.id
 
     def _source_id_or_raise(self, source: InterestSource) -> str:
         if source.id is None:
-            raise ValueError("Source id is required for database persistence")
+            return self._generated_id("source")
         return source.id
+
+    def _generated_id(self, prefix: str) -> str:
+        return f"{prefix}-{uuid4().hex}"
 
     def _raise_on_duplicate_id(self, id_value: str, seen_ids: set[str], label: str) -> None:
         if id_value in seen_ids:

@@ -30,13 +30,17 @@ def spotify_bearer_token() -> str | None:
 
 def clerk_issuer() -> str | None:
     issuer = os.getenv("CLERK_ISSUER")
-    return issuer.strip().rstrip("/") if issuer else None
+    if issuer is None:
+        return None
+    normalized = issuer.strip().rstrip("/")
+    return normalized or None
 
 
 def clerk_jwks_url() -> str | None:
     configured_url = os.getenv("CLERK_JWKS_URL")
-    if configured_url:
-        return configured_url.strip()
+    if configured_url is not None:
+        normalized = configured_url.strip()
+        return normalized or None
     issuer = clerk_issuer()
     if issuer is None:
         return None

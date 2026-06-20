@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import cast
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, select
@@ -21,7 +21,6 @@ from learning_engine.domain.interests import Interests
 from learning_engine.domain.updates import SourceInterest
 from learning_engine.infrastructure.storage import (
     InterestStore,
-    LegacyGlobalSchemaError,
     StoredCollection,
     StoredInterest,
     StoredInterestSource,
@@ -40,32 +39,6 @@ def _sqlite_engine() -> Engine:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-
-
-def test_interest_store_rejects_legacy_global_schema_without_user_ownership() -> None:
-    engine = _sqlite_engine()
-    try:
-        with engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    CREATE TABLE interests (
-                        interest_id TEXT PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        description TEXT NOT NULL,
-                        priority TEXT NOT NULL,
-                        enabled BOOLEAN NOT NULL
-                    )
-                    """
-                )
-            )
-
-        store = InterestStore(engine)
-
-        with pytest.raises(LegacyGlobalSchemaError, match="pre-auth global schema"):
-            store.ensure_data_store()
-    finally:
-        engine.dispose()
 
 
 def _payload() -> Interests:
@@ -195,19 +168,23 @@ def test_interest_store_replaces_removed_interests_and_sources() -> None:
         engine.dispose()
 
 
-def test_interest_store_requires_interest_ids_for_database_persistence() -> None:
+def test_interest_store_generates_missing_interest_ids() -> None:
     engine = _sqlite_engine()
     try:
         store = InterestStore(engine)
         payload = Interests.model_validate({"interests": [{"name": "TypeScript"}]})
 
-        with pytest.raises(ValueError, match="Interest id is required"):
-            store.write_interests(USER_CONTEXT, payload)
+        store.write_interests(USER_CONTEXT, payload)
+
+        stored = store.read_interests(USER_CONTEXT)
+
+        assert stored.interests[0].id is not None
+        assert stored.interests[0].id.startswith("interest-")
     finally:
         engine.dispose()
 
 
-def test_interest_store_requires_source_ids_for_database_persistence() -> None:
+def test_interest_store_generates_missing_source_ids() -> None:
     engine = _sqlite_engine()
     try:
         store = InterestStore(engine)
@@ -223,8 +200,12 @@ def test_interest_store_requires_source_ids_for_database_persistence() -> None:
             }
         )
 
-        with pytest.raises(ValueError, match="Source id is required"):
-            store.write_interests(USER_CONTEXT, payload)
+        store.write_interests(USER_CONTEXT, payload)
+
+        stored = store.read_interests(USER_CONTEXT)
+
+        assert stored.interests[0].sources[0].id is not None
+        assert stored.interests[0].sources[0].id.startswith("source-")
     finally:
         engine.dispose()
 
@@ -298,12 +279,12 @@ def test_interest_store_seeds_fixed_collections_idempotently() -> None:
         with Session(engine) as session:
             stored_collections = session.exec(select(StoredCollection)).all()
 
-        assert [
+        assert sorted(
             (collection.user_id, collection.collection_id, collection.name) for collection in stored_collections
-        ] == [
-            ("user_one", "see-later", "See Later"),
-            ("user_one", "liked", "Liked"),
+        ) == [
             ("user_one", "history", "History"),
+            ("user_one", "liked", "Liked"),
+            ("user_one", "see-later", "See Later"),
         ]
     finally:
         engine.dispose()

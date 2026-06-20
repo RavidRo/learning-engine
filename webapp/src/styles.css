@@ -215,7 +215,7 @@ button:disabled {
   justify-content: center;
   width: 1rem;
   height: 1rem;
-  border: 1px solid currentColor;
+  border: 1px solid currentcolor;
   border-radius: 4px;
   font-size: 7px;
   font-weight: 800;
@@ -267,7 +267,7 @@ button:disabled {
   line-height: 1.55;
   overflow-x: auto;
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .app-status-banner {

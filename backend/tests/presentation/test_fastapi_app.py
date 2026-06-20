@@ -68,7 +68,7 @@ class StubInterestRepository:
     def ensure_data_store(self) -> None:
         return None
 
-    def read_interests(self, _user_context: UserContext = TEST_USER_CONTEXT) -> Interests:
+    def read_interests(self, _user_context: UserContext) -> Interests:
         self.read_calls += 1
         return self.saved_payloads[-1] if self.saved_payloads else self._payload
 
@@ -84,7 +84,7 @@ class StubCollectionRepository:
     def ensure_data_store(self) -> None:
         return None
 
-    def list_collections(self, _user_context: UserContext = TEST_USER_CONTEXT) -> Collections:
+    def list_collections(self, _user_context: UserContext) -> Collections:
         saved_updates_by_collection = {
             "see-later": [
                 saved_update

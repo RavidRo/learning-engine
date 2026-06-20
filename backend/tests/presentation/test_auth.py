@@ -51,6 +51,16 @@ def test_bearer_token_from_authorization_rejects_missing_or_invalid_token(author
 def test_clerk_token_verifier_from_config_requires_clerk_configuration(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("CLERK_ISSUER", raising=False)
     monkeypatch.delenv("CLERK_JWKS_URL", raising=False)
+    monkeypatch.delenv("CLERK_AUTHORIZED_PARTIES", raising=False)
+
+    with pytest.raises(AuthConfigurationError):
+        ClerkTokenVerifier.from_config()
+
+
+def test_clerk_token_verifier_from_config_requires_authorized_parties(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CLERK_ISSUER", "https://clerk.example.com")
+    monkeypatch.setenv("CLERK_AUTHORIZED_PARTIES", " ")
+    monkeypatch.delenv("CLERK_JWKS_URL", raising=False)
 
     with pytest.raises(AuthConfigurationError):
         ClerkTokenVerifier.from_config()
@@ -103,6 +113,18 @@ def test_clerk_token_verifier_rejects_unauthorized_party() -> None:
 
     with pytest.raises(InvalidAuthTokenError):
         verifier.verify_token(token)
+
+
+def test_clerk_token_verifier_accepts_authorized_party() -> None:
+    private_key = _private_key()
+    verifier = _verifier(
+        public_key=private_key.public_key(),
+        authorized_parties=["https://app.example.com"],
+    )
+
+    context = verifier.verify_token(_token(private_key, {"sub": "user_123", "azp": "https://app.example.com"}))
+
+    assert context.user_id == "user_123"
 
 
 def _private_key() -> rsa.RSAPrivateKey:

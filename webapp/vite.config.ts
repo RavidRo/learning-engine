@@ -52,7 +52,7 @@ export default defineConfig({
       registerType: "prompt",
       workbox: {
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/api\//],
+        navigateFallbackDenylist: [/^\/api\//, /^\/mcp(?:\/|$)/],
       },
     }),
   ],
@@ -72,6 +72,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": backendOrigin,
+      "/mcp": backendOrigin,
     },
   },
 });

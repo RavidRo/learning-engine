@@ -25,7 +25,8 @@ the same Clerk issuer/JWKS settings used by the HTTP API:
 - `CLERK_ISSUER`
 - `CLERK_JWKS_URL`, only when the default `<CLERK_ISSUER>/.well-known/jwks.json`
   URL is not correct
-- `CLERK_AUTHORIZED_PARTIES`, when Clerk `azp` claim enforcement is needed
+- `CLERK_AUTHORIZED_PARTIES`, required allowed frontend origins for Clerk `azp`
+  claim enforcement
 
 If Clerk is not configured, `/mcp` returns a service-unavailable response before
 tool handling begins.

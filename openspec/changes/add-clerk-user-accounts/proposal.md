@@ -1,3 +1,5 @@
+# Proposal: Clerk User Accounts
+
 ## Why
 
 Signal Garden currently stores interests, collections, and MCP writes in one global application data set. RAV-18 makes the app usable by multiple people by adding Clerk authentication and scoping each user's data to their signed-in identity.

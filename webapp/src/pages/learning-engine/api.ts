@@ -162,11 +162,15 @@ const saveUpdateToCollection = async (
   collectionId: string,
   update: Update,
 ): Promise<SavedCollectionUpdate> => {
-  const response = await authenticatedFetch(getToken, `/api/collections/${collectionId}/updates`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ update }),
-  });
+  const response = await authenticatedFetch(
+    getToken,
+    `/api/collections/${encodeURIComponent(collectionId)}/updates`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ update }),
+    },
+  );
 
   if (!response.ok) {
     throw new Error(await readError(response));
@@ -182,7 +186,7 @@ const removeSavedUpdate = async (
 ): Promise<void> => {
   const response = await authenticatedFetch(
     getToken,
-    `/api/collections/${collectionId}/updates/${updateKey}`,
+    `/api/collections/${encodeURIComponent(collectionId)}/updates/${encodeURIComponent(updateKey)}`,
     {
       method: "DELETE",
     },

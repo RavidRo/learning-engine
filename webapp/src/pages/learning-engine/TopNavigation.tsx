@@ -87,14 +87,18 @@ const MpcTokenPage = () => {
   }, [copyStatus]);
 
   const copySessionToken = async (): Promise<void> => {
-    const token = await getToken();
-    if (token === null) {
-      setCopyStatus("error");
-      return;
-    }
+    try {
+      const token = await getToken();
+      if (token === null) {
+        setCopyStatus("error");
+        return;
+      }
 
-    await navigator.clipboard.writeText(token);
-    setCopyStatus("copied");
+      await navigator.clipboard.writeText(token);
+      setCopyStatus("copied");
+    } catch {
+      setCopyStatus("error");
+    }
   };
 
   return (

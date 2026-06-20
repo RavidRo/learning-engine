@@ -7,7 +7,7 @@
 
 ## 2. Persistence And Application Boundaries
 
-- [x] 2.1 Decide and document the bootstrap Clerk user id/backfill path for existing global data.
+- [x] 2.1 Decide and document the reset/re-import path for existing global data.
 - [x] 2.2 Add user ownership columns, indexes, and uniqueness constraints to interest, source, collection, and saved update storage models.
 - [x] 2.3 Update `InterestRepository` and `CollectionRepository` ports to require user context for user-owned operations.
 - [x] 2.4 Update storage adapter reads, writes, fixed collection initialization, and import/export replacement to apply user predicates.
