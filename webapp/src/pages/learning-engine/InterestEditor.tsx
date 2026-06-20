@@ -358,62 +358,92 @@ const SourceOptionFields = ({
   dispatch: DraftDispatch;
   source: InterestSource;
 }) => (
-  <details className="source-options">
-    <summary>Options</summary>
-    <div className="source-options-fields">
-      <label>
-        Status
-        <span className="toggle-control">
-          <span>{source.enabled ? "Enabled" : "Paused"}</span>
-          <input
-            checked={source.enabled}
-            name={`source-${source.id}-enabled`}
-            onChange={(event) =>
-              dispatch({
-                enabled: event.currentTarget.checked,
-                id: source.id,
-                type: "setSourceEnabled",
-              })
-            }
-            type="checkbox"
-          />
-        </span>
-      </label>
-      <label>
-        Image URL
+  <div className="source-options-fields">
+    <label>
+      Status
+      <span className="toggle-control">
+        <span>{source.enabled ? "Enabled" : "Paused"}</span>
         <input
-          name={`source-${source.id}-image-url`}
+          checked={source.enabled}
+          name={`source-${source.id}-enabled`}
           onChange={(event) =>
             dispatch({
+              enabled: event.currentTarget.checked,
               id: source.id,
-              imageUrl: event.currentTarget.value,
-              type: "setSourceImageUrl",
+              type: "setSourceEnabled",
             })
           }
-          placeholder="https://example.com/avatar.png"
-          value={source.imageUrl ?? ""}
+          type="checkbox"
         />
-        <span className="field-hint">Leave blank to let the engine find an image.</span>
-      </label>
-      <label>
-        Ignore keywords
-        <input
-          name={`source-${source.id}-ignore-keywords`}
-          onChange={(event) =>
-            dispatch({
-              id: source.id,
-              ignoreKeywords: parseKeywordText(event.currentTarget.value),
-              type: "setSourceIgnoreKeywords",
-            })
-          }
-          placeholder="nightly, webinar"
-          value={keywordText(source.ignoreKeywords)}
-        />
-        <span className="field-hint">Comma-separated terms to skip during collection.</span>
-      </label>
-    </div>
-  </details>
+      </span>
+    </label>
+    <label>
+      Image URL
+      <input
+        name={`source-${source.id}-image-url`}
+        onChange={(event) =>
+          dispatch({
+            id: source.id,
+            imageUrl: event.currentTarget.value,
+            type: "setSourceImageUrl",
+          })
+        }
+        placeholder="https://example.com/avatar.png"
+        value={source.imageUrl ?? ""}
+      />
+      <span className="field-hint">Leave blank to let the engine find an image.</span>
+    </label>
+    <label>
+      Ignore keywords
+      <input
+        name={`source-${source.id}-ignore-keywords`}
+        onChange={(event) =>
+          dispatch({
+            id: source.id,
+            ignoreKeywords: parseKeywordText(event.currentTarget.value),
+            type: "setSourceIgnoreKeywords",
+          })
+        }
+        placeholder="nightly, webinar"
+        value={keywordText(source.ignoreKeywords)}
+      />
+      <span className="field-hint">Comma-separated terms to skip during collection.</span>
+    </label>
+  </div>
 );
+
+const SourceOptionAccordion = ({
+  dispatch,
+  source,
+}: {
+  dispatch: DraftDispatch;
+  source: InterestSource;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const optionsId = `source-${source.id}-options`;
+
+  return (
+    <section className={isExpanded ? "source-options expanded" : "source-options"}>
+      <button
+        aria-controls={optionsId}
+        aria-expanded={isExpanded}
+        className="source-options-toggle"
+        type="button"
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        Options
+      </button>
+      <div
+        aria-hidden={!isExpanded}
+        className="source-options-collapse"
+        id={optionsId}
+        inert={isExpanded ? undefined : true}
+      >
+        <SourceOptionFields dispatch={dispatch} source={source} />
+      </div>
+    </section>
+  );
+};
 
 const SourceEditorCard = ({
   dispatch,
@@ -458,7 +488,7 @@ const SourceEditorCard = ({
       >
         <div className="source-editor-fields">
           <SourceCoreFields dispatch={dispatch} source={source} />
-          <SourceOptionFields dispatch={dispatch} source={source} />
+          <SourceOptionAccordion dispatch={dispatch} source={source} />
           <button
             className="button danger compact"
             disabled={sourcesCount === 1}
