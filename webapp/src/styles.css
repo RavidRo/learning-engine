@@ -731,45 +731,185 @@ textarea {
 
 .sources-editor {
   display: grid;
-  gap: 10px;
+  gap: 0;
   min-width: 0;
-  margin-top: 2px;
+  margin-top: 6px;
 }
 
 .source-editor-header,
 .source-editor-title {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
+}
+
+.source-editor-header {
+  justify-content: space-between;
+}
+
+.source-editor-header {
+  padding-bottom: 10px;
 }
 
 .source-editor-header h3 {
   margin-bottom: 0;
 }
 
+.source-editor-header p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .source-editor-card {
-  display: grid;
-  gap: 10px;
+  display: block;
   min-width: 0;
   max-width: 100%;
+  border-top: 1px solid var(--border);
+  padding: 0;
+}
+
+.source-editor-card:last-child {
+  padding-bottom: 0;
+}
+
+.source-editor-title {
+  width: 100%;
+  min-height: 46px;
+  border: 0;
+  padding: 10px 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  justify-content: flex-start;
+}
+
+.source-editor-title::before {
+  flex: 0 0 auto;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 5px solid var(--accent);
+  content: "";
+  transition: transform 0.15s ease;
+}
+
+.source-editor-card.expanded > .source-editor-title::before {
+  transform: rotate(90deg);
+}
+
+.source-editor-title:focus-visible {
+  border-radius: 6px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.source-editor-copy {
+  min-width: 0;
+  text-align: left;
+}
+
+.source-header-image {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface-muted);
-  padding: 12px;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  overflow: hidden;
+}
+
+.source-header-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.source-header-image.fallback {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
 }
 
 .source-editor-title strong {
+  display: block;
+  color: var(--text);
   font-size: 13px;
+  line-height: 1.35;
+}
+
+.source-editor-meta {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.source-editor-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.14s ease;
+}
+
+.source-editor-card.expanded > .source-editor-collapse {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.source-editor-fields {
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 0 14px;
+}
+
+.source-options {
+  min-width: 0;
+}
+
+.source-options summary {
+  width: fit-content;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.source-options summary:focus-visible {
+  border-radius: 6px;
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.source-options-fields {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 .source-image-preview {
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
+  min-height: 42px;
   color: var(--muted);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .source-image-preview img {
@@ -1369,7 +1509,6 @@ textarea {
   }
 
   .source-editor-header,
-  .source-editor-title,
   .briefing-header,
   .update-group-header,
   .update-item-meta,
@@ -1378,6 +1517,7 @@ textarea {
   .collection-panel-header,
   .panel-header.row,
   .updates-header-actions {
+    align-items: stretch;
     flex-direction: column;
   }
 
@@ -1456,6 +1596,12 @@ textarea {
   .panel-header-actions,
   .interest-transfer-actions {
     width: 100%;
+    justify-content: flex-start;
+  }
+
+  .interest-transfer-actions .save-status {
+    justify-content: center;
+    width: 100%;
   }
 
   .updates-header-actions,
@@ -1497,10 +1643,6 @@ textarea {
   .actions .button {
     min-height: 42px;
   }
-
-  .source-editor-card {
-    padding: 10px;
-  }
 }
 
 @media (max-width: 420px) {
@@ -1524,5 +1666,12 @@ textarea {
   .source-avatar {
     width: 42px;
     height: 42px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .source-editor-collapse,
+  .source-editor-title::before {
+    transition: none;
   }
 }

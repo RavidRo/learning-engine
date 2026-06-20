@@ -132,6 +132,11 @@ const isValidDraft = (draft: InterestDraft): boolean =>
 const sourceDisplayName = (source: InterestSource, index: number): string =>
   source.label.trim() || `Source ${index + 1}`;
 
+const sourceTypeLabel = (sourceType: SourceType): string =>
+  sourceTypeOptions.find((option) => option.value === sourceType)?.label ?? sourceType;
+
+const sourceInitial = (label: string): string => label.trim().charAt(0).toUpperCase() || "S";
+
 const keywordText = (keywords: string[]): string => keywords.join(", ");
 
 const parseKeywordText = (text: string): string[] =>
@@ -164,92 +169,19 @@ const canResolveSourceImage = (manualImageUrl: string, sourceUrl: string): boole
 const sourceImageUrl = (payload: SourceImagePayload | undefined): string =>
   trimmed(payload?.imageUrl);
 
-const SourceImage = ({ imageUrl }: { imageUrl: string }) => {
-  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
-
-  if (imageUrl === failedImageUrl) {
-    return null;
-  }
-
-  return <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImageUrl(imageUrl)} />;
-};
-
-type PreviewMessage = {
-  text: string;
-  visible: boolean;
-};
-
-const firstVisibleMessage = (messages: PreviewMessage[]): string | null =>
-  messages.find((message) => message.visible)?.text ?? null;
-
-const isNoImageFound = (imageUrl: string, isFetched: boolean): boolean =>
-  isFetched && imageUrl === "";
-
-const SourceImagePreviewMessage = ({ message }: { message: string | null }) =>
-  message === null ? null : <span className="source-image-preview-note">{message}</span>;
-
-const OptionalSourceImage = ({ imageUrl }: { imageUrl: string }) =>
-  imageUrl === "" ? null : <SourceImage imageUrl={imageUrl} />;
-
-const previewableImageUrl = (imageUrl: string, message: string | null): string =>
-  message === null ? imageUrl : "";
-
-const SourceImageManualPreview = ({ imageUrl }: { imageUrl: string }) => (
-  <div className="source-image-preview">
-    <span>Preview Image</span>
-    <SourceImage imageUrl={imageUrl} />
-  </div>
-);
-
-const SourceImageOfflinePreview = () => (
-  <div className="source-image-preview">
-    <span>Preview Image</span>
-    <span className="source-image-preview-note">Connect to preview image</span>
-  </div>
-);
-
-const SourceImagePreviewResult = ({
-  imageUrl,
-  isDebouncing,
-  isError,
-  isFetched,
-  isFetching,
-}: {
-  imageUrl: string;
-  isDebouncing: boolean;
-  isError: boolean;
-  isFetched: boolean;
-  isFetching: boolean;
-}) => {
-  const message = firstVisibleMessage([
-    { text: "Loading...", visible: isDebouncing },
-    { text: "Loading...", visible: isFetching },
-    { text: "Image preview unavailable", visible: isError },
-    { text: "No image found", visible: isNoImageFound(imageUrl, isFetched) },
-  ]);
-
-  return (
-    <div className="source-image-preview">
-      <span>Preview Image</span>
-      <SourceImagePreviewMessage message={message} />
-      <OptionalSourceImage imageUrl={previewableImageUrl(imageUrl, message)} />
-    </div>
-  );
-};
-
 const canQuerySourceImage = (
   isOffline: boolean,
   manualImageUrl: string,
   sourceUrl: string,
 ): boolean => !isOffline && canResolveSourceImage(manualImageUrl, sourceUrl);
 
-const SourceImagePreview = ({
+const useSourceHeaderImageUrl = ({
   isOffline,
   source,
 }: {
   isOffline: boolean;
   source: InterestSource;
-}) => {
+}): string => {
   const manualImageUrl = trimmed(source.imageUrl);
   const sourceUrl = source.url.trim();
   const debouncedSourceUrl = useDebouncedValue(sourceUrl, sourceImagePreviewDelayMs);
@@ -259,28 +191,30 @@ const SourceImagePreview = ({
     queryKey: ["signal-garden", "source-image", source.type, debouncedSourceUrl] as const,
   });
   const resolvedImageUrl = sourceImageUrl(imageQuery.data);
-  const isDebouncing = sourceUrl !== debouncedSourceUrl;
 
   if (manualImageUrl !== "") {
-    return <SourceImageManualPreview imageUrl={manualImageUrl} />;
+    return manualImageUrl;
   }
 
-  if (sourceUrl === "") {
-    return null;
-  }
+  return resolvedImageUrl;
+};
 
-  if (isOffline) {
-    return <SourceImageOfflinePreview />;
+const SourceHeaderImage = ({ imageUrl, label }: { imageUrl: string; label: string }) => {
+  const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
+  const canShowImage = imageUrl !== "" && imageUrl !== failedImageUrl;
+
+  if (canShowImage) {
+    return (
+      <span className="source-header-image">
+        <img src={imageUrl} alt="" loading="lazy" onError={() => setFailedImageUrl(imageUrl)} />
+      </span>
+    );
   }
 
   return (
-    <SourceImagePreviewResult
-      imageUrl={resolvedImageUrl}
-      isDebouncing={isDebouncing}
-      isError={imageQuery.isError}
-      isFetched={imageQuery.isFetched}
-      isFetching={imageQuery.isFetching}
-    />
+    <span className="source-header-image fallback" aria-hidden="true">
+      {sourceInitial(label)}
+    </span>
   );
 };
 
@@ -347,40 +281,20 @@ const BasicInterestFields = ({
         required
         value={draft.description}
       />
-      <span className="field-hint">
-        What should future updates about this interest help you notice?
-      </span>
     </label>
   </>
 );
 
-const SourceEditorCard = ({
+const SourceCoreFields = ({
   dispatch,
-  index,
-  isOffline,
   source,
-  sourcesCount,
 }: {
   dispatch: DraftDispatch;
-  index: number;
-  isOffline: boolean;
   source: InterestSource;
-  sourcesCount: number;
 }) => (
-  <section className="source-editor-card">
-    <div className="source-editor-title">
-      <strong>{sourceDisplayName(source, index)}</strong>
-      <button
-        className="button danger compact"
-        disabled={sourcesCount === 1}
-        type="button"
-        onClick={() => dispatch({ id: source.id, type: "removeSource" })}
-      >
-        Remove
-      </button>
-    </div>
+  <>
     <label>
-      Source label
+      Label
       <input
         name={`source-${source.id}-label`}
         onChange={(event) =>
@@ -395,48 +309,8 @@ const SourceEditorCard = ({
         value={source.label}
       />
     </label>
-    <div className="split-fields">
-      <label>
-        Source type
-        <select
-          name={`source-${source.id}-type`}
-          onChange={(event) =>
-            dispatch({
-              id: source.id,
-              sourceType: event.currentTarget.value as SourceType,
-              type: "setSourceType",
-            })
-          }
-          value={source.type}
-        >
-          {sourceTypeOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Status
-        <span className="toggle-control">
-          <span>{source.enabled ? "Enabled" : "Paused"}</span>
-          <input
-            checked={source.enabled}
-            name={`source-${source.id}-enabled`}
-            onChange={(event) =>
-              dispatch({
-                enabled: event.currentTarget.checked,
-                id: source.id,
-                type: "setSourceEnabled",
-              })
-            }
-            type="checkbox"
-          />
-        </span>
-      </label>
-    </div>
     <label>
-      Source URL
+      URL
       <input
         name={`source-${source.id}-url`}
         onChange={(event) =>
@@ -455,44 +329,149 @@ const SourceEditorCard = ({
       </span>
     </label>
     <label>
-      Image URL
-      <input
-        name={`source-${source.id}-image-url`}
+      Type
+      <select
+        name={`source-${source.id}-type`}
         onChange={(event) =>
           dispatch({
             id: source.id,
-            imageUrl: event.currentTarget.value,
-            type: "setSourceImageUrl",
+            sourceType: event.currentTarget.value as SourceType,
+            type: "setSourceType",
           })
         }
-        placeholder="https://example.com/avatar.png"
-        value={source.imageUrl ?? ""}
-      />
-      <span className="field-hint">
-        Optional. Leave blank to let the engine look for a source image.
-      </span>
+        value={source.type}
+      >
+        {sourceTypeOptions.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
     </label>
-    <SourceImagePreview isOffline={isOffline} source={source} />
-    <label>
-      Ignore keywords
-      <input
-        name={`source-${source.id}-ignore-keywords`}
-        onChange={(event) =>
-          dispatch({
-            id: source.id,
-            ignoreKeywords: parseKeywordText(event.currentTarget.value),
-            type: "setSourceIgnoreKeywords",
-          })
-        }
-        placeholder="nightly, webinar"
-        value={keywordText(source.ignoreKeywords)}
-      />
-      <span className="field-hint">
-        Optional comma-separated terms to skip when updates are collected.
-      </span>
-    </label>
-  </section>
+  </>
 );
+
+const SourceOptionFields = ({
+  dispatch,
+  source,
+}: {
+  dispatch: DraftDispatch;
+  source: InterestSource;
+}) => (
+  <details className="source-options">
+    <summary>Options</summary>
+    <div className="source-options-fields">
+      <label>
+        Status
+        <span className="toggle-control">
+          <span>{source.enabled ? "Enabled" : "Paused"}</span>
+          <input
+            checked={source.enabled}
+            name={`source-${source.id}-enabled`}
+            onChange={(event) =>
+              dispatch({
+                enabled: event.currentTarget.checked,
+                id: source.id,
+                type: "setSourceEnabled",
+              })
+            }
+            type="checkbox"
+          />
+        </span>
+      </label>
+      <label>
+        Image URL
+        <input
+          name={`source-${source.id}-image-url`}
+          onChange={(event) =>
+            dispatch({
+              id: source.id,
+              imageUrl: event.currentTarget.value,
+              type: "setSourceImageUrl",
+            })
+          }
+          placeholder="https://example.com/avatar.png"
+          value={source.imageUrl ?? ""}
+        />
+        <span className="field-hint">Leave blank to let the engine find an image.</span>
+      </label>
+      <label>
+        Ignore keywords
+        <input
+          name={`source-${source.id}-ignore-keywords`}
+          onChange={(event) =>
+            dispatch({
+              id: source.id,
+              ignoreKeywords: parseKeywordText(event.currentTarget.value),
+              type: "setSourceIgnoreKeywords",
+            })
+          }
+          placeholder="nightly, webinar"
+          value={keywordText(source.ignoreKeywords)}
+        />
+        <span className="field-hint">Comma-separated terms to skip during collection.</span>
+      </label>
+    </div>
+  </details>
+);
+
+const SourceEditorCard = ({
+  dispatch,
+  index,
+  isOffline,
+  source,
+  sourcesCount,
+}: {
+  dispatch: DraftDispatch;
+  index: number;
+  isOffline: boolean;
+  source: InterestSource;
+  sourcesCount: number;
+}) => {
+  const [isExpanded, setIsExpanded] = useState(source.url.trim() === "");
+  const headerImageUrl = useSourceHeaderImageUrl({ isOffline, source });
+  const sourceName = sourceDisplayName(source, index);
+  const fieldsId = `source-${source.id}-fields`;
+
+  return (
+    <section className={isExpanded ? "source-editor-card expanded" : "source-editor-card"}>
+      <button
+        aria-controls={fieldsId}
+        aria-expanded={isExpanded}
+        className="source-editor-title"
+        type="button"
+        onClick={() => setIsExpanded((expanded) => !expanded)}
+      >
+        <SourceHeaderImage imageUrl={headerImageUrl} label={sourceName} />
+        <span className="source-editor-copy">
+          <strong>{sourceName}</strong>
+          <span className="source-editor-meta">
+            {sourceTypeLabel(source.type)} · {source.enabled ? "Enabled" : "Paused"}
+          </span>
+        </span>
+      </button>
+      <div
+        aria-hidden={!isExpanded}
+        className="source-editor-collapse"
+        id={fieldsId}
+        inert={isExpanded ? undefined : true}
+      >
+        <div className="source-editor-fields">
+          <SourceCoreFields dispatch={dispatch} source={source} />
+          <SourceOptionFields dispatch={dispatch} source={source} />
+          <button
+            className="button danger compact"
+            disabled={sourcesCount === 1}
+            type="button"
+            onClick={() => dispatch({ id: source.id, type: "removeSource" })}
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
 
 const SourcesEditor = ({
   dispatch,
@@ -506,8 +485,10 @@ const SourcesEditor = ({
   <div className="sources-editor">
     <div className="source-editor-header">
       <div>
-        <p className="section-label">Sources</p>
-        <h3>Collection endpoints</h3>
+        <h3>Sources</h3>
+        <p>
+          {sources.length} {sources.length === 1 ? "endpoint" : "endpoints"}
+        </p>
       </div>
       <button
         className="button ghost compact"
@@ -566,9 +547,6 @@ export const InterestEditor = ({
         <div>
           <p className="section-label">{isEditing ? "Editor" : "New interest"}</p>
           <h2>{isEditing ? "Edit interest" : "Add interest"}</h2>
-          <p className="panel-copy">
-            Use this panel when you need to add coverage or adjust an existing signal.
-          </p>
         </div>
         {isEditing ? (
           <button className="button ghost compact" type="button" onClick={onCancelEdit}>
