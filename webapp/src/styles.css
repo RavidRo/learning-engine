@@ -17,7 +17,7 @@
   --danger: #dc2626;
   --danger-soft: #fef2f2;
   --success: #1d7a45;
-  --shadow-soft: 0 18px 50px rgba(17, 24, 22, 0.06);
+  --shadow-soft: 0 1px 2px rgba(17, 24, 22, 0.04);
   --shadow-subtle: 0 1px 2px rgba(17, 24, 22, 0.04);
   font-family:
     "Inter",
@@ -256,7 +256,6 @@ h3 {
   border-color: var(--accent);
   background: var(--accent);
   color: #ffffff;
-  box-shadow: 0 10px 24px rgba(22, 90, 43, 0.16);
 }
 
 .button.primary:hover {
@@ -271,6 +270,14 @@ h3 {
 
 .button.ghost:hover {
   border-color: var(--faint);
+}
+
+.button:focus-visible,
+.icon-button:focus-visible,
+.nav-button:focus-visible,
+.navlinks a:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(22, 90, 43, 0.1);
 }
 
 .button.danger {
@@ -367,9 +374,8 @@ h3 {
 .panel,
 .card {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface);
   box-shadow: var(--shadow-soft);
-  backdrop-filter: blur(16px);
 }
 
 .summary-card {
@@ -435,12 +441,18 @@ h3 {
   grid-template-columns: 340px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .panel {
   border-radius: 8px;
   min-width: 0;
   padding: 18px;
+}
+
+.add-panel,
+.list-panel {
+  width: 100%;
 }
 
 .panel-header {
@@ -496,6 +508,7 @@ h3 {
 label {
   display: grid;
   gap: 6px;
+  min-width: 0;
   color: var(--text-soft);
   font-size: 13px;
   font-weight: 500;
@@ -506,6 +519,7 @@ label {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-width: 0;
   min-height: 42px;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
@@ -525,6 +539,7 @@ input,
 select,
 textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--surface);
@@ -563,7 +578,7 @@ textarea {
   border: 1px dashed var(--border-strong);
   border-radius: 8px;
   padding: 20px;
-  color: var(--muted);
+  color: var(--text-soft);
   background: var(--surface-muted);
 }
 
@@ -585,7 +600,7 @@ textarea {
 }
 
 .card.disabled {
-  opacity: 0.56;
+  background: var(--surface-muted);
 }
 
 .card-main {
@@ -595,7 +610,7 @@ textarea {
 
 .card p {
   margin: 0;
-  color: var(--muted);
+  color: var(--text-soft);
   font-size: 14px;
   line-height: 1.55;
 }
@@ -648,13 +663,55 @@ textarea {
 
 .actions {
   justify-content: flex-end;
-  min-width: 224px;
+  min-width: 130px;
 }
 
 .actions .button {
   min-height: 34px;
   padding: 8px 10px;
   font-size: 13px;
+}
+
+.interest-card {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.interest-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.interest-status-dot {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--muted);
+}
+
+.interest-status-dot.enabled {
+  background: var(--success);
+}
+
+.interest-status-dot.paused {
+  background: var(--faint);
+}
+
+.interest-title-group {
+  display: grid;
+  min-width: 0;
+  gap: 7px;
+}
+
+.interest-title-group h3 {
+  overflow-wrap: anywhere;
+}
+
+.interest-actions {
+  gap: 8px;
 }
 
 .source-links {
@@ -719,6 +776,7 @@ textarea {
 .source-editor-card {
   display: grid;
   gap: 10px;
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
@@ -1279,11 +1337,10 @@ textarea {
 
 @media (max-width: 640px) {
   .shell {
-    width: min(
-      1120px,
-      calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))
-    );
+    width: 100%;
     padding-top: 18px;
+    padding-right: calc(12px + env(safe-area-inset-right, 0px));
+    padding-left: calc(12px + env(safe-area-inset-left, 0px));
   }
 
   .topbar {
@@ -1397,7 +1454,9 @@ textarea {
 
   .update-collection-actions .icon-button,
   .collection-update-card .icon-button {
-    flex: 0 0 38px;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
   }
 
   .row {
@@ -1406,8 +1465,7 @@ textarea {
 
   .panel,
   .panel-copy {
-    max-width: calc(100vw - 28px);
-    overflow: hidden;
+    max-width: 100%;
   }
 
   .header-actions {
@@ -1441,6 +1499,11 @@ textarea {
   .card,
   .update-item-card {
     gap: 12px;
+  }
+
+  .interest-actions .icon-button {
+    width: 44px;
+    height: 44px;
   }
 
   .update-item-card {

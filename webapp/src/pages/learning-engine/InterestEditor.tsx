@@ -554,6 +554,9 @@ export const InterestEditor = ({
         <div>
           <p className="section-label">{isEditing ? "Editor" : "New interest"}</p>
           <h2>{isEditing ? "Edit interest" : "Create an interest"}</h2>
+          <p className="panel-copy">
+            Define the topic once, then attach every source the engine should check.
+          </p>
         </div>
         {isEditing ? (
           <button className="button ghost compact" type="button" onClick={onCancelEdit}>
