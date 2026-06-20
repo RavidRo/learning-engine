@@ -1,4 +1,4 @@
-# Render Blueprint for the hosted Learning Engine stack.
+# Render Blueprint for the hosted Signal Garden stack.
 # See docs/deployment/render.md before applying this Blueprint.
 services:
   - type: web

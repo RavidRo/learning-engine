@@ -11,7 +11,7 @@ The backend is organized into clean-architecture layers. Keep dependencies
 flowing inward through explicit boundaries:
 
 - `common/`: generic utilities only. This layer must not know
-  about Learning Engine domain concepts, application use cases, infrastructure
+  about Signal Garden domain concepts, application use cases, infrastructure
   adapters, provider APIs, persistence, or FastAPI.
 - `domain/`: Pydantic domain models and domain concepts. Keep
   domain models here rather than creating parallel DTOs unless a proposal

@@ -87,7 +87,7 @@ class InterestSource(BaseModel):
 
 
 class Interest(BaseModel):
-    """A general topic tracked by the Learning Engine."""
+    """A general topic tracked by Signal Garden."""
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 

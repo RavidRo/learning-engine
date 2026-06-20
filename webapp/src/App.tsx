@@ -1,3 +1,3 @@
-import { LearningEnginePage } from "./pages/learning-engine/LearningEnginePage";
+import { SignalGardenPage } from "./pages/learning-engine/SignalGardenPage";
 
-export const App = () => <LearningEnginePage />;
+export const App = () => <SignalGardenPage />;

@@ -9,20 +9,20 @@ import { InterestEditor } from "./InterestEditor";
 import { InterestsPanel } from "./InterestsPanel";
 import { TopNavigation } from "./TopNavigation";
 import { UpdatesPage } from "./UpdatesPage";
-import { useLearningEnginePageState } from "./useLearningEnginePageState";
+import { useSignalGardenPageState } from "./useSignalGardenPageState";
 import { useState } from "react";
 
-type LearningEngineState = ReturnType<typeof useLearningEnginePageState>["state"];
-type LearningEngineActions = ReturnType<typeof useLearningEnginePageState>["actions"];
+type SignalGardenState = ReturnType<typeof useSignalGardenPageState>["state"];
+type SignalGardenActions = ReturnType<typeof useSignalGardenPageState>["actions"];
 
 type PageViewContentProps = {
-  actions: LearningEngineActions;
-  editingInterest: LearningEngineState["interests"][number] | null;
+  actions: SignalGardenActions;
+  editingInterest: SignalGardenState["interests"][number] | null;
   editorKey: string;
   onCancelEdit: () => void;
   onEditInterest: (id: string) => void;
-  onCreateInterest: LearningEngineActions["addInterest"];
-  state: LearningEngineState;
+  onCreateInterest: SignalGardenActions["addInterest"];
+  state: SignalGardenState;
 };
 
 const PageViewContent = ({
@@ -94,10 +94,10 @@ const PageViewContent = ({
   );
 };
 
-export const LearningEnginePage = () => {
+export const SignalGardenPage = () => {
   const isBrowserOffline = useIsOffline();
   const pwaUpdate = usePwaUpdate();
-  const { state, actions } = useLearningEnginePageState({ isBrowserOffline });
+  const { state, actions } = useSignalGardenPageState({ isBrowserOffline });
   const [editingInterestId, setEditingInterestId] = useState<string | null>(null);
   const [newEditorVersion, setNewEditorVersion] = useState(0);
   const editingInterest =
