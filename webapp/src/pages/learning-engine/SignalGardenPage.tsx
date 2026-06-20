@@ -4,7 +4,6 @@ import { usePwaUpdate } from "../../usePwaUpdate";
 import { AppStatusBanner } from "./AppStatusBanner";
 import { BriefingSection } from "./BriefingSection";
 import { CollectionsPage } from "./CollectionsPage";
-import { HeroSection } from "./HeroSection";
 import { InterestEditor } from "./InterestEditor";
 import { InterestsPanel } from "./InterestsPanel";
 import { TopNavigation } from "./TopNavigation";
@@ -37,14 +36,6 @@ const PageViewContent = ({
   if (state.view === "interests") {
     return (
       <section className="workspace" aria-label="Interest workspace">
-        <InterestEditor
-          isOffline={state.isConnectionUnavailable}
-          interest={editingInterest}
-          key={editorKey}
-          onCancelEdit={onCancelEdit}
-          onCreateInterest={onCreateInterest}
-          onUpdateInterest={actions.updateInterest}
-        />
         <InterestsPanel
           interests={state.interests}
           isExporting={state.isExporting}
@@ -58,6 +49,14 @@ const PageViewContent = ({
           onToggleInterest={actions.toggleInterest}
           saveError={state.saveError}
           saveStatus={state.saveStatus}
+        />
+        <InterestEditor
+          isOffline={state.isConnectionUnavailable}
+          interest={editingInterest}
+          key={editorKey}
+          onCancelEdit={onCancelEdit}
+          onCreateInterest={onCreateInterest}
+          onUpdateInterest={actions.updateInterest}
         />
       </section>
     );
@@ -118,11 +117,6 @@ export const SignalGardenPage = () => {
           isConnectionUnavailable={state.isConnectionUnavailable}
           onRefreshUpdate={pwaUpdate.refreshUpdate}
           updateAvailable={pwaUpdate.updateAvailable}
-        />
-        <HeroSection
-          enabledInterests={state.enabledInterests}
-          sourcesTracked={state.sourcesTracked}
-          totalInterests={state.interests.length}
         />
 
         <PageViewContent

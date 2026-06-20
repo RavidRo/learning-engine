@@ -25,12 +25,12 @@ export const BriefingSection = () => {
   };
 
   return (
-    <section id="briefing" className="panel briefing">
+    <section id="briefing" className="briefing">
       <div className="briefing-header">
         <div>
-          <p className="section-label">Briefing</p>
-          <h2>Evening prompt</h2>
-          <p>Use this when you want the engine to turn the current interests into a review.</p>
+          <p className="section-label">Briefing utility</p>
+          <h2>Evening review prompt</h2>
+          <p>Use the current interest graph as briefing context.</p>
         </div>
         <button className="button ghost compact" type="button" onClick={() => void copyPrompt()}>
           {didCopy ? "Copied" : "Copy"}

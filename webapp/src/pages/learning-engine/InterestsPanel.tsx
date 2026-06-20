@@ -21,6 +21,23 @@ type InterestsPanelProps = {
 const LoadError = ({ loadError }: { loadError: string | null }) =>
   loadError === null ? null : <p className="empty">Failed to load interests. {loadError}</p>;
 
+const activeInterestCount = (interests: Interest[]): number =>
+  interests.filter((interest) => interest.enabled).length;
+
+const visibleSourceCount = (interests: Interest[]): number =>
+  interests.reduce(
+    (total, interest) =>
+      total + interest.sources.filter((source) => source.deletedAt == null).length,
+    0,
+  );
+
+const interestSummary = (interests: Interest[]): string => {
+  const activeCount = activeInterestCount(interests);
+  const sourceCount = visibleSourceCount(interests);
+
+  return `${activeCount} active of ${interests.length} interests · ${sourceCount} sources tracked`;
+};
+
 const SaveStatusBadge = ({
   isOffline,
   saveError,
@@ -205,7 +222,13 @@ const InterestCards = ({
 }: InterestCardsProps) => (
   <div className="cards" aria-live="polite">
     {loadError !== null ? null : interests.length === 0 ? (
-      <p className="empty">No interests yet. Create one with as many sources as it needs.</p>
+      <div className="empty interest-empty-state">
+        <strong>No interests tracked yet</strong>
+        <p>
+          Add the first interest in the editor, then attach the sources that should feed future
+          updates and briefings.
+        </p>
+      </div>
     ) : (
       interests.map((interest) => (
         <InterestCard
@@ -240,6 +263,7 @@ export const InterestsPanel = ({
       <div>
         <p className="section-label">Signal list</p>
         <h2>Your interests</h2>
+        <p className="panel-copy interest-panel-summary">{interestSummary(interests)}</p>
       </div>
       <div className="panel-header-actions">
         <InterestTransferControls

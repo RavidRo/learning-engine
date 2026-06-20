@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-20T17:23:14+03:00",
+  "title": "Design System: Signal Garden",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Quiet Field",
+        "canonical": "#f8faf8",
+        "tonalRamp": ["oklch(15% 0.012 150)", "oklch(27% 0.012 150)", "oklch(39% 0.012 150)", "oklch(51% 0.012 150)", "oklch(63% 0.012 150)", "oklch(75% 0.012 150)", "oklch(87% 0.012 150)", "oklch(96% 0.012 150)"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "White Surface",
+        "canonical": "#ffffff",
+        "tonalRamp": ["oklch(15% 0 0)", "oklch(27% 0 0)", "oklch(39% 0 0)", "oklch(51% 0 0)", "oklch(63% 0 0)", "oklch(75% 0 0)", "oklch(87% 0 0)", "oklch(100% 0 0)"]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Muted Surface",
+        "canonical": "#f3f6f3",
+        "tonalRamp": ["oklch(15% 0.012 150)", "oklch(27% 0.012 150)", "oklch(39% 0.012 150)", "oklch(51% 0.012 150)", "oklch(63% 0.012 150)", "oklch(75% 0.012 150)", "oklch(87% 0.012 150)", "oklch(95% 0.012 150)"]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Ink Text",
+        "canonical": "#111816",
+        "tonalRamp": ["oklch(12% 0.018 160)", "oklch(20% 0.018 160)", "oklch(31% 0.018 160)", "oklch(43% 0.018 160)", "oklch(55% 0.018 160)", "oklch(67% 0.018 160)", "oklch(79% 0.018 160)", "oklch(91% 0.018 160)"]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Garden Action",
+        "canonical": "#165a2b",
+        "tonalRamp": ["oklch(15% 0.08 150)", "oklch(25% 0.08 150)", "oklch(35% 0.08 150)", "oklch(45% 0.08 150)", "oklch(55% 0.08 150)", "oklch(68% 0.08 150)", "oklch(82% 0.08 150)", "oklch(94% 0.08 150)"]
+      },
+      "signal": {
+        "role": "tertiary",
+        "displayName": "Signal Amber",
+        "canonical": "#d1992a",
+        "tonalRamp": ["oklch(18% 0.09 80)", "oklch(29% 0.09 80)", "oklch(40% 0.09 80)", "oklch(51% 0.09 80)", "oklch(62% 0.09 80)", "oklch(73% 0.09 80)", "oklch(84% 0.09 80)", "oklch(94% 0.09 80)"]
+      },
+      "danger": {
+        "role": "state",
+        "displayName": "Failure Red",
+        "canonical": "#dc2626",
+        "tonalRamp": ["oklch(18% 0.13 28)", "oklch(29% 0.13 28)", "oklch(40% 0.13 28)", "oklch(51% 0.13 28)", "oklch(62% 0.13 28)", "oklch(73% 0.13 28)", "oklch(84% 0.13 28)", "oklch(94% 0.13 28)"]
+      }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "App title and rare page-level identity moments." },
+      "headline": { "displayName": "Headline", "purpose": "Panel headings and page section titles." },
+      "title": { "displayName": "Title", "purpose": "Card titles, group headers, and compact content headings." },
+      "body": { "displayName": "Body", "purpose": "Main descriptive copy and update summaries." },
+      "label": { "displayName": "Label", "purpose": "Buttons, field labels, status labels, and compact controls." },
+      "mono": { "displayName": "Mono", "purpose": "Source identifiers, prompt cards, and technical diagnostics." }
+    },
+    "shadows": [
+      { "name": "keyline-rest", "value": "0 1px 2px rgba(17, 24, 22, 0.04)", "purpose": "Tiny anchored depth for brand marks and small floating details." },
+      { "name": "focus-ring", "value": "0 0 0 4px rgba(22, 90, 43, 0.1)", "purpose": "Accessible focus emphasis for fields and controls." },
+      { "name": "toast-lift", "value": "0 20px 60px rgba(24, 24, 27, 0.18)", "purpose": "Transient system feedback." }
+    ],
+    "motion": [
+      { "name": "state-fast", "value": "150ms ease", "purpose": "Default hover, border, background, and color state changes." },
+      { "name": "toast-feedback", "value": "200ms ease", "purpose": "Toast entrance and exit feedback." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "880px" },
+      { "name": "mobile", "value": "640px" },
+      { "name": "narrow", "value": "420px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action button for refresh, save, and creation flows.",
+      "html": "<button class=\"ds-btn-primary\">Check updates</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--accent, #165a2b); border-radius: 8px; background: var(--accent, #165a2b); color: #ffffff; padding: 10px 14px; font: 600 14px/1 Inter, system-ui, sans-serif; transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease; } .ds-btn-primary:hover { background: var(--accent-hover, #0f4d27); transform: translateY(-1px); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(22, 90, 43, 0.16); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Secondary action button that keeps hierarchy quiet.",
+      "html": "<button class=\"ds-btn-ghost\">Export interests</button>",
+      "css": ".ds-btn-ghost { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid var(--border-strong, #cfdacf); border-radius: 8px; background: var(--surface, #ffffff); color: var(--text, #111816); padding: 10px 14px; font: 600 14px/1 Inter, system-ui, sans-serif; transition: transform 0.15s ease, border-color 0.15s ease; } .ds-btn-ghost:hover { border-color: var(--faint, #a1a1aa); transform: translateY(-1px); } .ds-btn-ghost:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(22, 90, 43, 0.1); }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Standard form field for interests, sources, and filters.",
+      "html": "<label class=\"ds-field-label\">Interest name<input class=\"ds-field\" placeholder=\"TypeScript\" /></label>",
+      "css": ".ds-field-label { display: grid; gap: 6px; color: var(--text-soft, #3f4f49); font: 500 13px/1.35 Inter, system-ui, sans-serif; } .ds-field { width: 100%; border: 1px solid var(--border-strong, #cfdacf); border-radius: 8px; background: var(--surface, #ffffff); color: var(--text, #111816); padding: 11px 12px; font: 400 14px/1.5 Inter, system-ui, sans-serif; outline: none; transition: border-color 0.15s ease, box-shadow 0.15s ease; } .ds-field::placeholder { color: var(--faint, #a1a1aa); } .ds-field:focus { border-color: rgba(22, 90, 43, 0.65); box-shadow: 0 0 0 4px rgba(22, 90, 43, 0.1); }"
+    },
+    {
+      "name": "Top Navigation",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Sticky product navigation with quiet active states.",
+      "html": "<nav class=\"ds-topnav\"><span class=\"ds-brand\">Signal Garden</span><span class=\"ds-links\"><button class=\"ds-nav-active\">Updates</button><button>Interests</button><button>Collections</button></span></nav>",
+      "css": ".ds-topnav { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--border, #dfe7df); background: var(--background, #f8faf8); padding: 0 0 18px; font-family: Inter, system-ui, sans-serif; } .ds-brand { color: var(--text, #111816); font-weight: 600; } .ds-links { display: flex; align-items: center; gap: 18px; } .ds-links button { border: 0; background: transparent; color: var(--muted, #66736e); padding: 0; font: 500 13px/1.35 Inter, system-ui, sans-serif; cursor: pointer; transition: color 0.15s ease; } .ds-links button:hover, .ds-links .ds-nav-active { color: var(--text, #111816); } .ds-links .ds-nav-active { font-weight: 700; }"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Primary shell container for form and content workspaces.",
+      "html": "<section class=\"ds-panel\"><p class=\"ds-section-label\">Interests</p><h2>Tracked topics</h2><p>Organize sources around the updates you want to follow.</p></section>",
+      "css": ".ds-panel { display: grid; gap: 8px; border: 1px solid var(--border, #dfe7df); border-radius: 8px; background: var(--surface, #ffffff); color: var(--text, #111816); padding: 18px; font-family: Inter, system-ui, sans-serif; } .ds-panel h2 { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 500; } .ds-panel p { margin: 0; color: var(--muted, #66736e); font-size: 13px; line-height: 1.55; } .ds-section-label { color: var(--accent, #165a2b) !important; font-weight: 600; font-size: 12px !important; }"
+    },
+    {
+      "name": "Badge",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "Compact metadata chip for priority and source attributes.",
+      "html": "<span class=\"ds-badge\">feed</span>",
+      "css": ".ds-badge { display: inline-flex; align-items: center; min-height: 26px; border: 1px solid var(--border, #dfe7df); border-radius: 999px; background: var(--surface-muted, #f3f6f3); color: var(--text-soft, #3f4f49); padding: 4px 8px; font: 600 12px/1.35 Inter, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Update Card",
+      "kind": "card",
+      "refersTo": "update-card",
+      "description": "Scannable update row with source image, metadata, and collection actions.",
+      "html": "<article class=\"ds-update-card\"><div class=\"ds-avatar\">TS</div><div class=\"ds-update-content\"><a href=\"#\">TypeScript 6.0 beta announced</a><p>Compiler updates and language service changes worth reviewing.</p><div class=\"ds-meta\"><span>TypeScript blog</span><span>feed</span></div></div><button class=\"ds-icon-btn\" aria-label=\"Save\">+</button></article>",
+      "css": ".ds-update-card { display: grid; grid-template-columns: 76px minmax(0, 1fr) auto; gap: 14px; align-items: start; min-height: 92px; border: 1px solid var(--border, #dfe7df); border-radius: 8px; background: var(--surface-muted, #f3f6f3); padding: 14px; font-family: Inter, system-ui, sans-serif; } .ds-avatar { display: inline-flex; align-items: center; justify-content: center; width: 76px; height: 76px; border: 1px solid var(--border, #dfe7df); border-radius: 10px; background: var(--accent-soft, #eaf3ec); color: var(--accent, #165a2b); font-weight: 800; } .ds-update-content { display: grid; gap: 10px; min-width: 0; } .ds-update-content a { color: var(--text, #111816); font-weight: 700; text-decoration: none; overflow-wrap: anywhere; } .ds-update-content p { margin: 0; color: var(--text, #111816); font-size: 13px; line-height: 1.45; } .ds-meta { display: flex; flex-wrap: wrap; gap: 8px; color: var(--muted, #66736e); font-size: 12px; } .ds-icon-btn { width: 38px; height: 38px; border: 1px solid var(--border-strong, #cfdacf); border-radius: 8px; background: var(--surface, #ffffff); color: var(--text-soft, #3f4f49); font: 700 18px/1 Inter, system-ui, sans-serif; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s ease, color 0.15s ease; } .ds-icon-btn:hover { border-color: var(--faint, #a1a1aa); color: var(--text, #111816); transform: translateY(-1px); }"
+    },
+    {
+      "name": "Status Callout",
+      "kind": "custom",
+      "refersTo": "callout",
+      "description": "Compact state block for loading, empty, warning, and error states.",
+      "html": "<div class=\"ds-callout\"><strong>No saved updates</strong><span>Save updates from the Updates page to collect them here.</span></div>",
+      "css": ".ds-callout { display: grid; gap: 4px; border: 1px dashed var(--border, #dfe7df); border-radius: 8px; background: var(--surface-muted, #f3f6f3); padding: 12px; font-family: Inter, system-ui, sans-serif; } .ds-callout strong { color: var(--text, #111816); font-size: 13px; } .ds-callout span { color: var(--muted, #66736e); font-size: 12px; line-height: 1.45; }"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "Transient confirmation or system feedback.",
+      "html": "<div class=\"ds-toast\">Saved to collection</div>",
+      "css": ".ds-toast { display: inline-flex; border: 1px solid #27272a; border-radius: 8px; background: #18181b; color: #ffffff; padding: 12px 16px; box-shadow: 0 20px 60px rgba(24, 24, 27, 0.18); font: 600 13px/1.35 Inter, system-ui, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "Signal Workshop",
+    "overview": "Signal Garden is a precise workbench for turning noisy source streams into usable updates. The interface should feel calm, technical, and daily-use ready: a place where technical users can define interests, inspect fresh updates, save useful items, and leave clean structure behind for AI agents.\n\nThe visual system is restrained by design. Light garden-tinted neutrals carry most of the surface area, deep green marks primary action and active state, and amber appears only as a small signal accent. The system rejects marketing-page theatrics, decorative garden theming, social-feed engagement patterns, and dashboard chrome that competes with update content.\n\nComponents are precise and quiet: compact type, 8px control radii, visible borders, stable spacing, and clear status treatments. Depth exists, but only as layered restraint: borders, tonal surfaces, and focus rings do the work; shadows are reserved for transient feedback.",
+    "keyCharacteristics": [
+      "Restrained product shell with one primary green accent.",
+      "Dense but readable information hierarchy for interests, sources, updates, and collections.",
+      "Borders, tonal surfaces, and focus rings first; shadows only where depth clarifies transient feedback.",
+      "Human-readable states for loading, empty, saved, offline, warning, and error moments.",
+      "Explicit source and interest language that works for both humans and AI agents."
+    ],
+    "rules": [
+      { "name": "The One Green Rule", "body": "Garden green is the single primary action voice. Do not introduce another saturated action color for routine commands.", "section": "colors" },
+      { "name": "The Amber Is A Pin Rule", "body": "Amber marks a signal point or important status. It must never become a broad warning palette or decorative wash.", "section": "colors" },
+      { "name": "The Surface First Rule", "body": "Most contrast should come from text, borders, and tonal surfaces. Large color fields are reserved for future onboarding or explicit brand moments, not daily app screens.", "section": "colors" },
+      { "name": "The Product Type Rule", "body": "One sans family carries the interface. Do not add display fonts, tightened letter spacing, or dramatic type contrast for ordinary app UI.", "section": "typography" },
+      { "name": "The Source Precision Rule", "body": "Use mono only where the content is technical or identifier-like. Mono is for source clarity, not decoration.", "section": "typography" },
+      { "name": "The Border-Led Shell Rule", "body": "The app shell is defined by keylines, spacing, and tonal surfaces. Do not pair 1px borders with broad decorative shadows on panels, cards, or buttons.", "section": "elevation" },
+      { "name": "The No Decorative Glass Rule", "body": "Backdrop blur is not part of the core component language. Use opaque or near-opaque surfaces for panels and navigation unless a specific overlay needs it.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do preserve the product register: restrained, task-first, and familiar to technical users.",
+      "Do use Garden Action for primary actions, selected states, focus moments, and source affordances.",
+      "Do keep component radii near 8px and use 999px only for badges, chips, and dots.",
+      "Do expose loading, empty, saved, offline, warning, and error states with clear recovery text.",
+      "Do keep source and interest concepts visually explicit so humans and AI agents can understand the same structure.",
+      "Do use borders, tonal backgrounds, and focus rings before reaching for shadows."
+    ],
+    "donts": [
+      "Don't make the app feel like a marketing landing page, a social feed optimized for engagement, or a decorative garden-themed interface.",
+      "Don't use large green gradients, leaf-pattern backgrounds, playful botanical illustrations, nested cards, or dashboard chrome that competes with the updates themselves.",
+      "Don't hide failures behind quiet fallbacks. Collection, source, and agent-integration failures need clear states and recovery paths.",
+      "Don't introduce decorative glassmorphism, gradient text, oversized rounded cards, or colored side-stripe borders.",
+      "Don't add new saturated accent colors for routine UI states. The palette is restrained on purpose.",
+      "Don't use display fonts, tightened heading letter spacing, or editorial typography inside product controls and data rows."
+    ]
+  }
+}

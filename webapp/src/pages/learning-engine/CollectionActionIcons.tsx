@@ -26,6 +26,40 @@ export const HeartIcon = ({ className }: IconProps) => (
   </svg>
 );
 
+export const PencilIcon = ({ className }: IconProps) => (
+  <svg aria-hidden="true" className={className} fill="none" focusable="false" viewBox="0 0 24 24">
+    <path
+      d="m5.25 18.75 3.5-.75 9.35-9.35a2.05 2.05 0 0 0-2.9-2.9L5.85 15.1l-.6 3.65ZM13.75 7.2l3.05 3.05"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    />
+  </svg>
+);
+
+export const PauseIcon = ({ className }: IconProps) => (
+  <svg aria-hidden="true" className={className} fill="none" focusable="false" viewBox="0 0 24 24">
+    <path
+      d="M9.25 7.25v9.5M14.75 7.25v9.5"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeWidth="1.9"
+    />
+  </svg>
+);
+
+export const PlayIcon = ({ className }: IconProps) => (
+  <svg aria-hidden="true" className={className} fill="none" focusable="false" viewBox="0 0 24 24">
+    <path
+      d="M8.75 6.75v10.5l8-5.25-8-5.25Z"
+      stroke="currentColor"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+    />
+  </svg>
+);
+
 export const TrashIcon = ({ className }: IconProps) => (
   <svg aria-hidden="true" className={className} fill="none" focusable="false" viewBox="0 0 24 24">
     <path
